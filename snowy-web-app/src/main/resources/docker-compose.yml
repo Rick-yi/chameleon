@@ -1,0 +1,61 @@
+# 注意：上游 Snowy 仓库未提供根目录 Dockerfile，因此本文件的 build 段目前不可用。
+version: '3.8'
+
+services:
+  chameleon-web-app:
+    build: 
+      context: ../../../
+      dockerfile: Dockerfile
+    image: chameleon-web-app:latest
+    container_name: chameleon-web-app
+    ports:
+      - "82:82"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - MYSQL_HOST=chameleon-mysql
+      - MYSQL_PORT=3306
+      - MYSQL_DB=chameleon
+      - MYSQL_USER=root
+      - MYSQL_PWD=12345678
+      - REDIS_HOST=chameleon-redis
+      - REDIS_PORT=6379
+      - REDIS_PWD=
+      - REDIS_DB=1
+    depends_on:
+      - chameleon-mysql
+      - chameleon-redis
+    networks:
+      - chameleon-network
+
+  chameleon-mysql:
+    image: mysql:8.0
+    container_name: chameleon-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=12345678
+      - MYSQL_DATABASE=chameleon
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - chameleon-network
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  chameleon-redis:
+    image: redis:7.0
+    container_name: chameleon-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - chameleon-network
+    command: redis-server --appendonly yes
+
+networks:
+  chameleon-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
