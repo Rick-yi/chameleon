@@ -262,7 +262,8 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
         boolean refundUpdated = this.update(new LambdaUpdateWrapper<StudentRefund>()
                 .eq(StudentRefund::getId, refund.getId())
                 .eq(StudentRefund::getStatus, StudentRefundStatusEnum.TO_REFUND.getValue())
-                .set(StudentRefund::getStatus, StudentRefundStatusEnum.REFUNDED.getValue()));
+                .set(StudentRefund::getStatus, StudentRefundStatusEnum.REFUNDED.getValue())
+                .set(StudentRefund::getRefundTime, new Date()));
         if (!refundUpdated) {
             throw new CommonException("退费单状态已变化，请刷新后重试");
         }

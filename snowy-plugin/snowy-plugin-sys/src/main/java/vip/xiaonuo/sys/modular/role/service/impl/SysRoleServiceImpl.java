@@ -42,6 +42,7 @@ import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.mobile.api.MobileMenuApi;
 import vip.xiaonuo.sys.core.enums.SysBuildInEnum;
 import vip.xiaonuo.sys.core.enums.SysDataTypeEnum;
+import vip.xiaonuo.sys.core.util.SysResourceVisibilityUtil;
 import vip.xiaonuo.sys.modular.org.entity.SysOrg;
 import vip.xiaonuo.sys.modular.org.param.SysOrgSelectorTreeParam;
 import vip.xiaonuo.sys.modular.org.service.SysOrgService;
@@ -409,13 +410,8 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         if(!containsTen) {
             lambdaQueryWrapper.ne(SysMenu::getCode, SysBuildInEnum.BUILD_IN_NO_TEN_MENU_CODE.getValue());
         }
-        // 业务租户不展示平台运营资源，避免误授权（模块行的 module 为空，需要保留其他模块）
-        if (!"0".equals(TenantContext.getTenantId())) {
-            lambdaQueryWrapper.ne(SysMenu::getId, "mod_platform_001");
-            lambdaQueryWrapper.and(q -> q.ne(SysMenu::getModule, "mod_platform_001")
-                    .or().isNull(SysMenu::getModule));
-        }
-        return this.resourceTreeSelector(sysMenuService.list(lambdaQueryWrapper));
+        return this.resourceTreeSelector(SysResourceVisibilityUtil.filterForCurrentTenant(
+                sysMenuService.list(lambdaQueryWrapper)));
     }
 
     @Override
@@ -480,14 +476,16 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         });
         Map<String, List<SysRoleGrantResourceTreeResult.SysRoleGrantResourceMenuResult>> menuListGroup = leafMenuList.stream()
                 .collect(Collectors.groupingBy(SysRoleGrantResourceTreeResult.SysRoleGrantResourceMenuResult::getModule));
-        return sysModuleList.stream().map(sysModule -> {
-            SysRoleGrantResourceTreeResult sysRoleGrantResourceTreeResult = new SysRoleGrantResourceTreeResult();
-            sysRoleGrantResourceTreeResult.setId(sysModule.getId());
-            sysRoleGrantResourceTreeResult.setTitle(sysModule.getTitle());
-            sysRoleGrantResourceTreeResult.setIcon(sysModule.getIcon());
-            sysRoleGrantResourceTreeResult.setMenu(menuListGroup.get(sysModule.getId()));
-            return sysRoleGrantResourceTreeResult;
-        }).collect(Collectors.toList());
+        return sysModuleList.stream()
+                .filter(sysModule -> CollectionUtil.isNotEmpty(menuListGroup.get(sysModule.getId())))
+                .map(sysModule -> {
+                    SysRoleGrantResourceTreeResult sysRoleGrantResourceTreeResult = new SysRoleGrantResourceTreeResult();
+                    sysRoleGrantResourceTreeResult.setId(sysModule.getId());
+                    sysRoleGrantResourceTreeResult.setTitle(sysModule.getTitle());
+                    sysRoleGrantResourceTreeResult.setIcon(sysModule.getIcon());
+                    sysRoleGrantResourceTreeResult.setMenu(menuListGroup.get(sysModule.getId()));
+                    return sysRoleGrantResourceTreeResult;
+                }).collect(Collectors.toList());
     }
 
     @Override
@@ -509,11 +507,13 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
             permissionResult = Convert.toList(String.class,permissionResourceObject);
         }
 
-        return CollectionUtil.sortByPinyin(permissionResult.stream().filter(api ->
+        List<String> visibleApiList = permissionResult.stream().filter(api ->
                 !api.startsWith("/" + StrUtil.BRACKET_START)
                         && !api.startsWith("/error")
                         && !api.contains("/api-docs")
-                        && !api.contains("/swagger-resources")).collect(Collectors.toList()));
+                        && !api.contains("/swagger-resources")).collect(Collectors.toList());
+        // 业务租户不展示平台专用接口权限
+        return CollectionUtil.sortByPinyin(SysResourceVisibilityUtil.filterApiForCurrentTenant(visibleApiList));
     }
 
     @Override

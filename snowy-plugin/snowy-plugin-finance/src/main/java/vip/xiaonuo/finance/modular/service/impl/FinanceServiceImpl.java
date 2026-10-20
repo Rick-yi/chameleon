@@ -17,9 +17,14 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import vip.xiaonuo.finance.modular.service.FinanceService;
 import vip.xiaonuo.student.api.StudentFinanceApi;
+import vip.xiaonuo.student.api.dto.DashboardOverviewDTO;
+import vip.xiaonuo.student.api.dto.FinanceChannelDTO;
+import vip.xiaonuo.student.api.dto.FinanceCourseRankDTO;
 import vip.xiaonuo.student.api.dto.FinancePaymentDTO;
 import vip.xiaonuo.student.api.dto.FinanceRefundDTO;
 import vip.xiaonuo.student.api.dto.FinanceStatDTO;
+import vip.xiaonuo.student.api.dto.FinanceSummaryDTO;
+import vip.xiaonuo.student.api.dto.FinanceTrendDTO;
 import vip.xiaonuo.student.api.param.FinanceQueryParam;
 
 import java.util.List;
@@ -53,5 +58,30 @@ public class FinanceServiceImpl implements FinanceService {
     @Override
     public List<FinanceStatDTO> courseStat(FinanceQueryParam financeQueryParam) {
         return studentFinanceApi.courseStat(financeQueryParam);
+    }
+
+    @Override
+    public FinanceSummaryDTO summary(FinanceQueryParam financeQueryParam) {
+        return studentFinanceApi.summary(financeQueryParam);
+    }
+
+    @Override
+    public List<FinanceTrendDTO> trend(FinanceQueryParam financeQueryParam) {
+        return studentFinanceApi.trend(financeQueryParam);
+    }
+
+    @Override
+    public List<FinanceChannelDTO> channelStat(FinanceQueryParam financeQueryParam) {
+        return studentFinanceApi.channelStat(financeQueryParam);
+    }
+
+    @Override
+    public List<FinanceCourseRankDTO> courseRank(FinanceQueryParam financeQueryParam) {
+        return studentFinanceApi.courseRank(financeQueryParam);
+    }
+
+    @Override
+    public DashboardOverviewDTO dashboard(FinanceQueryParam financeQueryParam) {
+        return studentFinanceApi.dashboard(financeQueryParam);
     }
 }

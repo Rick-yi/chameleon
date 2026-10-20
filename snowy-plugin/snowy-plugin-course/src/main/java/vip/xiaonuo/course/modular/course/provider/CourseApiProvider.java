@@ -19,6 +19,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import vip.xiaonuo.course.api.CourseApi;
+import vip.xiaonuo.course.modular.course.entity.Course;
+import vip.xiaonuo.course.modular.course.mapper.CourseMapper;
 import vip.xiaonuo.course.modular.courseclass.entity.CourseClass;
 import vip.xiaonuo.course.modular.courseclass.mapper.CourseClassMapper;
 import vip.xiaonuo.course.modular.courseclassstudent.entity.CourseClassStudent;
@@ -52,6 +54,9 @@ public class CourseApiProvider implements CourseApi {
 
     @Resource
     private CoursePackageMapper coursePackageMapper;
+
+    @Resource
+    private CourseMapper courseMapper;
 
     @Override
     public JSONObject getCourseClassInfo(String classId) {
@@ -107,5 +112,24 @@ public class CourseApiProvider implements CourseApi {
                 .set("giftLessons", coursePackage.getGiftLessons())
                 .set("price", coursePackage.getPrice())
                 .set("validityDays", coursePackage.getValidityDays());
+    }
+
+    @Override
+    public String getCourseName(String courseId) {
+        Course course = courseMapper.selectById(courseId);
+        return ObjectUtil.isEmpty(course) ? null : course.getName();
+    }
+
+    @Override
+    public List<String> listScheduleIdsByCampus(String campusId) {
+        List<String> classIdList = courseClassMapper.selectList(new LambdaQueryWrapper<CourseClass>()
+                        .eq(CourseClass::getCampusId, campusId))
+                .stream().map(CourseClass::getId).collect(Collectors.toList());
+        if (ObjectUtil.isEmpty(classIdList)) {
+            return List.of();
+        }
+        return courseScheduleMapper.selectList(new LambdaQueryWrapper<CourseSchedule>()
+                        .in(CourseSchedule::getClassId, classIdList))
+                .stream().map(CourseSchedule::getId).distinct().collect(Collectors.toList());
     }
 }

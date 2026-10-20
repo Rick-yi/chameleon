@@ -79,4 +79,8 @@ public class StudentRefund extends CommonEntity {
     /** 审批时间 */
     @Schema(description = "审批时间")
     private Date approveTime;
+
+    /** 退款完成时间 */
+    @Schema(description = "退款完成时间")
+    private Date refundTime;
 }

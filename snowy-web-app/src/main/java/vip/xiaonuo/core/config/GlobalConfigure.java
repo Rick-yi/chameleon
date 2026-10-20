@@ -220,8 +220,6 @@ public class GlobalConfigure implements WebMvcConfigurer {
      * 仅超管使用的接口地址集合
      */
     private static final String[] SUPER_PERMISSION_PATH_ARR = {
-            "/auth/session/**",
-            "/auth/third/page",
             "/client/user/**",
             "/sys/org/**",
             "/sys/group/**",
@@ -233,6 +231,18 @@ public class GlobalConfigure implements WebMvcConfigurer {
             "/sys/index/toolDataCount",
             "/dev/config/**",
             "/dev/dict/**",
+    };
+
+    /**
+     * 仅平台运营使用的接口地址集合
+     */
+    private static final String[] PLATFORM_PERMISSION_PATH_ARR = {
+            "/platform/**",
+            "/auth/session/**",
+            "/auth/third/page",
+            "/sys/button/**",
+            "/sys/menu/**",
+            "/sys/module/**",
             "/dev/email/page",
             "/dev/email/delete",
             "/dev/email/detail",
@@ -250,16 +260,6 @@ public class GlobalConfigure implements WebMvcConfigurer {
             "/dev/sms/delete",
             "/dev/sms/detail",
             "/dev/slideshow/**",
-    };
-
-    /**
-     * 仅平台运营使用的接口地址集合
-     */
-    private static final String[] PLATFORM_PERMISSION_PATH_ARR = {
-            "/platform/**",
-            "/sys/button/**",
-            "/sys/menu/**",
-            "/sys/module/**",
             "/gen/**",
             "/mobile/menu/**",
             "/mobile/module/**"

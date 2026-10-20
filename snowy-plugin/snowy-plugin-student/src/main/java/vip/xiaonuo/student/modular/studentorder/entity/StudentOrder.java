@@ -51,6 +51,10 @@ public class StudentOrder extends CommonEntity {
     @Schema(description = "课程id(快照)")
     private String courseId;
 
+    /** 校区id(快照) */
+    @Schema(description = "校区id(快照)")
+    private String campusId;
+
     /** 课包名称快照 */
     @Schema(description = "课包名称快照")
     private String packageName;

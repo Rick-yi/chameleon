@@ -13,9 +13,14 @@
 package vip.xiaonuo.finance.modular.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import vip.xiaonuo.student.api.dto.DashboardOverviewDTO;
+import vip.xiaonuo.student.api.dto.FinanceChannelDTO;
+import vip.xiaonuo.student.api.dto.FinanceCourseRankDTO;
 import vip.xiaonuo.student.api.dto.FinancePaymentDTO;
 import vip.xiaonuo.student.api.dto.FinanceRefundDTO;
 import vip.xiaonuo.student.api.dto.FinanceStatDTO;
+import vip.xiaonuo.student.api.dto.FinanceSummaryDTO;
+import vip.xiaonuo.student.api.dto.FinanceTrendDTO;
 import vip.xiaonuo.student.api.param.FinanceQueryParam;
 
 import java.util.List;
@@ -36,4 +41,19 @@ public interface FinanceService {
 
     /** 经营报表（按课程汇总） */
     List<FinanceStatDTO> courseStat(FinanceQueryParam financeQueryParam);
+
+    /** 财务汇总 */
+    FinanceSummaryDTO summary(FinanceQueryParam financeQueryParam);
+
+    /** 财务趋势 */
+    List<FinanceTrendDTO> trend(FinanceQueryParam financeQueryParam);
+
+    /** 收款渠道占比 */
+    List<FinanceChannelDTO> channelStat(FinanceQueryParam financeQueryParam);
+
+    /** 课程收款排行 */
+    List<FinanceCourseRankDTO> courseRank(FinanceQueryParam financeQueryParam);
+
+    /** 经营看板 */
+    DashboardOverviewDTO dashboard(FinanceQueryParam financeQueryParam);
 }

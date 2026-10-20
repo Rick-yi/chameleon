@@ -21,9 +21,14 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import vip.xiaonuo.common.pojo.CommonResult;
 import vip.xiaonuo.finance.modular.service.FinanceService;
+import vip.xiaonuo.student.api.dto.DashboardOverviewDTO;
+import vip.xiaonuo.student.api.dto.FinanceChannelDTO;
+import vip.xiaonuo.student.api.dto.FinanceCourseRankDTO;
 import vip.xiaonuo.student.api.dto.FinancePaymentDTO;
 import vip.xiaonuo.student.api.dto.FinanceRefundDTO;
 import vip.xiaonuo.student.api.dto.FinanceStatDTO;
+import vip.xiaonuo.student.api.dto.FinanceSummaryDTO;
+import vip.xiaonuo.student.api.dto.FinanceTrendDTO;
 import vip.xiaonuo.student.api.param.FinanceQueryParam;
 
 import java.util.List;
@@ -76,5 +81,65 @@ public class FinanceController {
     @GetMapping("/finance/stat")
     public CommonResult<List<FinanceStatDTO>> stat(FinanceQueryParam financeQueryParam) {
         return CommonResult.data(financeService.courseStat(financeQueryParam));
+    }
+
+    /**
+     * 财务汇总
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     */
+    @Operation(summary = "财务汇总")
+    @GetMapping("/finance/report/summary")
+    public CommonResult<FinanceSummaryDTO> summary(FinanceQueryParam financeQueryParam) {
+        return CommonResult.data(financeService.summary(financeQueryParam));
+    }
+
+    /**
+     * 财务趋势
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     */
+    @Operation(summary = "财务趋势")
+    @GetMapping("/finance/report/trend")
+    public CommonResult<List<FinanceTrendDTO>> trend(FinanceQueryParam financeQueryParam) {
+        return CommonResult.data(financeService.trend(financeQueryParam));
+    }
+
+    /**
+     * 收款渠道占比
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     */
+    @Operation(summary = "收款渠道占比")
+    @GetMapping("/finance/report/channel")
+    public CommonResult<List<FinanceChannelDTO>> channel(FinanceQueryParam financeQueryParam) {
+        return CommonResult.data(financeService.channelStat(financeQueryParam));
+    }
+
+    /**
+     * 课程收款排行
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     */
+    @Operation(summary = "课程收款排行")
+    @GetMapping("/finance/report/courseRank")
+    public CommonResult<List<FinanceCourseRankDTO>> courseRank(FinanceQueryParam financeQueryParam) {
+        return CommonResult.data(financeService.courseRank(financeQueryParam));
+    }
+
+    /**
+     * 经营看板
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     */
+    @Operation(summary = "经营看板")
+    @GetMapping("/finance/report/dashboard")
+    public CommonResult<DashboardOverviewDTO> dashboard(FinanceQueryParam financeQueryParam) {
+        return CommonResult.data(financeService.dashboard(financeQueryParam));
     }
 }

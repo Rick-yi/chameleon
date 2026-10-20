@@ -87,12 +87,33 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
             }
             jdbcTemplate.update("UPDATE `STUDENT_ORDER` SET `CONSUMED_LESSONS` = 0.00 WHERE `CONSUMED_LESSONS` IS NULL");
             jdbcTemplate.update("UPDATE `STUDENT_ORDER` SET `REFUNDED_LESSONS` = 0.00 WHERE `REFUNDED_LESSONS` IS NULL");
+            if (!columnExists("STUDENT_ORDER", "CAMPUS_ID")) {
+                jdbcTemplate.execute("ALTER TABLE `STUDENT_ORDER` ADD COLUMN `CAMPUS_ID` varchar(20) NULL DEFAULT NULL COMMENT '校区id(下单快照)' AFTER `COURSE_ID`");
+                log.info(">>> 报表结构升级：STUDENT_ORDER.CAMPUS_ID 已添加");
+            }
+            // 历史订单按学员当前校区回填，避免按校区筛选时缺失
+            jdbcTemplate.update("UPDATE `STUDENT_ORDER` o JOIN `STUDENT` s ON o.`STUDENT_ID` = s.`ID` SET o.`CAMPUS_ID` = s.`CAMPUS_ID` WHERE o.`CAMPUS_ID` IS NULL");
+            if (!indexExists("STUDENT_ORDER", "IDX_ORDER_TENANT_PAYTIME")) {
+                jdbcTemplate.execute("ALTER TABLE `STUDENT_ORDER` ADD INDEX `IDX_ORDER_TENANT_PAYTIME` (`TENANT_ID`, `PAY_TIME`, `STATUS`)");
+            }
+            if (!indexExists("STUDENT_ORDER", "IDX_ORDER_TENANT_CAMPUS")) {
+                jdbcTemplate.execute("ALTER TABLE `STUDENT_ORDER` ADD INDEX `IDX_ORDER_TENANT_CAMPUS` (`TENANT_ID`, `CAMPUS_ID`, `PAY_TIME`)");
+            }
 
             if (!columnExists("STUDENT_REFUND", "GIFT_LESSONS")) {
                 jdbcTemplate.execute("ALTER TABLE `STUDENT_REFUND` ADD COLUMN `GIFT_LESSONS` decimal(10,2) NULL DEFAULT 0.00 COMMENT '随订单作废的赠课课时' AFTER `REFUND_LESSONS`");
                 log.info(">>> P0 结构升级：STUDENT_REFUND.GIFT_LESSONS 已添加");
             }
             jdbcTemplate.update("UPDATE `STUDENT_REFUND` SET `GIFT_LESSONS` = 0.00 WHERE `GIFT_LESSONS` IS NULL");
+            if (!columnExists("STUDENT_REFUND", "REFUND_TIME")) {
+                jdbcTemplate.execute("ALTER TABLE `STUDENT_REFUND` ADD COLUMN `REFUND_TIME` datetime NULL DEFAULT NULL COMMENT '退款完成时间' AFTER `APPROVE_TIME`");
+                log.info(">>> 报表结构升级：STUDENT_REFUND.REFUND_TIME 已添加");
+            }
+            // 历史已退款单回填完成时间
+            jdbcTemplate.update("UPDATE `STUDENT_REFUND` SET `REFUND_TIME` = COALESCE(`UPDATE_TIME`, `APPROVE_TIME`, `CREATE_TIME`) WHERE `STATUS` = 'REFUNDED' AND `REFUND_TIME` IS NULL");
+            if (!indexExists("STUDENT_REFUND", "IDX_REFUND_TENANT_REFUNDTIME")) {
+                jdbcTemplate.execute("ALTER TABLE `STUDENT_REFUND` ADD INDEX `IDX_REFUND_TENANT_REFUNDTIME` (`TENANT_ID`, `STATUS`, `REFUND_TIME`)");
+            }
 
             if (!tableExists("NOTIFY_LOG")) {
                 jdbcTemplate.execute(NOTIFY_LOG_DDL);

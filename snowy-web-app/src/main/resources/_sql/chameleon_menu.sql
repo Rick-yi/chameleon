@@ -10,7 +10,8 @@
 -- 模块
 INSERT IGNORE INTO `SYS_RESOURCE` (`ID`, `PARENT_ID`, `TITLE`, `NAME`, `CODE`, `CATEGORY`, `MODULE`, `MENU_TYPE`, `PATH`, `COMPONENT`, `ICON`, `COLOR`, `VISIBLE`, `DISPLAY_LAYOUT`, `KEEP_LIVE`, `SORT_CODE`, `DELETE_FLAG`, `CREATE_TIME`, `CREATE_USER`) VALUES
 ('mod_edu_001', NULL, '教务运营', NULL, 'edu', 'MODULE', NULL, NULL, NULL, NULL, 'read-outlined', '#1677ff', NULL, NULL, NULL, 10, 'NOT_DELETE', NOW(), '1'),
-('mod_platform_001', NULL, '平台运营', NULL, 'platform', 'MODULE', NULL, NULL, NULL, NULL, 'bank-outlined', '#722ed1', NULL, NULL, NULL, 20, 'NOT_DELETE', NOW(), '1');
+('mod_platform_001', NULL, '平台运营', NULL, 'platform', 'MODULE', NULL, NULL, NULL, NULL, 'bank-outlined', '#722ed1', NULL, NULL, NULL, 20, 'NOT_DELETE', NOW(), '1'),
+('mod_report_001', NULL, '报表中心', NULL, 'report', 'MODULE', NULL, NULL, NULL, NULL, 'bar-chart-outlined', '#13c2c2', NULL, NULL, NULL, 30, 'NOT_DELETE', NOW(), '1');
 
 -- 菜单（老师端/机构端业务页面；学员详情为隐藏路由 VISIBLE=NO）
 INSERT IGNORE INTO `SYS_RESOURCE` (`ID`, `PARENT_ID`, `TITLE`, `NAME`, `CODE`, `CATEGORY`, `MODULE`, `MENU_TYPE`, `PATH`, `COMPONENT`, `ICON`, `COLOR`, `VISIBLE`, `DISPLAY_LAYOUT`, `KEEP_LIVE`, `SORT_CODE`, `DELETE_FLAG`, `CREATE_TIME`, `CREATE_USER`) VALUES
@@ -24,6 +25,8 @@ INSERT IGNORE INTO `SYS_RESOURCE` (`ID`, `PARENT_ID`, `TITLE`, `NAME`, `CODE`, `
 ('menu_attend_001',   '0', '点名消课', 'courseAttend',   'courseAttend',  'MENU', 'mod_edu_001', 'MENU', '/course/attend',   'course/attend',    'check-square-outlined',NULL, 'YES', 'YES', 'YES', 8, 'NOT_DELETE', NOW(), '1'),
 ('menu_renew_001',    '0', '续费预警', 'renewWarn',      'renewWarn',     'MENU', 'mod_edu_001', 'MENU', '/student/renewWarn','student/renewWarn','bell-outlined',       NULL, 'YES', 'YES', 'YES', 9, 'NOT_DELETE', NOW(), '1'),
 ('menu_finance_001',  '0', '财务收款', 'financeIndex',   'finance',       'MENU', 'mod_edu_001', 'MENU', '/finance',         'finance/index',    'account-book-outlined',NULL, 'YES', 'YES', 'YES', 10,'NOT_DELETE', NOW(), '1'),
+('menu_report_dash_001', '0', '经营看板', 'reportDashboard', 'reportDashboard', 'MENU', 'mod_report_001', 'MENU', '/report/dashboard', 'report/dashboard', 'dashboard-outlined', NULL, 'YES', 'YES', 'YES', 1, 'NOT_DELETE', NOW(), '1'),
+('menu_report_fin_001',  '0', '财务报表', 'reportFinance',   'reportFinance',   'MENU', 'mod_report_001', 'MENU', '/report/finance',   'report/finance',   'fund-outlined',      NULL, 'YES', 'YES', 'YES', 2, 'NOT_DELETE', NOW(), '1'),
 ('menu_tenant_001',   '0', '租户管理', 'platformTenant', 'platformTenant','MENU', 'mod_platform_001','MENU','/platform/tenant','platform/tenant', 'bank-outlined',        NULL, 'YES', 'YES', 'YES', 1, 'NOT_DELETE', NOW(), '1');
 
 -- 授权给超级管理员角色（SYS_ROLE_HAS_RESOURCE；父子菜单会自动带出）
@@ -40,6 +43,8 @@ INSERT IGNORE INTO `SYS_RELATION` (`ID`, `TENANT_ID`, `OBJECT_ID`, `TARGET_ID`, 
 ('rel_m_sched',  @DEMO_TENANT_ID, '1570687866138206208', 'menu_schedule_001', 'SYS_ROLE_HAS_RESOURCE', '{"menuId":"menu_schedule_001","buttonInfo":[]}'),
 ('rel_m_attend', @DEMO_TENANT_ID, '1570687866138206208', 'menu_attend_001',   'SYS_ROLE_HAS_RESOURCE', '{"menuId":"menu_attend_001","buttonInfo":[]}'),
 ('rel_m_renew',  @DEMO_TENANT_ID, '1570687866138206208', 'menu_renew_001',    'SYS_ROLE_HAS_RESOURCE', '{"menuId":"menu_renew_001","buttonInfo":[]}'),
+('rel_m_report_dash', @DEMO_TENANT_ID, '1570687866138206208', 'menu_report_dash_001', 'SYS_ROLE_HAS_RESOURCE', '{"menuId":"menu_report_dash_001","buttonInfo":[]}'),
+('rel_m_report_fin',  @DEMO_TENANT_ID, '1570687866138206208', 'menu_report_fin_001',  'SYS_ROLE_HAS_RESOURCE', '{"menuId":"menu_report_fin_001","buttonInfo":[]}'),
 ('rel_m_fin',    @DEMO_TENANT_ID, '1570687866138206208', 'menu_finance_001',  'SYS_ROLE_HAS_RESOURCE', '{"menuId":"menu_finance_001","buttonInfo":[]}');
 
 -- 注意：平台运营菜单（租户管理/套餐管理）不授权给业务租户，

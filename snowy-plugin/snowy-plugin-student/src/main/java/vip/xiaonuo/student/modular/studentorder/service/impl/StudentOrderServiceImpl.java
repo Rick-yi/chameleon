@@ -101,6 +101,7 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
         order.setStudentId(studentOrderAddParam.getStudentId());
         order.setCoursePackageId(studentOrderAddParam.getCoursePackageId());
         order.setCourseId(packageInfo.getStr("courseId"));
+        order.setCampusId(student.getCampusId());
         // 课包快照（改价不影响已购）
         order.setPackageName(packageInfo.getStr("name"));
         order.setPackagePrice(packageInfo.getBigDecimal("price"));

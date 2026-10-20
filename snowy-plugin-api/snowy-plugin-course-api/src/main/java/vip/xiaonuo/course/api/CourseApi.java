@@ -55,4 +55,20 @@ public interface CourseApi {
      * @date 2026/10/20 10:00
      **/
     JSONObject getCoursePackageInfo(String packageId);
+
+    /**
+     * 获取课程名称，不存在返回 null
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    String getCourseName(String courseId);
+
+    /**
+     * 获取校区下全部排课id（报表按校区过滤课消用）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    List<String> listScheduleIdsByCampus(String campusId);
 }

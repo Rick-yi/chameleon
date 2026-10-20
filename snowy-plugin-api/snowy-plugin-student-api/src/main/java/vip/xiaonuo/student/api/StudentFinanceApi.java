@@ -13,9 +13,14 @@
 package vip.xiaonuo.student.api;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import vip.xiaonuo.student.api.dto.DashboardOverviewDTO;
+import vip.xiaonuo.student.api.dto.FinanceChannelDTO;
+import vip.xiaonuo.student.api.dto.FinanceCourseRankDTO;
 import vip.xiaonuo.student.api.dto.FinancePaymentDTO;
 import vip.xiaonuo.student.api.dto.FinanceRefundDTO;
 import vip.xiaonuo.student.api.dto.FinanceStatDTO;
+import vip.xiaonuo.student.api.dto.FinanceSummaryDTO;
+import vip.xiaonuo.student.api.dto.FinanceTrendDTO;
 import vip.xiaonuo.student.api.param.FinanceQueryParam;
 
 import java.util.List;
@@ -55,4 +60,44 @@ public interface StudentFinanceApi {
      * @date 2026/10/20 10:00
      **/
     List<FinanceStatDTO> courseStat(FinanceQueryParam financeQueryParam);
+
+    /**
+     * 财务汇总（收款/退费/净营收/订单/学员/课消）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    FinanceSummaryDTO summary(FinanceQueryParam financeQueryParam);
+
+    /**
+     * 财务趋势（按日/月）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    List<FinanceTrendDTO> trend(FinanceQueryParam financeQueryParam);
+
+    /**
+     * 收款渠道占比
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    List<FinanceChannelDTO> channelStat(FinanceQueryParam financeQueryParam);
+
+    /**
+     * 课程收款排行
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    List<FinanceCourseRankDTO> courseRank(FinanceQueryParam financeQueryParam);
+
+    /**
+     * 经营看板聚合
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    DashboardOverviewDTO dashboard(FinanceQueryParam financeQueryParam);
 }

@@ -87,6 +87,7 @@ import vip.xiaonuo.sys.core.enums.SysDataTypeEnum;
 import vip.xiaonuo.sys.core.enums.SysYesOrNoEnum;
 import vip.xiaonuo.sys.core.util.SysEmailFormatUtil;
 import vip.xiaonuo.sys.core.util.SysPasswordUtil;
+import vip.xiaonuo.sys.core.util.SysResourceVisibilityUtil;
 import vip.xiaonuo.sys.modular.group.entity.SysGroup;
 import vip.xiaonuo.sys.modular.group.service.SysGroupService;
 import vip.xiaonuo.sys.modular.org.entity.SysOrg;
@@ -1208,10 +1209,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                     SysRelationCategoryEnum.SYS_ROLE_HAS_RESOURCE.getValue()));
         }
 
-        // 获取所有的菜单和模块列表，并按分类和排序码排序
-        List<SysMenu> allModuleAndMenuList = sysMenuService.list(new LambdaQueryWrapper<SysMenu>()
-                .in(SysMenu::getCategory, SysResourceCategoryEnum.MODULE.getValue(), SysResourceCategoryEnum.MENU.getValue())
-                .orderByAsc(CollectionUtil.newArrayList(SysMenu::getCategory, SysMenu::getSortCode)));
+        // 获取所有的菜单和模块列表，并按分类和排序码排序（业务租户隐藏平台专用资源）
+        List<SysMenu> allModuleAndMenuList = SysResourceVisibilityUtil.filterForCurrentTenant(
+                sysMenuService.list(new LambdaQueryWrapper<SysMenu>()
+                        .in(SysMenu::getCategory, SysResourceCategoryEnum.MODULE.getValue(), SysResourceCategoryEnum.MENU.getValue())
+                        .orderByAsc(CollectionUtil.newArrayList(SysMenu::getCategory, SysMenu::getSortCode))));
 
         // 按类型分组：模块和菜单
         Map<String, List<SysMenu>> categoryMap = allModuleAndMenuList.stream()

@@ -53,6 +53,22 @@ public class FinanceQueryParam {
     @Schema(description = "支付渠道")
     private String channel;
 
+    /** 校区id */
+    @Schema(description = "校区id")
+    private String campusId;
+
+    /** 课程id */
+    @Schema(description = "课程id")
+    private String courseId;
+
+    /** 趋势维度：DAY/MONTH */
+    @Schema(description = "趋势维度：DAY/MONTH")
+    private String dimension;
+
+    /** 排行条数 */
+    @Schema(description = "排行条数")
+    private Integer limit;
+
     /** 状态（退费单） */
     @Schema(description = "状态")
     private String status;

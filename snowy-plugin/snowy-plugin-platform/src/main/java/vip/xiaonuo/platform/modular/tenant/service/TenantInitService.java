@@ -31,6 +31,7 @@ import vip.xiaonuo.dev.modular.dict.service.DevDictService;
 import vip.xiaonuo.platform.modular.tenant.entity.Tenant;
 import vip.xiaonuo.platform.modular.tenant.mapper.TenantMapper;
 import vip.xiaonuo.platform.modular.tenant.param.TenantAddParam;
+import vip.xiaonuo.sys.core.util.SysResourceVisibilityUtil;
 import vip.xiaonuo.sys.modular.org.entity.SysOrg;
 import vip.xiaonuo.sys.modular.org.service.SysOrgExtService;
 import vip.xiaonuo.sys.modular.org.service.SysOrgService;
@@ -70,9 +71,6 @@ public class TenantInitService {
 
     /** 模板租户编码 */
     private static final String TEMPLATE_TENANT_CODE = "demo";
-
-    /** 平台运营菜单所属模块（租户管理员不授权） */
-    private static final String PLATFORM_MODULE_ID = "mod_platform_001";
 
     /** 系统默认密码配置键 */
     private static final String DEFAULT_PASSWORD_KEY = "SNOWY_SYS_DEFAULT_PASSWORD_FOR_B";
@@ -381,9 +379,11 @@ public class TenantInitService {
      **/
     private Set<String> platformResourceIds() {
         Set<String> ids = new HashSet<>();
-        sysMenuService.list(new LambdaQueryWrapper<SysMenu>()
-                        .eq(SysMenu::getModule, PLATFORM_MODULE_ID))
-                .forEach(menu -> ids.add(menu.getId()));
+        sysMenuService.list().forEach(menu -> {
+            if (SysResourceVisibilityUtil.isPlatformOnlyMenu(menu)) {
+                ids.add(menu.getId());
+            }
+        });
         ids.add("mod_platform_001");
         return ids;
     }
