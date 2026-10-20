@@ -41,6 +41,19 @@
 					<div class="login-header">
 						<h2>{{ $t('login.signInTitle') }}</h2>
 					</div>
+					<div style="margin-bottom: 16px">
+						<a-input
+							v-model:value="tenantCode"
+							placeholder="机构编码（演示机构：demo，平台运营：platform）"
+							size="large"
+							allow-clear
+							@blur="onTenantCodeChange"
+							@pressEnter="onTenantCodeChange"
+						/>
+						<div style="margin-top: 6px; font-size: 12px; color: rgba(0, 0, 0, 0.45)">
+							请输入机构管理员提供的机构编码，用于识别所属机构
+						</div>
+					</div>
 					<a-tabs v-model:activeKey="activeKey">
 						<a-tab-pane key="userAccount" :tab="$t('login.accountPassword')">
 							<a-form ref="loginForm" :model="ruleForm" :rules="rules">
@@ -179,6 +192,13 @@
 	}
 	const validCodeBase64 = ref('')
 	const loading = ref(false)
+	const tenantCode = ref(tool.data.get('TENANT_CODE') || 'demo')
+
+	const applyTenantCode = () => {
+		const code = (tenantCode.value || '').trim() || 'demo'
+		tenantCode.value = code
+		tool.data.set('TENANT_CODE', code)
+	}
 
 	const ruleForm = reactive({
 		validCode: '',
@@ -219,8 +239,8 @@
 		return store.sysBaseConfig
 	})
 	const systemName = ref(sysBaseConfig.value.SNOWY_SYS_NAME)
-	onMounted(() => {
-		let formData = ref(configData.SYS_BASE_CONFIG)
+	const loadSysBaseConfig = () => {
+		let formData = ref({ ...configData.SYS_BASE_CONFIG })
 		configApi
 			.configSysBaseList()
 			.then((data) => {
@@ -235,6 +255,7 @@
 					loginTypes.otpLogin = formData.value.SNOWY_SYS_DEFAULT_ALLOW_OTP_LOGIN_FLAG_FOR_B
 					tool.data.set('SNOWY_SYS_BASE_CONFIG', formData.value)
 					setSysBaseConfig(formData.value)
+					systemName.value = formData.value.SNOWY_SYS_NAME || systemName.value
 					refreshSwitch()
 					if (threeLoginForAppRef.value) {
 						threeLoginForAppRef.value.init(appId)
@@ -242,6 +263,14 @@
 				}
 			})
 			.catch(() => {})
+	}
+	const onTenantCodeChange = () => {
+		applyTenantCode()
+		loadSysBaseConfig()
+	}
+	onMounted(() => {
+		applyTenantCode()
+		loadSysBaseConfig()
 	})
 
 	onBeforeMount(() => {

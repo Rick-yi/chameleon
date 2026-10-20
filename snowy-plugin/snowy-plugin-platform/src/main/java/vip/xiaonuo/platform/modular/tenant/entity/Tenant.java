@@ -35,6 +35,10 @@ public class Tenant extends CommonEntity {
     @Schema(description = "id")
     private String id;
 
+    /** 租户编码（登录时识别机构，全局唯一） */
+    @Schema(description = "租户编码")
+    private String code;
+
     /** 机构名称 */
     @Schema(description = "机构名称")
     private String name;

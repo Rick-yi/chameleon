@@ -58,6 +58,14 @@ public class CourseClassStudentServiceImpl extends ServiceImpl<CourseClassStuden
         return this.page(CommonPageRequest.defaultPage(), queryWrapper);
     }
 
+    @Override
+    public List<CourseClassStudent> listByClassId(String classId) {
+        return this.list(new LambdaQueryWrapper<CourseClassStudent>()
+                .eq(CourseClassStudent::getClassId, classId)
+                .eq(CourseClassStudent::getStatus, CourseClassStudentStatusEnum.STUDYING.getValue())
+                .orderByAsc(CourseClassStudent::getCreateTime));
+    }
+
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void add(CourseClassStudentAddParam courseClassStudentAddParam) {

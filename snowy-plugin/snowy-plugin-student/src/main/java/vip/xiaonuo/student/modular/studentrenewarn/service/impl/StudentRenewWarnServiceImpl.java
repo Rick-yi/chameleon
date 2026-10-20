@@ -33,6 +33,7 @@ import vip.xiaonuo.dev.api.DevConfigApi;
 import vip.xiaonuo.student.modular.studentlessonaccount.entity.StudentLessonAccount;
 import vip.xiaonuo.student.modular.studentlessonaccount.enums.LessonAccountStatusEnum;
 import vip.xiaonuo.student.modular.studentlessonaccount.service.StudentLessonAccountService;
+import vip.xiaonuo.student.modular.notify.service.NotifyLogService;
 import vip.xiaonuo.student.modular.studentrenewarn.entity.StudentRenewWarn;
 import vip.xiaonuo.student.modular.studentrenewarn.enums.StudentRenewWarnStatusEnum;
 import vip.xiaonuo.student.modular.studentrenewarn.mapper.StudentRenewWarnMapper;
@@ -68,6 +69,9 @@ public class StudentRenewWarnServiceImpl extends ServiceImpl<StudentRenewWarnMap
 
     @Resource
     private DevConfigApi devConfigApi;
+
+    @Resource
+    private NotifyLogService notifyLogService;
 
     @Override
     public Page<StudentRenewWarn> page(StudentRenewWarnPageParam studentRenewWarnPageParam) {
@@ -126,7 +130,17 @@ public class StudentRenewWarnServiceImpl extends ServiceImpl<StudentRenewWarnMap
             warn.setLastNotifyTime(now);
             this.save(warn);
             log.info(">>> 续费预警生成：学员{} 课程{} 剩余{} 原因{}", warn.getStudentId(), warn.getCourseId(), warn.getRemainLessons(), warnReason);
-            // TODO(M4): 推送机构端待办 + 家长订阅消息
+            // 机构端待办 + 家长通知落库（v1 站内记录，M4 接订阅消息/短信）
+            try {
+                notifyLogService.log("RENEW_WARN", "STAFF", null, warn.getStudentId(),
+                        "续费预警", "学员课程剩余" + warn.getRemainLessons().stripTrailingZeros().toPlainString()
+                                + "课时，请及时跟进续费", "IN_APP");
+                notifyLogService.log("RENEW_WARN", "PARENT", warn.getStudentId(), warn.getStudentId(),
+                        "续费提醒", "课程剩余" + warn.getRemainLessons().stripTrailingZeros().toPlainString()
+                                + "课时，建议尽快续费", "IN_APP");
+            } catch (Exception e) {
+                log.warn(">>> 续费预警通知落库失败：学员{}", warn.getStudentId(), e);
+            }
         }
     }
 

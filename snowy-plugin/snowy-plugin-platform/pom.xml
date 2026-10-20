@@ -26,5 +26,17 @@
             <groupId>vip.xiaonuo</groupId>
             <artifactId>snowy-plugin-auth-api</artifactId>
         </dependency>
+
+        <!-- 租户开通初始化：创建管理员、角色、机构、菜单授权 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-sys</artifactId>
+        </dependency>
+
+        <!-- 租户开通初始化：复制字典与系统配置 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-dev</artifactId>
+        </dependency>
     </dependencies>
 </project>

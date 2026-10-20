@@ -12,6 +12,8 @@
  */
 package vip.xiaonuo.platform.api;
 
+import java.util.List;
+
 /**
  * 租户API接口（跨插件调用）
  *
@@ -35,4 +37,28 @@ public interface TenantApi {
      * @date 2026/10/20 10:00
      **/
     boolean isTenantAvailable(String tenantId);
+
+    /**
+     * 根据租户编码获取租户id，不存在返回 null
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    String getTenantIdByCode(String tenantCode);
+
+    /**
+     * 是否为平台运营租户（租户id为 0）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    boolean isPlatformTenant(String tenantId);
+
+    /**
+     * 获取所有未停用租户id（定时任务按租户遍历用）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    List<String> listActiveTenantIds();
 }

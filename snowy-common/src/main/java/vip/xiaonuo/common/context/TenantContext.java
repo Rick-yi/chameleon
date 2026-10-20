@@ -27,6 +27,9 @@ public class TenantContext {
     /** 租户id持有器 */
     private static final ThreadLocal<String> TENANT_ID_HOLDER = new ThreadLocal<>();
 
+    /** 请求中携带的租户编码（未登录时用于识别机构，登录后不再使用） */
+    private static final ThreadLocal<String> TENANT_CODE_HOLDER = new ThreadLocal<>();
+
     /**
      * 设置租户id
      *
@@ -48,12 +51,33 @@ public class TenantContext {
     }
 
     /**
-     * 清除租户id
+     * 设置登录前使用的租户编码
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    public static void setTenantCode(String tenantCode) {
+        TENANT_CODE_HOLDER.set(tenantCode);
+    }
+
+    /**
+     * 获取登录前使用的租户编码
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    public static String getTenantCode() {
+        return TENANT_CODE_HOLDER.get();
+    }
+
+    /**
+     * 清除租户上下文
      *
      * @author 会飞的猪
      * @date 2026/10/20 10:00
      **/
     public static void clear() {
         TENANT_ID_HOLDER.remove();
+        TENANT_CODE_HOLDER.remove();
     }
 }

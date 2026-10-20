@@ -33,6 +33,7 @@ import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.listener.CommonDataChangeEventCenter;
 import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.sys.core.enums.SysDataTypeEnum;
+import vip.xiaonuo.sys.core.util.SysResourceGuard;
 import vip.xiaonuo.sys.modular.relation.entity.SysRelation;
 import vip.xiaonuo.sys.modular.relation.enums.SysRelationCategoryEnum;
 import vip.xiaonuo.sys.modular.relation.service.SysRelationService;
@@ -90,6 +91,7 @@ public class SysButtonServiceImpl extends ServiceImpl<SysButtonMapper, SysButton
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void add(SysButtonAddParam sysButtonAddParam) {
+        SysResourceGuard.checkPlatformMaintainable();
         SysButton sysButton = BeanUtil.toBean(sysButtonAddParam, SysButton.class);
         boolean repeatCode = this.count(new LambdaQueryWrapper<SysButton>()
                 .eq(SysButton::getCategory, SysResourceCategoryEnum.BUTTON.getValue())
@@ -169,6 +171,7 @@ public class SysButtonServiceImpl extends ServiceImpl<SysButtonMapper, SysButton
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void edit(SysButtonEditParam sysButtonEditParam) {
+        SysResourceGuard.checkPlatformMaintainable();
         SysButton sysButton = this.queryEntity(sysButtonEditParam.getId());
         BeanUtil.copyProperties(sysButtonEditParam, sysButton);
         boolean repeatCode = this.count(new LambdaQueryWrapper<SysButton>()
@@ -187,6 +190,7 @@ public class SysButtonServiceImpl extends ServiceImpl<SysButtonMapper, SysButton
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void delete(List<SysButtonIdParam> sysButtonIdParamList) {
+        SysResourceGuard.checkPlatformMaintainable();
         List<String> buttonIdList = CollStreamUtil.toList(sysButtonIdParamList, SysButtonIdParam::getId);
         if(ObjectUtil.isNotEmpty(buttonIdList)) {
             // 获取按钮的父菜单id集合

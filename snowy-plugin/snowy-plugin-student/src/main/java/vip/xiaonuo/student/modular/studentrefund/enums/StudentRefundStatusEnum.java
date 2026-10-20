@@ -33,7 +33,10 @@ public enum StudentRefundStatusEnum {
     REFUNDED("REFUNDED", "已退款"),
 
     /** 已驳回 */
-    REJECTED("REJECTED", "已驳回");
+    REJECTED("REJECTED", "已驳回"),
+
+    /** 已撤销 */
+    CANCELLED("CANCELLED", "已撤销");
 
     private final String value;
 

@@ -31,6 +31,9 @@ public interface CourseClassStudentService {
     /** 获取班级学员分页 */
     Page<CourseClassStudent> page(CourseClassStudentPageParam courseClassStudentPageParam);
 
+    /** 获取班级在学学员列表 */
+    List<CourseClassStudent> listByClassId(String classId);
+
     /** 批量入班 */
     void add(CourseClassStudentAddParam courseClassStudentAddParam);
 

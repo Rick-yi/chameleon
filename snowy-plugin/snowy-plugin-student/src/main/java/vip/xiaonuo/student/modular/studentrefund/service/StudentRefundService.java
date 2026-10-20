@@ -36,8 +36,11 @@ public interface StudentRefundService {
     /** 退费审批（通过→账户冻结；驳回→结束） */
     void approve(StudentRefundApproveParam studentRefundApproveParam);
 
-    /** 确认退款完成（账户清零 + 退费销课流水 + 订单置已退费） */
+    /** 确认退款完成（账户扣减/清零 + 退费销课流水 + 订单置已退费） */
     void confirm(StudentRefundIdParam studentRefundIdParam);
+
+    /** 撤销退费（待审批/待退款 → 已撤销，待退款时解冻账户） */
+    void cancel(StudentRefundIdParam studentRefundIdParam);
 
     /** 获取退费单详情 */
     StudentRefund detail(StudentRefundIdParam studentRefundIdParam);

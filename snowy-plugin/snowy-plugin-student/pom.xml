@@ -38,5 +38,11 @@
             <groupId>vip.xiaonuo</groupId>
             <artifactId>snowy-plugin-auth-api</artifactId>
         </dependency>
+
+        <!-- 平台租户接口，续费预警定时任务按租户遍历 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-platform-api</artifactId>
+        </dependency>
     </dependencies>
 </project>

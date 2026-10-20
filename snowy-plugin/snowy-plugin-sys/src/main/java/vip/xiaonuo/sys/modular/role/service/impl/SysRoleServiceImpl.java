@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vip.xiaonuo.auth.api.SaBaseLoginUserApi;
 import vip.xiaonuo.common.cache.CommonCacheOperator;
 import vip.xiaonuo.common.consts.CacheConstant;
+import vip.xiaonuo.common.context.TenantContext;
 import vip.xiaonuo.common.enums.CommonSortOrderEnum;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.listener.CommonDataChangeEventCenter;
@@ -407,6 +408,12 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
                 SysResourceCategoryEnum.BUTTON.getValue());
         if(!containsTen) {
             lambdaQueryWrapper.ne(SysMenu::getCode, SysBuildInEnum.BUILD_IN_NO_TEN_MENU_CODE.getValue());
+        }
+        // 业务租户不展示平台运营资源，避免误授权（模块行的 module 为空，需要保留其他模块）
+        if (!"0".equals(TenantContext.getTenantId())) {
+            lambdaQueryWrapper.ne(SysMenu::getId, "mod_platform_001");
+            lambdaQueryWrapper.and(q -> q.ne(SysMenu::getModule, "mod_platform_001")
+                    .or().isNull(SysMenu::getModule));
         }
         return this.resourceTreeSelector(sysMenuService.list(lambdaQueryWrapper));
     }

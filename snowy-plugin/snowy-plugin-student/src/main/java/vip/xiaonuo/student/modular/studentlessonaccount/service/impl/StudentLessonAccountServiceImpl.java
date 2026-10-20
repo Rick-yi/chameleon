@@ -70,6 +70,9 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
     @Resource
     private CourseApi courseApi;
 
+    @Resource
+    private vip.xiaonuo.student.modular.studentorder.service.StudentLessonAllocationService studentLessonAllocationService;
+
     @Override
     public Page<StudentLessonAccount> page(StudentLessonAccountPageParam studentLessonAccountPageParam) {
         QueryWrapper<StudentLessonAccount> queryWrapper = new QueryWrapper<StudentLessonAccount>().checkSqlInjection();
@@ -161,9 +164,10 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
                 throw new CommonException("学员【{}】课时不足：剩余{}，本次需扣{}", student.getName(),
                         account.getRemainLessons(), param.getLessons());
             }
-            // 条件更新防并发：剩余充足才扣
+            // 条件更新防并发：剩余充足且账户正常才扣
             boolean deducted = this.update(new LambdaUpdateWrapper<StudentLessonAccount>()
                     .eq(StudentLessonAccount::getId, account.getId())
+                    .eq(StudentLessonAccount::getStatus, LessonAccountStatusEnum.NORMAL.getValue())
                     .ge(StudentLessonAccount::getRemainLessons, param.getLessons())
                     .setSql("USED_LESSONS = USED_LESSONS + " + param.getLessons())
                     .setSql("REMAIN_LESSONS = REMAIN_LESSONS - " + param.getLessons()));
@@ -179,6 +183,8 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
             flow.setLessons(param.getLessons().negate());
             flow.setRemark("点名" + param.getAttendStatus());
             studentLessonFlowService.add(flow);
+            // 按订单分摊消耗，供退费按订单核算
+            studentLessonAllocationService.allocate(param.getStudentId(), param.getCourseId(), param.getLessons());
         }
     }
 
@@ -211,6 +217,8 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
         flow.setRefFlowId(deductFlow.getId());
         flow.setRemark("撤销点名回补");
         studentLessonFlowService.add(flow);
+        // 回补订单消耗
+        studentLessonAllocationService.restore(studentId, deductFlow.getCourseId(), restoreLessons);
     }
 
     /**

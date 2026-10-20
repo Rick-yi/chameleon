@@ -36,6 +36,7 @@ import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.listener.CommonDataChangeEventCenter;
 import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.sys.core.enums.SysDataTypeEnum;
+import vip.xiaonuo.sys.core.util.SysResourceGuard;
 import vip.xiaonuo.sys.modular.relation.entity.SysRelation;
 import vip.xiaonuo.sys.modular.relation.enums.SysRelationCategoryEnum;
 import vip.xiaonuo.sys.modular.relation.service.SysRelationService;
@@ -146,6 +147,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void add(SysMenuAddParam sysMenuAddParam) {
+        SysResourceGuard.checkPlatformMaintainable();
         checkParam(sysMenuAddParam);
         SysMenu sysMenu = BeanUtil.toBean(sysMenuAddParam, SysMenu.class);
         boolean repeatTitle = this.count(new LambdaQueryWrapper<SysMenu>().eq(SysMenu::getParentId, sysMenu.getParentId())
@@ -242,6 +244,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void edit(SysMenuEditParam sysMenuEditParam) {
+        SysResourceGuard.checkPlatformMaintainable();
         SysMenu sysMenu = this.queryEntity(sysMenuEditParam.getId());
         // 保存旧的module值，用于后续判断是否需要级联更新子级
         String oldModule = sysMenu.getModule();
@@ -296,6 +299,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void changeModule(SysMenuChangeModuleParam sysMenuChangeModuleParam) {
+        SysResourceGuard.checkPlatformMaintainable();
         SysMenu sysMenu = this.queryEntity(sysMenuChangeModuleParam.getId());
         if(!"0".equals(sysMenu.getParentId())) {
             throw new CommonException("非顶级菜单不可修改所属模块");
@@ -348,6 +352,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void delete(List<SysMenuIdParam> sysMenuIdParamList) {
+        SysResourceGuard.checkPlatformMaintainable();
         List<String> sysMenuIdList = CollStreamUtil.toList(sysMenuIdParamList, SysMenuIdParam::getId);
         if(ObjectUtil.isNotEmpty(sysMenuIdList)) {
             // 获取菜单下的菜单、按钮

@@ -101,6 +101,20 @@ public class StudentRefundController {
     }
 
     /**
+     * 撤销退费
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     */
+    @Operation(summary = "撤销退费")
+    @CommonLog("撤销退费")
+    @PostMapping("/student/refund/cancel")
+    public CommonResult<String> cancel(@RequestBody @Valid StudentRefundIdParam studentRefundIdParam) {
+        studentRefundService.cancel(studentRefundIdParam);
+        return CommonResult.ok();
+    }
+
+    /**
      * 获取退费单详情
      *
      * @author 会飞的猪

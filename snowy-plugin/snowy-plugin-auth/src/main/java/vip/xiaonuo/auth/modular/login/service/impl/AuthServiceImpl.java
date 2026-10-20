@@ -705,8 +705,8 @@ public class AuthServiceImpl implements AuthService {
     /**
      * 保证请求级租户上下文存在
      * <p>
-     * 登录请求通常不带 X-Tenant-Id 请求头，此处兜底为演示租户；
-     * 待前端登录页接入租户选择后，此兜底逻辑可移除。
+     * 前端登录页会携带 X-Tenant-Code；未携带时兼容旧客户端，默认演示租户。
+     * 携带了编码但解析不到租户时，直接拒绝登录，避免误登录到其他机构。
      * </p>
      *
      * @author 会飞的猪
@@ -714,6 +714,9 @@ public class AuthServiceImpl implements AuthService {
      **/
     private void ensureTenantContext() {
         if (ObjectUtil.isEmpty(TenantContext.getTenantId())) {
+            if (ObjectUtil.isNotEmpty(TenantContext.getTenantCode())) {
+                throw new CommonException("机构编码不存在：{}", TenantContext.getTenantCode());
+            }
             TenantContext.setTenantId(DEFAULT_TENANT_ID);
         }
     }
@@ -1192,6 +1195,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String doLoginByOtp(AuthOtpLoginParam authOtpLoginParam, String type) {
+        ensureTenantContext();
+        validateTenantAvailable();
         // 校验是否允许动态口令登录
         this.checkAllowOtpLoginFlag(type);
         // 定义验证码是否打开
@@ -1291,6 +1296,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String doLoginByThirdToken(AuthThirdTokenLoginParam authThirdTokenLoginParam) {
+        ensureTenantContext();
+        validateTenantAvailable();
         // 校验是否配置了第三方用户信息接口地址（配置了即开启）
         String userInfoUrl = authThirdClientProperties.getUserInfoUrl();
         if(ObjectUtil.isEmpty(userInfoUrl)) {

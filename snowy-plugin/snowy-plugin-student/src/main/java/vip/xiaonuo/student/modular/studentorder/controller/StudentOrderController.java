@@ -26,6 +26,7 @@ import vip.xiaonuo.common.pojo.CommonResult;
 import vip.xiaonuo.student.modular.studentorder.entity.StudentOrder;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderAddParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderIdParam;
+import vip.xiaonuo.student.modular.studentorder.param.StudentOrderOfflinePayParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPageParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPayCallbackParam;
 import vip.xiaonuo.student.modular.studentorder.service.StudentOrderService;
@@ -83,6 +84,20 @@ public class StudentOrderController {
     @PostMapping("/student/order/payCallback")
     public CommonResult<String> payCallback(@RequestBody @Valid StudentOrderPayCallbackParam studentOrderPayCallbackParam) {
         studentOrderService.payCallback(studentOrderPayCallbackParam);
+        return CommonResult.ok();
+    }
+
+    /**
+     * 线下收款登记（v1 支付统一走线下登记）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     */
+    @Operation(summary = "线下收款登记")
+    @CommonLog("线下收款登记")
+    @PostMapping("/student/order/offlinePay")
+    public CommonResult<String> offlinePay(@RequestBody @Valid StudentOrderOfflinePayParam studentOrderOfflinePayParam) {
+        studentOrderService.offlinePay(studentOrderOfflinePayParam);
         return CommonResult.ok();
     }
 

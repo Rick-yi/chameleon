@@ -48,6 +48,11 @@ service.interceptors.request.use(
 		if (token) {
 			config.headers[sysConfig.TOKEN_NAME] = sysConfig.TOKEN_PREFIX + token
 		}
+		// 登录前用于识别机构；登录后服务端只认会话租户，会忽略该请求头
+		const tenantCode = tool.data.get('TENANT_CODE')
+		if (tenantCode) {
+			config.headers['X-Tenant-Code'] = tenantCode
+		}
 		if (!sysConfig.REQUEST_CACHE && config.method === 'get') {
 			config.params = config.params || {}
 			config.params._ = new Date().getTime()

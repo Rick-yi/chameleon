@@ -50,6 +50,12 @@ public interface TenantService {
     /** 按id获取租户，不存在返回null（不抛异常，供跨插件调用） */
     Tenant getTenantById(String id);
 
+    /** 按租户编码获取租户，不存在返回null */
+    Tenant getTenantByCode(String code);
+
+    /** 获取所有未停用租户（不含平台运营租户） */
+    List<Tenant> listActiveTenants();
+
     /** 到期扫描：将已过期租户置为停用，返回处理数量 */
     int checkExpired();
 }

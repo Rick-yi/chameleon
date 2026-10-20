@@ -12,6 +12,7 @@
  */
 package vip.xiaonuo.platform.modular.tenant.controller;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,7 +38,7 @@ import java.util.List;
 /**
  * 租户控制器（SaaS平台端）
  * <p>
- * TODO(M1)：接入平台端菜单与超管权限校验
+ * 仅平台运营角色 platformAdmin 可访问。
  * </p>
  *
  * @author 会飞的猪
@@ -46,6 +47,7 @@ import java.util.List;
 @Tag(name = "租户控制器")
 @RestController
 @Validated
+@SaCheckRole("platformAdmin")
 public class TenantController {
 
     @Resource

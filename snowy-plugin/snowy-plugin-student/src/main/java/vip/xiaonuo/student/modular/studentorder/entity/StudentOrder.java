@@ -91,6 +91,14 @@ public class StudentOrder extends CommonEntity {
     @Schema(description = "支付时间")
     private java.util.Date payTime;
 
+    /** 已消耗课时（按订单先进先出分摊，含赠课消耗） */
+    @Schema(description = "已消耗课时")
+    private BigDecimal consumedLessons;
+
+    /** 已退课时（不含赠课） */
+    @Schema(description = "已退课时")
+    private BigDecimal refundedLessons;
+
     /** 状态 */
     @Schema(description = "状态(待支付/已支付/已退费/已取消)")
     private String status;

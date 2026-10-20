@@ -13,6 +13,7 @@
 package vip.xiaonuo.student.modular.studentorder.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -35,6 +36,7 @@ import vip.xiaonuo.student.modular.studentorder.enums.StudentOrderStatusEnum;
 import vip.xiaonuo.student.modular.studentorder.mapper.StudentOrderMapper;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderAddParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderIdParam;
+import vip.xiaonuo.student.modular.studentorder.param.StudentOrderOfflinePayParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPageParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPayCallbackParam;
 import vip.xiaonuo.student.modular.studentorder.service.StudentOrderService;
@@ -115,7 +117,36 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void payCallback(StudentOrderPayCallbackParam studentOrderPayCallbackParam) {
-        StudentOrder order = this.queryEntity(studentOrderPayCallbackParam.getOrderId());
+        // v1 线上支付对接后由支付网关调用；当前保留为联调入口
+        markPaid(studentOrderPayCallbackParam.getOrderId(), studentOrderPayCallbackParam.getTradeNo(),
+                studentOrderPayCallbackParam.getPaidAmount(), studentOrderPayCallbackParam.getPayChannel());
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public void offlinePay(StudentOrderOfflinePayParam studentOrderOfflinePayParam) {
+        String payChannel = ObjectUtil.isNotEmpty(studentOrderOfflinePayParam.getPayChannel())
+                ? studentOrderOfflinePayParam.getPayChannel() : "OFFLINE";
+        if (!"OFFLINE".equals(payChannel) && !"CASH".equals(payChannel)) {
+            throw new CommonException("v1 仅支持线下收款登记，线上支付将在后续版本开放");
+        }
+        if (ObjectUtil.isNotEmpty(studentOrderOfflinePayParam.getPaidAmount())
+                && studentOrderOfflinePayParam.getPaidAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new CommonException("实收金额必须大于0");
+        }
+        markPaid(studentOrderOfflinePayParam.getOrderId(),
+                "OFF" + IdUtil.getSnowflakeNextIdStr(),
+                studentOrderOfflinePayParam.getPaidAmount(), payChannel);
+    }
+
+    /**
+     * 订单置为已支付并入账（幂等）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    private void markPaid(String orderId, String tradeNo, java.math.BigDecimal paidAmount, String payChannel) {
+        StudentOrder order = this.queryEntity(orderId);
         // 幂等：已支付直接返回（防重复回调）
         if (StudentOrderStatusEnum.PAID.getValue().equals(order.getStatus())) {
             return;
@@ -125,7 +156,7 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
         }
         // 同一支付流水号不能用于其他订单
         boolean tradeNoUsed = this.count(new LambdaQueryWrapper<StudentOrder>()
-                .eq(StudentOrder::getTradeNo, studentOrderPayCallbackParam.getTradeNo())
+                .eq(StudentOrder::getTradeNo, tradeNo)
                 .ne(StudentOrder::getId, order.getId())) > 0;
         if (tradeNoUsed) {
             throw new CommonException("支付流水号已被其他订单使用");
@@ -135,19 +166,18 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
                 .eq(StudentOrder::getId, order.getId())
                 .eq(StudentOrder::getStatus, StudentOrderStatusEnum.UNPAID.getValue())
                 .set(StudentOrder::getStatus, StudentOrderStatusEnum.PAID.getValue())
-                .set(StudentOrder::getTradeNo, studentOrderPayCallbackParam.getTradeNo())
+                .set(StudentOrder::getTradeNo, tradeNo)
                 .set(StudentOrder::getPayTime, new java.util.Date())
-                .set(StudentOrder::getPaidAmount, ObjectUtil.isNotEmpty(studentOrderPayCallbackParam.getPaidAmount())
-                        ? studentOrderPayCallbackParam.getPaidAmount() : order.getAmount())
-                .set(StudentOrder::getPayChannel, ObjectUtil.isNotEmpty(studentOrderPayCallbackParam.getPayChannel())
-                        ? studentOrderPayCallbackParam.getPayChannel() : order.getPayChannel()));
+                .set(StudentOrder::getPaidAmount, ObjectUtil.isNotEmpty(paidAmount)
+                        ? paidAmount : order.getAmount())
+                .set(StudentOrder::getPayChannel, ObjectUtil.isNotEmpty(payChannel)
+                        ? payChannel : order.getPayChannel()));
         if (!paid) {
             // 并发下已被其他回调处理，直接返回
             return;
         }
         // 入账：创建/追加课时账户 + 入账流水 + 续费预警置已续费
         studentLessonAccountService.recharge(order);
-        // TODO(M6): 对接微信支付真实回调与退款
     }
 
     @Transactional(rollbackFor = Exception.class)

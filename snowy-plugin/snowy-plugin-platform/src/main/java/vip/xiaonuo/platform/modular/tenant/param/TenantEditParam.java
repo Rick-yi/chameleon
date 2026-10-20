@@ -14,6 +14,7 @@ package vip.xiaonuo.platform.modular.tenant.param;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -33,6 +34,12 @@ public class TenantEditParam {
     @Schema(description = "id", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "id不能为空")
     private String id;
+
+    /** 租户编码 */
+    @Schema(description = "租户编码（登录识别机构，全局唯一）", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank(message = "租户编码不能为空")
+    @Pattern(regexp = "^[a-zA-Z0-9][a-zA-Z0-9_-]{2,31}$", message = "租户编码需为3-32位字母、数字、下划线或短横线")
+    private String code;
 
     /** 机构名称 */
     @Schema(description = "机构名称", requiredMode = Schema.RequiredMode.REQUIRED)

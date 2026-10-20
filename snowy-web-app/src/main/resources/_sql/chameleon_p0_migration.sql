@@ -1,0 +1,58 @@
+-- ============================================================
+-- chameleon P0 升级脚本（一次性执行，执行前请备份）
+-- 内容：
+--   1. 租户编码（登录识别机构）
+--   2. 订单课时分摊字段（退费按订单核算）
+--   3. 退费单赠课作废字段
+--   4. 通知流水表
+--   5. 清理业务租户误授权的平台菜单
+-- 执行方式：mysql -uroot -p chameleon < chameleon_p0_migration.sql
+-- 说明：MySQL 不支持 ADD COLUMN IF NOT EXISTS，本脚本只能执行一次。
+-- ============================================================
+
+-- 1. 租户编码
+ALTER TABLE `T_TENANT` ADD COLUMN `CODE` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '租户编码(登录识别机构)' AFTER `ID`;
+UPDATE `T_TENANT` SET `CODE` = 'demo' WHERE `ID` = '1554740179362967450' AND (`CODE` IS NULL OR `CODE` = '');
+UPDATE `T_TENANT` SET `CODE` = 'test' WHERE `NAME` LIKE '%联调%' AND (`CODE` IS NULL OR `CODE` = '');
+UPDATE `T_TENANT` SET `CODE` = CONCAT('t', `ID`) WHERE (`CODE` IS NULL OR `CODE` = '') AND `ID` <> '0';
+ALTER TABLE `T_TENANT` ADD UNIQUE INDEX `UK_TENANT_CODE` (`CODE`);
+
+-- 2. 订单课时分摊字段
+ALTER TABLE `STUDENT_ORDER` ADD COLUMN `CONSUMED_LESSONS` decimal(10,2) NULL DEFAULT 0.00 COMMENT '已消耗课时(按订单先进先出分摊，含赠课)' AFTER `PAY_TIME`;
+ALTER TABLE `STUDENT_ORDER` ADD COLUMN `REFUNDED_LESSONS` decimal(10,2) NULL DEFAULT 0.00 COMMENT '已退课时(不含赠课)' AFTER `CONSUMED_LESSONS`;
+UPDATE `STUDENT_ORDER` SET `CONSUMED_LESSONS` = 0.00 WHERE `CONSUMED_LESSONS` IS NULL;
+UPDATE `STUDENT_ORDER` SET `REFUNDED_LESSONS` = 0.00 WHERE `REFUNDED_LESSONS` IS NULL;
+
+-- 3. 退费单赠课作废字段
+ALTER TABLE `STUDENT_REFUND` ADD COLUMN `GIFT_LESSONS` decimal(10,2) NULL DEFAULT 0.00 COMMENT '随订单作废的赠课课时' AFTER `REFUND_LESSONS`;
+UPDATE `STUDENT_REFUND` SET `GIFT_LESSONS` = 0.00 WHERE `GIFT_LESSONS` IS NULL;
+
+-- 4. 通知流水表
+CREATE TABLE IF NOT EXISTS `NOTIFY_LOG`  (
+  `ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '主键',
+  `TENANT_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '租户id',
+  `BIZ_TYPE` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '业务类型',
+  `RECEIVER_TYPE` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '接收人类型(家长/教职工)',
+  `RECEIVER_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '接收人id',
+  `STUDENT_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '学员id',
+  `TITLE` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '标题',
+  `CONTENT` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '内容',
+  `CHANNEL` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '渠道(IN_APP/SMS/WECHAT_MINI)',
+  `STATUS` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '状态(PENDING/SENT/FAILED)',
+  `SEND_TIME` datetime NULL DEFAULT NULL COMMENT '发送时间',
+  `REMARK` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
+  `DELETE_FLAG` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '删除标志',
+  `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+  `CREATE_USER` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '创建用户',
+  `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '修改时间',
+  `UPDATE_USER` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '修改用户',
+  PRIMARY KEY (`ID`) USING BTREE,
+  INDEX `IDX_NOTIFY_TENANT_STUDENT` (`TENANT_ID`, `STUDENT_ID`),
+  INDEX `IDX_NOTIFY_STATUS` (`STATUS`, `CREATE_TIME`)
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '通知流水' ROW_FORMAT = Dynamic;
+
+-- 5. 平台菜单只允许平台运营角色持有（启动时 PlatformBootstrap 会重新授权租户 0）
+DELETE FROM `SYS_RELATION`
+WHERE `CATEGORY` = 'SYS_ROLE_HAS_RESOURCE'
+  AND `TARGET_ID` IN ('menu_tenant_001', 'menu_ppkg_001')
+  AND `TENANT_ID` <> '0';

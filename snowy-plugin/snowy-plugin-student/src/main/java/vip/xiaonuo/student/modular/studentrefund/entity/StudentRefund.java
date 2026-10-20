@@ -60,8 +60,12 @@ public class StudentRefund extends CommonEntity {
     @Schema(description = "可退课时(扣除赠课后)")
     private BigDecimal refundLessons;
 
+    /** 随订单作废的赠课课时 */
+    @Schema(description = "随订单作废的赠课课时")
+    private BigDecimal giftLessons;
+
     /** 状态 */
-    @Schema(description = "状态(待审批/待退款/已退款/已驳回)")
+    @Schema(description = "状态(待审批/待退款/已退款/已驳回/已撤销)")
     private String status;
 
     /** 审批人 */

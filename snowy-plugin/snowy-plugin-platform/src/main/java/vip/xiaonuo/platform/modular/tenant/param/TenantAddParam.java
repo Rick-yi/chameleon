@@ -14,6 +14,7 @@ package vip.xiaonuo.platform.modular.tenant.param;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -28,6 +29,12 @@ import java.util.Date;
 @Getter
 @Setter
 public class TenantAddParam {
+
+    /** 租户编码 */
+    @Schema(description = "租户编码（登录识别机构，全局唯一）", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank(message = "租户编码不能为空")
+    @Pattern(regexp = "^[a-zA-Z0-9][a-zA-Z0-9_-]{2,31}$", message = "租户编码需为3-32位字母、数字、下划线或短横线")
+    private String code;
 
     /** 机构名称 */
     @Schema(description = "机构名称", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -49,6 +56,22 @@ public class TenantAddParam {
     /** 到期时间 */
     @Schema(description = "到期时间")
     private Date expireTime;
+
+    /** 管理员账号，默认 admin */
+    @Schema(description = "管理员账号")
+    private String adminAccount;
+
+    /** 管理员姓名，默认“机构管理员” */
+    @Schema(description = "管理员姓名")
+    private String adminName;
+
+    /** 管理员初始密码，为空时使用系统默认密码 */
+    @Schema(description = "管理员初始密码")
+    private String adminPassword;
+
+    /** 默认校区名称，默认“默认校区” */
+    @Schema(description = "默认校区名称")
+    private String campusName;
 
     /** 备注 */
     @Schema(description = "备注")

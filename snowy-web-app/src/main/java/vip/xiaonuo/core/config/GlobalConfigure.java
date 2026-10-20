@@ -121,7 +121,7 @@ public class GlobalConfigure implements WebMvcConfigurer {
             "COURSE_CATEGORY", "COURSE", "COURSE_PACKAGE", "COURSE_CLASS", "COURSE_CLASS_STUDENT",
             "COURSE_SCHEDULE", "COURSE_SCHEDULE_CHANGE", "COURSE_CLASS_ATTEND",
             "STUDENT", "STUDENT_PARENT_BIND", "STUDENT_ORDER", "STUDENT_LESSON_ACCOUNT",
-            "STUDENT_LESSON_FLOW", "STUDENT_REFUND", "STUDENT_RENEW_WARN",
+            "STUDENT_LESSON_FLOW", "STUDENT_REFUND", "STUDENT_RENEW_WARN", "NOTIFY_LOG",
             "CRM_LEAD", "CRM_LEAD_FOLLOW", "CRM_TRIAL_APPOINTMENT");
 
     /**
@@ -226,9 +226,6 @@ public class GlobalConfigure implements WebMvcConfigurer {
             "/sys/org/**",
             "/sys/group/**",
             "/sys/position/**",
-            "/sys/button/**",
-            "/sys/menu/**",
-            "/sys/module/**",
             "/sys/role/**",
             "/sys/user/**",
             "/sys/index/bizDataCount",
@@ -253,10 +250,19 @@ public class GlobalConfigure implements WebMvcConfigurer {
             "/dev/sms/delete",
             "/dev/sms/detail",
             "/dev/slideshow/**",
-            "/gen/basic/**",
-            "/gen/config/**",
+    };
+
+    /**
+     * 仅平台运营使用的接口地址集合
+     */
+    private static final String[] PLATFORM_PERMISSION_PATH_ARR = {
+            "/platform/**",
+            "/sys/button/**",
+            "/sys/menu/**",
+            "/sys/module/**",
+            "/gen/**",
             "/mobile/menu/**",
-            "/mobile/module/**",
+            "/mobile/module/**"
     };
 
     /**
@@ -308,6 +314,12 @@ public class GlobalConfigure implements WebMvcConfigurer {
                             .match(CollectionUtil.newArrayList(SUPER_PERMISSION_PATH_ARR))
                             // 校验B端超管角色
                             .check(r1 -> StpUtil.checkRole(SysBuildInEnum.BUILD_IN_ROLE_CODE.getValue()));
+
+                    // 平台运营接口只允许平台运营角色访问
+                    SaRouter.match("/**")
+                            .notMatch(CollectionUtil.newArrayList(NO_LOGIN_PATH_ARR))
+                            .match(CollectionUtil.newArrayList(PLATFORM_PERMISSION_PATH_ARR))
+                            .check(r1 -> StpUtil.checkRole("platformAdmin"));
                 })
 
                 // 前置函数：在每次认证函数之前执行

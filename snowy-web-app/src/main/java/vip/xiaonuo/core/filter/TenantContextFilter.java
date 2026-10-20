@@ -21,21 +21,23 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import vip.xiaonuo.auth.core.util.StpClientUtil;
 import vip.xiaonuo.common.context.TenantContext;
+import vip.xiaonuo.platform.api.TenantApi;
 
 import java.io.IOException;
 
 /**
  * 租户上下文过滤器
  * <p>
- * 从请求头 X-Tenant-Id 解析租户id并写入请求级租户上下文，请求结束后清除，
- * 供租户行级隔离拦截器使用。请求头未携带时，从登录会话（B端/C端）回退租户id。
- * 平台端/未登录请求无租户时，上下文为空。
+ * 已登录请求的租户只从登录会话读取，禁止通过请求头切换租户，避免越权访问其他机构数据；
+ * 未登录的登录/配置请求可通过 X-Tenant-Code 指定租户编码，用于识别登录机构。
  * </p>
  *
  * @author 会飞的猪
@@ -46,23 +48,36 @@ import java.io.IOException;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class TenantContextFilter extends OncePerRequestFilter {
 
-    /** 租户id请求头名称 */
-    public static final String TENANT_ID_HEADER = "X-Tenant-Id";
+    /** 租户编码请求头名称（仅登录前使用） */
+    public static final String TENANT_CODE_HEADER = "X-Tenant-Code";
 
     @Resource
     private SaTokenConfig saTokenConfig;
 
+    @Autowired
+    private ObjectProvider<TenantApi> tenantApiProvider;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
+            throws IOException, ServletException {
         try {
-            String tenantId = request.getHeader(TENANT_ID_HEADER);
-            if (ObjectUtil.isEmpty(tenantId)) {
-                // 未带租户请求头时，从登录会话回退租户id
-                tenantId = getTenantIdFromSession(request);
-            }
-            if (ObjectUtil.isNotEmpty(tenantId)) {
-                TenantContext.setTenantId(tenantId);
+            String tokenValue = request.getHeader(saTokenConfig.getTokenName());
+            if (ObjectUtil.isNotEmpty(tokenValue)) {
+                // 已登录：租户只认会话，忽略任何请求头
+                String tenantId = getTenantIdFromSession(tokenValue);
+                if (ObjectUtil.isNotEmpty(tenantId)) {
+                    TenantContext.setTenantId(tenantId);
+                }
+            } else {
+                // 未登录：允许通过租户编码识别登录机构
+                String tenantCode = request.getHeader(TENANT_CODE_HEADER);
+                if (ObjectUtil.isNotEmpty(tenantCode)) {
+                    TenantContext.setTenantCode(tenantCode);
+                    String tenantId = tenantApiProvider.getObject().getTenantIdByCode(tenantCode);
+                    if (ObjectUtil.isNotEmpty(tenantId)) {
+                        TenantContext.setTenantId(tenantId);
+                    }
+                }
             }
             filterChain.doFilter(request, response);
         } finally {
@@ -71,16 +86,12 @@ public class TenantContextFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 从登录会话回退租户id（兼容B端与C端会话）
+     * 从登录会话读取租户id（兼容B端与C端会话）
      *
      * @author 会飞的猪
      * @date 2026/10/20 10:00
      **/
-    private String getTenantIdFromSession(HttpServletRequest request) {
-        String tokenValue = request.getHeader(saTokenConfig.getTokenName());
-        if (ObjectUtil.isEmpty(tokenValue)) {
-            return null;
-        }
+    private String getTenantIdFromSession(String tokenValue) {
         // B端会话
         try {
             Object tenantId = StpUtil.getTokenSessionByToken(tokenValue).get("tenantId");

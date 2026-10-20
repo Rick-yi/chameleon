@@ -34,6 +34,7 @@ import vip.xiaonuo.common.listener.CommonDataChangeEventCenter;
 import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.sys.core.enums.SysBuildInEnum;
 import vip.xiaonuo.sys.core.enums.SysDataTypeEnum;
+import vip.xiaonuo.sys.core.util.SysResourceGuard;
 import vip.xiaonuo.sys.modular.relation.entity.SysRelation;
 import vip.xiaonuo.sys.modular.relation.enums.SysRelationCategoryEnum;
 import vip.xiaonuo.sys.modular.relation.service.SysRelationService;
@@ -87,6 +88,7 @@ public class SysModuleServiceImpl extends ServiceImpl<SysModuleMapper, SysModule
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void add(SysModuleAddParam sysModuleAddParam) {
+        SysResourceGuard.checkPlatformMaintainable();
         SysModule sysModule = BeanUtil.toBean(sysModuleAddParam, SysModule.class);
         boolean repeatTitle = this.count(new LambdaQueryWrapper<SysModule>().eq(SysModule::getCategory,
                 SysResourceCategoryEnum.MODULE.getValue()).eq(SysModule::getTitle, sysModule.getTitle())) > 0;
@@ -105,6 +107,7 @@ public class SysModuleServiceImpl extends ServiceImpl<SysModuleMapper, SysModule
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void edit(SysModuleEditParam sysModuleEditParam) {
+        SysResourceGuard.checkPlatformMaintainable();
         SysModule sysModule = this.queryEntity(sysModuleEditParam.getId());
         BeanUtil.copyProperties(sysModuleEditParam, sysModule);
         boolean repeatTitle = this.count(new LambdaQueryWrapper<SysModule>().eq(SysModule::getCategory,
@@ -122,6 +125,7 @@ public class SysModuleServiceImpl extends ServiceImpl<SysModuleMapper, SysModule
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void delete(List<SysModuleIdParam> sysModuleIdParamList) {
+        SysResourceGuard.checkPlatformMaintainable();
         List<String> sysModuleIdList = CollStreamUtil.toList(sysModuleIdParamList, SysModuleIdParam::getId);
         if(ObjectUtil.isNotEmpty(sysModuleIdList)) {
             boolean containsSystemModule = this.listByIds(sysModuleIdList).stream().map(SysModule::getCode)

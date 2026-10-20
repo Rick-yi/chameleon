@@ -37,6 +37,7 @@ import vip.xiaonuo.platform.modular.tenant.param.TenantAddParam;
 import vip.xiaonuo.platform.modular.tenant.param.TenantEditParam;
 import vip.xiaonuo.platform.modular.tenant.param.TenantIdParam;
 import vip.xiaonuo.platform.modular.tenant.param.TenantPageParam;
+import vip.xiaonuo.platform.modular.tenant.service.TenantInitService;
 import vip.xiaonuo.platform.modular.tenant.service.TenantService;
 
 import java.util.List;
@@ -57,12 +58,18 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
     @Resource
     private TenantPackageService tenantPackageService;
 
+    @Resource
+    private TenantInitService tenantInitService;
+
     @Override
     public Page<Tenant> page(TenantPageParam tenantPageParam) {
         QueryWrapper<Tenant> queryWrapper = new QueryWrapper<Tenant>().checkSqlInjection();
+        // 平台运营租户（id=0）仅用于平台账号归属，不在租户列表中展示
+        queryWrapper.lambda().ne(Tenant::getId, "0");
         if (ObjectUtil.isNotEmpty(tenantPageParam.getSearchKey())) {
-            queryWrapper.lambda().like(Tenant::getName, tenantPageParam.getSearchKey())
-                    .or().like(Tenant::getContactPhone, tenantPageParam.getSearchKey());
+            queryWrapper.lambda().and(q -> q.like(Tenant::getName, tenantPageParam.getSearchKey())
+                    .or().like(Tenant::getCode, tenantPageParam.getSearchKey())
+                    .or().like(Tenant::getContactPhone, tenantPageParam.getSearchKey()));
         }
         if (ObjectUtil.isAllNotEmpty(tenantPageParam.getSortField(), tenantPageParam.getSortOrder())) {
             CommonSortOrderEnum.validate(tenantPageParam.getSortOrder());
@@ -78,6 +85,14 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
     @Override
     public void add(TenantAddParam tenantAddParam) {
         Tenant tenant = BeanUtil.toBean(tenantAddParam, Tenant.class);
+        if ("platform".equalsIgnoreCase(tenant.getCode())) {
+            throw new CommonException("租户编码 platform 为平台运营保留编码");
+        }
+        boolean repeatCode = this.count(new LambdaQueryWrapper<Tenant>()
+                .eq(Tenant::getCode, tenant.getCode())) > 0;
+        if (repeatCode) {
+            throw new CommonException("存在重复的租户编码：{}", tenant.getCode());
+        }
         boolean repeatName = this.count(new LambdaQueryWrapper<Tenant>()
                 .eq(Tenant::getName, tenant.getName())) > 0;
         if (repeatName) {
@@ -95,15 +110,27 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
             }
         }
         this.save(tenant);
-        // 租户模板数据初始化（角色/字典/配置等），待底座表租户化后实现
-        this.initTenantTemplate(tenant);
+        // 租户模板数据初始化：校区、管理员、角色、菜单、配置、字典
+        tenantInitService.initTenant(tenant, tenantAddParam);
     }
 
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void edit(TenantEditParam tenantEditParam) {
+        if ("0".equals(tenantEditParam.getId())) {
+            throw new CommonException("平台运营租户不允许编辑");
+        }
         Tenant tenant = this.queryEntity(tenantEditParam.getId());
         BeanUtil.copyProperties(tenantEditParam, tenant);
+        if ("platform".equalsIgnoreCase(tenant.getCode())) {
+            throw new CommonException("租户编码 platform 为平台运营保留编码");
+        }
+        boolean repeatCode = this.count(new LambdaQueryWrapper<Tenant>()
+                .eq(Tenant::getCode, tenant.getCode())
+                .ne(Tenant::getId, tenant.getId())) > 0;
+        if (repeatCode) {
+            throw new CommonException("存在重复的租户编码：{}", tenant.getCode());
+        }
         boolean repeatName = this.count(new LambdaQueryWrapper<Tenant>()
                 .eq(Tenant::getName, tenant.getName())
                 .ne(Tenant::getId, tenant.getId())) > 0;
@@ -117,6 +144,9 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
     @Override
     public void delete(List<TenantIdParam> tenantIdParamList) {
         List<String> tenantIdList = CollStreamUtil.toList(tenantIdParamList, TenantIdParam::getId);
+        if (tenantIdList.contains("0")) {
+            throw new CommonException("平台运营租户不允许删除");
+        }
         if (ObjectUtil.isNotEmpty(tenantIdList)) {
             this.removeByIds(tenantIdList);
         }
@@ -142,8 +172,24 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
     }
 
     @Override
+    public Tenant getTenantByCode(String code) {
+        if (ObjectUtil.isEmpty(code)) {
+            return null;
+        }
+        return this.getOne(new LambdaQueryWrapper<Tenant>().eq(Tenant::getCode, code));
+    }
+
+    @Override
+    public List<Tenant> listActiveTenants() {
+        return this.list(new LambdaQueryWrapper<Tenant>()
+                .ne(Tenant::getId, "0")
+                .ne(Tenant::getStatus, TenantStatusEnum.STOP.getValue()));
+    }
+
+    @Override
     public int checkExpired() {
         java.util.List<Tenant> expiredList = this.list(new LambdaQueryWrapper<Tenant>()
+                .ne(Tenant::getId, "0")
                 .ne(Tenant::getStatus, TenantStatusEnum.STOP.getValue())
                 .isNotNull(Tenant::getExpireTime)
                 .lt(Tenant::getExpireTime, new java.util.Date()));
@@ -155,19 +201,5 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
             expiredList.forEach(tenant -> log.info(">>> 租户已到期，自动停用：{}（{}）", tenant.getName(), tenant.getId()));
         }
         return expiredList.size();
-    }
-
-    /**
-     * 初始化租户模板数据
-     * <p>
-     * 待 M1（底座表租户化完成后）实现：复制默认角色、菜单授权、字典、系统配置到该租户，
-     * 并生成机构管理员账号。
-     * </p>
-     *
-     * @author 会飞的猪
-     * @date 2026/10/20 10:00
-     **/
-    private void initTenantTemplate(Tenant tenant) {
-        log.info(">>> 租户[{}]开通完成，模板数据初始化待M1实现", tenant.getId());
     }
 }

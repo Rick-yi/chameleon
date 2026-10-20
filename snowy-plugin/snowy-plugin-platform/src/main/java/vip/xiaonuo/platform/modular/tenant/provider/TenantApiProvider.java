@@ -47,4 +47,20 @@ public class TenantApiProvider implements TenantApi {
         // 到期时间已过视为不可用（到期扫描可自动置停用，此处双保险）
         return tenant.getExpireTime() == null || tenant.getExpireTime().after(new java.util.Date());
     }
+
+    @Override
+    public String getTenantIdByCode(String tenantCode) {
+        Tenant tenant = tenantService.getTenantByCode(tenantCode);
+        return ObjectUtil.isEmpty(tenant) ? null : tenant.getId();
+    }
+
+    @Override
+    public boolean isPlatformTenant(String tenantId) {
+        return "0".equals(tenantId);
+    }
+
+    @Override
+    public java.util.List<String> listActiveTenantIds() {
+        return tenantService.listActiveTenants().stream().map(Tenant::getId).toList();
+    }
 }

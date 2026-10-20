@@ -41,6 +41,9 @@ export default {
 	orderPayCallback(data) {
 		return request('order/payCallback', data)
 	},
+	orderOfflinePay(data) {
+		return request('order/offlinePay', data)
+	},
 	orderCancel(data) {
 		return request('order/cancel', data)
 	},
@@ -64,6 +67,9 @@ export default {
 	},
 	refundConfirm(data) {
 		return request('refund/confirm', data)
+	},
+	refundCancel(data) {
+		return request('refund/cancel', data)
 	},
 	// 续费预警
 	renewWarnPage(data) {

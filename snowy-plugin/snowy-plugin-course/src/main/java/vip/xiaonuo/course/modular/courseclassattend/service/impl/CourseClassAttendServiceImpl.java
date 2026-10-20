@@ -13,6 +13,7 @@
 package vip.xiaonuo.course.modular.courseclassattend.service.impl;
 
 import cn.dev33.satoken.stp.StpUtil;
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -39,6 +40,7 @@ import vip.xiaonuo.course.modular.courseschedule.entity.CourseSchedule;
 import vip.xiaonuo.course.modular.courseschedule.enums.CourseScheduleStatusEnum;
 import vip.xiaonuo.course.modular.courseschedule.service.CourseScheduleService;
 import vip.xiaonuo.student.api.StudentLessonApi;
+import vip.xiaonuo.student.api.StudentNotifyApi;
 import vip.xiaonuo.student.api.pojo.LessonDeductParam;
 
 import java.math.BigDecimal;
@@ -71,6 +73,9 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
 
     @Resource
     private StudentLessonApi studentLessonApi;
+
+    @Resource
+    private StudentNotifyApi studentNotifyApi;
 
     @Override
     public Page<CourseClassAttend> page(CourseClassAttendPageParam courseClassAttendPageParam) {
@@ -136,7 +141,17 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
         if (ObjectUtil.isNotEmpty(deductParamList)) {
             studentLessonApi.deductLessons(deductParamList);
         }
-        // TODO(M4): 通知家长（消课通知/上课提醒）
+        // 消课通知落库（v1 站内记录，家长端/订阅消息在 M4 消费）
+        for (CourseClassAttend attend : attendList) {
+            if (ObjectUtil.isNotEmpty(attend.getLessonsDeducted())
+                    && attend.getLessonsDeducted().compareTo(BigDecimal.ZERO) > 0) {
+                studentNotifyApi.log("ATTEND", "PARENT", attend.getStudentId(), attend.getStudentId(),
+                        "消课通知", "学员于" + DateUtil.formatDate(schedule.getScheduleDate())
+                                + "完成课程【" + course.getName() + "】，扣减"
+                                + attend.getLessonsDeducted().stripTrailingZeros().toPlainString() + "课时",
+                        "IN_APP");
+            }
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)

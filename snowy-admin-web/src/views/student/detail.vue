@@ -40,7 +40,7 @@
 							</template>
 							<template v-if="column.dataIndex === 'action'">
 								<a-space>
-									<a-button v-if="record.status === 'UNPAID'" type="link" size="small" @click="onOpenPay(record)">支付</a-button>
+									<a-button v-if="record.status === 'UNPAID'" type="link" size="small" @click="onOpenPay(record)">线下收款</a-button>
 									<a-button v-if="record.status === 'UNPAID'" type="link" size="small" @click="onCancelOrder(record)">取消</a-button>
 									<a-button v-if="record.status === 'PAID'" type="link" size="small" @click="onOpenRefund(record)">退费</a-button>
 								</a-space>
@@ -57,6 +57,13 @@
 							<template v-if="column.dataIndex === 'action'">
 								<a-button v-if="record.status === 'PENDING'" type="link" size="small" @click="onOpenApprove(record)">审批</a-button>
 								<a-button v-if="record.status === 'TO_REFUND'" type="link" size="small" @click="onConfirmRefund(record)">确认退款</a-button>
+								<a-popconfirm
+									v-if="record.status === 'PENDING' || record.status === 'TO_REFUND'"
+									title="确定撤销该退费单吗？"
+									@confirm="onCancelRefund(record)"
+								>
+									<a-button type="link" danger size="small">撤销</a-button>
+								</a-popconfirm>
 							</template>
 						</template>
 					</a-table>
@@ -75,13 +82,23 @@
 			</a-form>
 		</a-modal>
 
-		<a-modal v-model:open="payOpen" title="支付回调（模拟）" :width="480" :destroy-on-close="true" @ok="onSubmitPay">
+		<a-modal v-model:open="payOpen" title="线下收款登记" :width="480" :destroy-on-close="true" @ok="onSubmitPay">
 			<a-form ref="payFormRef" :model="payFormData" layout="vertical">
-				<a-form-item label="支付流水号" name="tradeNo" :rules="[{ required: true, message: '请输入支付流水号' }]">
-					<a-input v-model:value="payFormData.tradeNo" placeholder="如：WX202610200001" allow-clear />
+				<a-alert type="info" show-icon message="v1 暂未接入线上支付，请在此登记线下/现金收款" style="margin-bottom: 16px" />
+				<a-form-item label="收款渠道" name="payChannel">
+					<a-select
+						v-model:value="payFormData.payChannel"
+						:options="[
+							{ value: 'OFFLINE', label: '线下转账' },
+							{ value: 'CASH', label: '现金' }
+						]"
+					/>
 				</a-form-item>
 				<a-form-item label="实收金额" name="paidAmount">
 					<a-input-number v-model:value="payFormData.paidAmount" :min="0" :precision="2" style="width: 100%" />
+				</a-form-item>
+				<a-form-item label="备注" name="remark">
+					<a-input v-model:value="payFormData.remark" placeholder="如：收款人、转账流水号" allow-clear />
 				</a-form-item>
 			</a-form>
 		</a-modal>
@@ -178,8 +195,10 @@
 	const flowTypeText = (t) => ({ SIGNUP: '购课入账', ATTEND: '点名消课', RESTORE: '回补', REFUND: '退费销课', ADJUST: '人工调整' }[t] || t)
 	const orderStatusText = (s) => ({ UNPAID: '待支付', PAID: '已支付', REFUNDED: '已退费', CANCELED: '已取消' }[s] || s)
 	const orderStatusColor = (s) => (s === 'PAID' ? 'green' : s === 'UNPAID' ? 'orange' : s === 'REFUNDED' ? 'red' : 'default')
-	const refundStatusText = (s) => ({ PENDING: '待审批', TO_REFUND: '待退款', REFUNDED: '已退款', REJECTED: '已驳回' }[s] || s)
-	const refundStatusColor = (s) => (s === 'REFUNDED' ? 'green' : s === 'PENDING' ? 'orange' : s === 'REJECTED' ? 'red' : 'blue')
+	const refundStatusText = (s) =>
+		({ PENDING: '待审批', TO_REFUND: '待退款', REFUNDED: '已退款', REJECTED: '已驳回', CANCELLED: '已撤销' }[s] || s)
+	const refundStatusColor = (s) =>
+		s === 'REFUNDED' ? 'green' : s === 'PENDING' ? 'orange' : s === 'REJECTED' || s === 'CANCELLED' ? 'red' : 'blue'
 
 	const loadAll = () => {
 		loading.value = true
@@ -213,12 +232,12 @@
 		})
 	}
 	const onOpenPay = (record) => {
-		payFormData.value = { orderId: record.id, paidAmount: record.amount }
+		payFormData.value = { orderId: record.id, paidAmount: record.amount, payChannel: 'OFFLINE' }
 		payOpen.value = true
 	}
 	const onSubmitPay = () => {
 		payFormRef.value.validate().then(() => {
-			studentApi.orderPayCallback(payFormData.value).then(() => {
+			studentApi.orderOfflinePay(payFormData.value).then(() => {
 				payOpen.value = false
 				loadAll()
 			})
@@ -252,6 +271,9 @@
 	}
 	const onConfirmRefund = (record) => {
 		studentApi.refundConfirm({ id: record.id }).then(() => loadAll())
+	}
+	const onCancelRefund = (record) => {
+		studentApi.refundCancel({ id: record.id }).then(() => loadAll())
 	}
 	loadAll()
 </script>

@@ -13,6 +13,7 @@
 package vip.xiaonuo.course.modular.courseschedule.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
@@ -30,6 +31,9 @@ import vip.xiaonuo.course.modular.courseclass.entity.CourseClass;
 import vip.xiaonuo.course.modular.courseclass.service.CourseClassService;
 import vip.xiaonuo.course.modular.courseclassattend.entity.CourseClassAttend;
 import vip.xiaonuo.course.modular.courseclassattend.mapper.CourseClassAttendMapper;
+import vip.xiaonuo.course.modular.courseclassstudent.entity.CourseClassStudent;
+import vip.xiaonuo.course.modular.courseclassstudent.enums.CourseClassStudentStatusEnum;
+import vip.xiaonuo.course.modular.courseclassstudent.service.CourseClassStudentService;
 import vip.xiaonuo.course.modular.courseschedule.entity.CourseSchedule;
 import vip.xiaonuo.course.modular.courseschedule.enums.CourseScheduleStatusEnum;
 import vip.xiaonuo.course.modular.courseschedule.mapper.CourseScheduleMapper;
@@ -41,6 +45,7 @@ import vip.xiaonuo.course.modular.courseschedule.param.CourseSchedulePageParam;
 import vip.xiaonuo.course.modular.courseschedule.service.CourseScheduleService;
 import vip.xiaonuo.course.modular.courseschedulechange.entity.CourseScheduleChange;
 import vip.xiaonuo.course.modular.courseschedulechange.service.CourseScheduleChangeService;
+import vip.xiaonuo.student.api.StudentNotifyApi;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -66,6 +71,12 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
 
     @Resource
     private CourseScheduleChangeService courseScheduleChangeService;
+
+    @Resource
+    private CourseClassStudentService courseClassStudentService;
+
+    @Resource
+    private StudentNotifyApi studentNotifyApi;
 
     @Resource
     private CourseClassAttendMapper courseClassAttendMapper;
@@ -203,7 +214,17 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         change.setToScheduleId(to.getId());
         change.setChangeReason(courseScheduleChangeParam.getChangeReason());
         courseScheduleChangeService.add(change);
-        // TODO(M4): 通知该班在学学员家长（订阅消息）
+        // 调课通知落库
+        List<CourseClassStudent> studentList = courseClassStudentService.listByClassId(from.getClassId());
+        for (CourseClassStudent classStudent : studentList) {
+            studentNotifyApi.log("SCHEDULE_CHANGE", "PARENT", classStudent.getStudentId(), classStudent.getStudentId(),
+                    "调课通知", "课程调至" + DateUtil.formatDate(to.getScheduleDate()) + " "
+                            + to.getStartTime() + "-" + to.getEndTime()
+                            + (ObjectUtil.isNotEmpty(to.getClassroom()) ? "，教室：" + to.getClassroom() : "")
+                            + (ObjectUtil.isNotEmpty(courseScheduleChangeParam.getChangeReason())
+                            ? "，原因：" + courseScheduleChangeParam.getChangeReason() : ""),
+                    "IN_APP");
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)

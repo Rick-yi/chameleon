@@ -16,6 +16,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import vip.xiaonuo.student.modular.studentorder.entity.StudentOrder;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderAddParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderIdParam;
+import vip.xiaonuo.student.modular.studentorder.param.StudentOrderOfflinePayParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPageParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPayCallbackParam;
 
@@ -35,8 +36,11 @@ public interface StudentOrderService {
     /** 报名下单（课包快照，防重复下单） */
     void add(StudentOrderAddParam studentOrderAddParam);
 
-    /** 支付回调（幂等：条件更新 + 流水号唯一） */
+    /** 支付回调（v1 对接微信支付后使用；当前仅保留联调入口） */
     void payCallback(StudentOrderPayCallbackParam studentOrderPayCallbackParam);
+
+    /** 线下收款登记（v1 支付统一走线下登记） */
+    void offlinePay(StudentOrderOfflinePayParam studentOrderOfflinePayParam);
 
     /** 取消订单 */
     void cancel(StudentOrderIdParam studentOrderIdParam);
