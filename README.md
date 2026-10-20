@@ -134,19 +134,21 @@ npm run dev
 - 配置键命名空间 `SNOWY_*`、`snowy.config.*`、CSS 变量 `--snowy-*`、`snowy-admin-web/src/snowy.js`、代码生成器默认插件名等；
 - 前端 logo 图片资源（`public/img/logo.png` 与 `DEV_CONFIG.SNOWY_SYS_LOGO` 的 base64）仍为上游素材，**请替换为你自己的商标**。
 
-## 八、⚠️ 未验证项（重要）
-
-本次交付在**未安装 JDK 17 / MySQL / Redis** 的环境上完成，因此：
+## 八、验证状态
 
 | 项目 | 状态 |
 |---|---|
-| 文件树与上游 v3.6.5 一致性（1745 个文件全量落地） | ✅ 已核对 |
-| 前端依赖安装与生产构建 `npm run build` | ✅ 已实测（见交付报告） |
-| 后端 Maven 编译 / 启动 | ❌ **未验证**（缺 JDK 17） |
-| 数据库脚本导入 / 登录进系统管理 | ❌ **未验证**（缺 MySQL + Redis） |
-| `mvn test` | ⚠️ 未验证（需 JDK 17）。`snowy-web-app/src/test` 为 JUnit 4 空测试，`junit` 与 `spring-boot-starter-test` 依赖已具备 |
+| 文件树与上游 v3.6.5 一致性（1745 个文件全量落地） | ✅ 已核对（逐文件 SHA256，0 缺失） |
+| 前端依赖安装与生产构建 `npm run build` | ✅ 已实测（1134 包，5320 模块，产物 870 文件） |
+| 后端 Maven 编译 `mvn compile` | ✅ 已实测（JDK 17.0.20.1，18 个模块全部 SUCCESS） |
+| 后端打包 `mvn package`（可执行 jar） | ✅ 已实测（`snowy-web-app-3.0.0.jar`，194.8 MiB，含 `BOOT-INF/classes/vip/xiaonuo/Application.class`） |
+| 数据库脚本导入 / 启动服务 / 登录进系统管理 | ❌ **未验证**（本机缺 MySQL + Redis） |
+| `mvn test` | ⚠️ 未验证。`snowy-web-app/src/test` 为 JUnit 4 空测试，依赖已具备 |
 
-**"能登录进系统管理"是待你在本机环境确认的验收项**，操作步骤见 [docs/02-启动与验证.md](docs/02-启动与验证.md)。
+> 本仓库内置了一份便携 JDK 17（`.jdk/jdk-17`，已被 `.gitignore` 忽略），
+> 用法见 [docs/01-环境准备.md](docs/01-环境准备.md) 第 1.1 节。
+
+**"能登录进系统管理"仍需你在装好 MySQL + Redis 后确认**，操作步骤见 [docs/02-启动与验证.md](docs/02-启动与验证.md)。
 
 ## 九、文档索引
 
