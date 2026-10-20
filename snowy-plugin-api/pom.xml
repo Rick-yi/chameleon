@@ -27,6 +27,9 @@
         <!-- 课程域插件api接口 -->
         <module>snowy-plugin-course-api</module>
 
+        <!-- 招生域插件api接口 -->
+        <module>snowy-plugin-crm-api</module>
+
         <!-- 开发工具插件api接口 -->
         <module>snowy-plugin-dev-api</module>
 

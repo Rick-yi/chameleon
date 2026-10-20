@@ -101,6 +101,12 @@
             <artifactId>snowy-plugin-course</artifactId>
         </dependency>
 
+        <!-- 招生域插件 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-crm</artifactId>
+        </dependency>
+
         <!-- 开发工具插件 -->
         <dependency>
             <groupId>vip.xiaonuo</groupId>

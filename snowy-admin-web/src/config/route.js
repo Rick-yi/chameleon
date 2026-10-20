@@ -40,6 +40,17 @@ const routes = {
 		},
 		{
 			id: '002',
+			name: 'crmLead',
+			path: '/crm',
+			component: 'crm/index',
+			meta: {
+				title: '招生线索',
+				type: 'menu',
+				icon: 'funnel-plot-outlined'
+			}
+		},
+		{
+			id: '003',
 			name: 'courseIndex',
 			path: '/course',
 			component: 'course/index',
@@ -50,7 +61,7 @@ const routes = {
 			}
 		},
 		{
-			id: '003',
+			id: '004',
 			name: 'coursePackage',
 			path: '/course/package',
 			component: 'course/package',
@@ -61,7 +72,7 @@ const routes = {
 			}
 		},
 		{
-			id: '004',
+			id: '005',
 			name: 'courseClass',
 			path: '/course/class',
 			component: 'course/class',
@@ -72,7 +83,7 @@ const routes = {
 			}
 		},
 		{
-			id: '005',
+			id: '006',
 			name: 'courseSchedule',
 			path: '/course/schedule',
 			component: 'course/schedule',
@@ -83,7 +94,7 @@ const routes = {
 			}
 		},
 		{
-			id: '006',
+			id: '007',
 			name: 'courseAttend',
 			path: '/course/attend',
 			component: 'course/attend',
@@ -94,7 +105,7 @@ const routes = {
 			}
 		},
 		{
-			id: '007',
+			id: '008',
 			name: 'studentIndex',
 			path: '/student',
 			component: 'student/index',
@@ -105,7 +116,7 @@ const routes = {
 			}
 		},
 		{
-			id: '008',
+			id: '009',
 			name: 'studentDetail',
 			path: '/student/detail',
 			component: 'student/detail',
@@ -117,7 +128,7 @@ const routes = {
 			}
 		},
 		{
-			id: '009',
+			id: '010',
 			name: 'renewWarn',
 			path: '/student/renewWarn',
 			component: 'student/renewWarn',
@@ -128,7 +139,7 @@ const routes = {
 			}
 		},
 		{
-			id: '010',
+			id: '011',
 			name: 'platformTenant',
 			path: '/platform/tenant',
 			component: 'platform/tenant',

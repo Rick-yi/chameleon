@@ -133,6 +133,13 @@
                 <version>${snowy.version}</version>
             </dependency>
 
+            <!-- snowy-plugin-crm-api -->
+            <dependency>
+                <groupId>vip.xiaonuo</groupId>
+                <artifactId>snowy-plugin-crm-api</artifactId>
+                <version>${snowy.version}</version>
+            </dependency>
+
             <!-- snowy-plugin-dev-api -->
             <dependency>
                 <groupId>vip.xiaonuo</groupId>
@@ -200,6 +207,13 @@
             <dependency>
                 <groupId>vip.xiaonuo</groupId>
                 <artifactId>snowy-plugin-course</artifactId>
+                <version>${snowy.version}</version>
+            </dependency>
+
+            <!-- snowy-plugin-crm -->
+            <dependency>
+                <groupId>vip.xiaonuo</groupId>
+                <artifactId>snowy-plugin-crm</artifactId>
                 <version>${snowy.version}</version>
             </dependency>
 

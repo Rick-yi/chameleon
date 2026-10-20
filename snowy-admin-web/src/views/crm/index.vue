@@ -1,0 +1,329 @@
+<template>
+	<xn-panel>
+		<a-form ref="searchFormRef" :model="searchFormState">
+			<a-row :gutter="10">
+				<a-col :xs="24" :sm="24" :md="24" :lg="6" :xl="6">
+					<a-form-item label="姓名/手机" name="searchKey">
+						<a-input v-model:value="searchFormState.searchKey" placeholder="请输入姓名或家长手机" allow-clear />
+					</a-form-item>
+				</a-col>
+				<a-col :xs="24" :sm="24" :md="24" :lg="6" :xl="6">
+					<a-form-item label="状态" name="status">
+						<a-select v-model:value="searchFormState.status" placeholder="请选择状态" :options="statusOptions" allow-clear />
+					</a-form-item>
+				</a-col>
+				<a-col :xs="24" :sm="24" :md="24" :lg="6" :xl="6">
+					<a-form-item label="来源" name="source">
+						<a-select v-model:value="searchFormState.source" placeholder="请选择来源" :options="sourceOptions" allow-clear />
+					</a-form-item>
+				</a-col>
+				<a-col :xs="24" :sm="24" :md="24" :lg="6" :xl="6">
+					<a-form-item>
+						<a-space>
+							<a-button type="primary" @click="tableRef.refresh(true)">
+								<template #icon><SearchOutlined /></template>
+								查询
+							</a-button>
+							<a-button @click="reset">
+								<template #icon><redo-outlined /></template>
+								重置
+							</a-button>
+						</a-space>
+					</a-form-item>
+				</a-col>
+			</a-row>
+		</a-form>
+		<s-table
+			ref="tableRef"
+			:columns="columns"
+			:data="loadData"
+			bordered
+			:row-key="(record) => record.id"
+			:scroll="{ x: 'max-content' }"
+		>
+			<template #operator>
+				<a-button type="primary" @click="onOpenAdd">
+					<template #icon><plus-outlined /></template>
+					新增线索
+				</a-button>
+			</template>
+			<template #bodyCell="{ column, record }">
+				<template v-if="column.dataIndex === 'intentCourseId'">
+					{{ courseName(record.intentCourseId) }}
+				</template>
+				<template v-if="column.dataIndex === 'source'">
+					<a-tag :color="sourceColor(record.source)">{{ sourceText(record.source) }}</a-tag>
+				</template>
+				<template v-if="column.dataIndex === 'status'">
+					<a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
+				</template>
+				<template v-if="column.dataIndex === 'action'">
+					<a-space>
+						<a @click="onOpenFollow(record)">跟进</a>
+						<a-divider type="vertical" />
+						<a @click="onOpenTrial(record)">试听</a>
+						<a-divider type="vertical" />
+						<a @click="onOpenConvert(record)">转学员</a>
+						<a-divider type="vertical" />
+						<a @click="onOpenEdit(record)">编辑</a>
+						<a-divider type="vertical" />
+						<a-popconfirm title="确定删除该线索吗？" @confirm="onDelete(record)">
+							<a-button type="link" danger size="small">删除</a-button>
+						</a-popconfirm>
+					</a-space>
+				</template>
+			</template>
+		</s-table>
+	</xn-panel>
+
+	<!-- 线索表单 -->
+	<a-modal v-model:open="open" :title="formData.id ? '编辑线索' : '新增线索'" :width="600" :destroy-on-close="true" @ok="onSubmit">
+		<a-form ref="formRef" :model="formData" layout="vertical">
+			<a-row :gutter="16">
+				<a-col :span="12">
+					<a-form-item label="学员姓名" name="name" :rules="[{ required: true, message: '请输入学员姓名' }]">
+						<a-input v-model:value="formData.name" placeholder="请输入学员姓名" allow-clear />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="家长手机" name="parentPhone" :rules="[{ required: true, message: '请输入家长手机' }]">
+						<a-input v-model:value="formData.parentPhone" placeholder="请输入家长手机" allow-clear />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="意向课程" name="intentCourseId">
+						<a-select v-model:value="formData.intentCourseId" placeholder="请选择意向课程" :options="courseOptions" allow-clear />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="来源" name="source">
+						<a-select v-model:value="formData.source" placeholder="请选择来源" :options="sourceOptions" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12" v-if="formData.id">
+					<a-form-item label="状态" name="status">
+						<a-select v-model:value="formData.status" placeholder="请选择状态" :options="statusOptions" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="24">
+					<a-form-item label="备注" name="remark">
+						<a-input v-model:value="formData.remark" placeholder="请输入备注" allow-clear />
+					</a-form-item>
+				</a-col>
+			</a-row>
+		</a-form>
+	</a-modal>
+
+	<!-- 跟进 -->
+	<a-modal v-model:open="followOpen" :title="`跟进记录 · ${currentLead.name || ''}`" :width="760" :destroy-on-close="true" :footer="null">
+		<a-table :columns="followColumns" :data-source="followList" :row-key="(r) => r.id" :pagination="false" size="small" bordered style="margin-bottom: 16px">
+			<template #bodyCell="{ column, record }">
+				<template v-if="column.dataIndex === 'followType'">{{ followTypeText(record.followType) }}</template>
+			</template>
+		</a-table>
+		<a-divider style="margin: 8px 0 16px">新增跟进</a-divider>
+		<a-form ref="followFormRef" :model="followFormData" layout="vertical">
+			<a-row :gutter="16">
+				<a-col :span="12">
+					<a-form-item label="跟进方式" name="followType">
+						<a-select v-model:value="followFormData.followType" placeholder="请选择" :options="followTypeOptions" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="下次跟进时间" name="nextFollowTime">
+						<a-date-picker v-model:value="followFormData.nextFollowTime" show-time value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="24">
+					<a-form-item label="跟进内容" name="content" :rules="[{ required: true, message: '请输入跟进内容' }]">
+						<a-textarea v-model:value="followFormData.content" :auto-size="{ minRows: 2, maxRows: 4 }" placeholder="沟通内容、家长反馈、下一步计划" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="更新线索状态" name="status">
+						<a-select v-model:value="followFormData.status" placeholder="默认置为已跟进" :options="statusOptions" allow-clear />
+					</a-form-item>
+				</a-col>
+			</a-row>
+			<div style="display: flex; justify-content: flex-end">
+				<a-button type="primary" @click="onSubmitFollow">保存跟进</a-button>
+			</div>
+		</a-form>
+	</a-modal>
+
+	<!-- 试听预约 -->
+	<a-modal v-model:open="trialOpen" :title="`预约试听 · ${currentLead.name || ''}`" :width="480" :destroy-on-close="true" @ok="onSubmitTrial">
+		<a-form ref="trialFormRef" :model="trialFormData" layout="vertical">
+			<a-form-item label="试听课程" name="courseId">
+				<a-select v-model:value="trialFormData.courseId" placeholder="请选择试听课程" :options="courseOptions" allow-clear />
+			</a-form-item>
+			<a-form-item label="试听时间" name="trialTime" :rules="[{ required: true, message: '请选择试听时间' }]">
+				<a-date-picker v-model:value="trialFormData.trialTime" show-time value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" />
+			</a-form-item>
+			<a-form-item label="备注" name="remark">
+				<a-input v-model:value="trialFormData.remark" placeholder="请输入备注" allow-clear />
+			</a-form-item>
+		</a-form>
+	</a-modal>
+
+	<!-- 转学员 -->
+	<a-modal v-model:open="convertOpen" :title="`转学员 · ${currentLead.name || ''}`" :width="480" :destroy-on-close="true" @ok="onSubmitConvert">
+		<a-form ref="convertFormRef" :model="convertFormData" layout="vertical">
+			<a-form-item label="学员姓名" name="name" :rules="[{ required: true, message: '请输入姓名' }]">
+				<a-input v-model:value="convertFormData.name" />
+			</a-form-item>
+			<a-form-item label="家长手机" name="parentPhone" :rules="[{ required: true, message: '请输入家长手机' }]">
+				<a-input v-model:value="convertFormData.parentPhone" />
+			</a-form-item>
+			<a-form-item label="家长姓名" name="parentName">
+				<a-input v-model:value="convertFormData.parentName" allow-clear />
+			</a-form-item>
+			<div style="color: rgba(0,0,0,.45); font-size: 12px">转入后自动创建学员档案，并将线索状态置为"已报名"</div>
+		</a-form>
+	</a-modal>
+</template>
+
+<script setup name="crmLead">
+	import crmApi from '@/api/crm/crmApi'
+	import courseApi from '@/api/course/courseApi'
+	import studentApi from '@/api/student/studentApi'
+	const searchFormState = ref({})
+	const tableRef = ref()
+	const formRef = ref()
+	const formData = ref({})
+	const open = ref(false)
+	const courseOptions = ref([])
+	const currentLead = ref({})
+	const followOpen = ref(false)
+	const followFormRef = ref()
+	const followFormData = ref({})
+	const followList = ref([])
+	const trialOpen = ref(false)
+	const trialFormRef = ref()
+	const trialFormData = ref({})
+	const convertOpen = ref(false)
+	const convertFormRef = ref()
+	const convertFormData = ref({})
+	const statusOptions = [
+		{ value: 'NEW', label: '新线索' },
+		{ value: 'FOLLOWED', label: '已跟进' },
+		{ value: 'TRIALED', label: '已试听' },
+		{ value: 'ENROLLED', label: '已报名' },
+		{ value: 'LOST', label: '已流失' }
+	]
+	const sourceOptions = [
+		{ value: 'GROUND', label: '地推' },
+		{ value: 'REFERRAL', label: '转介绍' },
+		{ value: 'ONLINE', label: '线上' },
+		{ value: 'VISIT', label: '自然到访' }
+	]
+	const followTypeOptions = [
+		{ value: 'PHONE', label: '电话' },
+		{ value: 'WECHAT', label: '微信' },
+		{ value: 'VISIT', label: '到店' }
+	]
+	const columns = [
+		{ title: '学员姓名', dataIndex: 'name' },
+		{ title: '家长手机', dataIndex: 'parentPhone' },
+		{ title: '意向课程', dataIndex: 'intentCourseId' },
+		{ title: '来源', dataIndex: 'source' },
+		{ title: '状态', dataIndex: 'status' },
+		{ title: '跟进人id', dataIndex: 'followUserId' },
+		{ title: '下次跟进', dataIndex: 'nextFollowTime' },
+		{ title: '操作', dataIndex: 'action', align: 'center', fixed: 'right' }
+	]
+	const followColumns = [
+		{ title: '时间', dataIndex: 'createTime', width: 160 },
+		{ title: '方式', dataIndex: 'followType', width: 80 },
+		{ title: '内容', dataIndex: 'content' },
+		{ title: '下次跟进', dataIndex: 'nextFollowTime', width: 160 }
+	]
+	const loadData = (parameter) => {
+		return crmApi.leadPage(Object.assign(parameter, searchFormState.value)).then((data) => data)
+	}
+	const reset = () => {
+		searchFormState.value = {}
+		tableRef.value.refresh(true)
+	}
+	const loadCourses = () => {
+		courseApi.coursePage({ current: 1, size: 100 }).then((data) => {
+			courseOptions.value = (data.records || []).map((item) => ({ value: item.id, label: item.name }))
+		})
+	}
+	const courseName = (id) => {
+		const item = courseOptions.value.find((i) => i.value === id)
+		return item ? item.label : '-'
+	}
+	const statusText = (s) => (statusOptions.find((i) => i.value === s) || {}).label || s
+	const statusColor = (s) => ({ NEW: 'blue', FOLLOWED: 'cyan', TRIALED: 'orange', ENROLLED: 'green', LOST: 'red' }[s] || 'default')
+	const sourceText = (s) => (sourceOptions.find((i) => i.value === s) || {}).label || s
+	const sourceColor = (s) => ({ GROUND: 'blue', REFERRAL: 'green', ONLINE: 'purple', VISIT: 'default' }[s] || 'default')
+	const followTypeText = (t) => (followTypeOptions.find((i) => i.value === t) || {}).label || t
+
+	const onOpenAdd = () => {
+		formData.value = { source: 'GROUND' }
+		open.value = true
+	}
+	const onOpenEdit = (record) => {
+		formData.value = { ...record }
+		open.value = true
+	}
+	const onSubmit = () => {
+		formRef.value.validate().then(() => {
+			const edit = !!formData.value.id
+			const api = edit ? crmApi.leadEdit : crmApi.leadAdd
+			api(formData.value).then(() => {
+				open.value = false
+				tableRef.value.refresh()
+			})
+		})
+	}
+	const onDelete = (record) => {
+		crmApi.leadDelete([{ id: record.id }]).then(() => tableRef.value.refresh())
+	}
+	const onOpenFollow = (record) => {
+		currentLead.value = record
+		followFormData.value = { leadId: record.id, followType: 'PHONE' }
+		followOpen.value = true
+		crmApi.followPage({ current: 1, size: 50, leadId: record.id }).then((data) => {
+			followList.value = data.records || []
+		})
+	}
+	const onSubmitFollow = () => {
+		followFormRef.value.validate().then(() => {
+			crmApi.followAdd(followFormData.value).then(() => {
+				followOpen.value = false
+				tableRef.value.refresh()
+			})
+		})
+	}
+	const onOpenTrial = (record) => {
+		currentLead.value = record
+		trialFormData.value = { leadId: record.id, courseId: record.intentCourseId }
+		trialOpen.value = true
+	}
+	const onSubmitTrial = () => {
+		trialFormRef.value.validate().then(() => {
+			crmApi.trialAdd(trialFormData.value).then(() => {
+				trialOpen.value = false
+				tableRef.value.refresh()
+			})
+		})
+	}
+	const onOpenConvert = (record) => {
+		currentLead.value = record
+		convertFormData.value = { name: record.name, parentPhone: record.parentPhone }
+		convertOpen.value = true
+	}
+	const onSubmitConvert = () => {
+		convertFormRef.value.validate().then(() => {
+			studentApi.studentAdd({ ...convertFormData.value, gender: '男', status: 'STUDYING' }).then(() => {
+				crmApi.leadEdit({ ...currentLead.value, status: 'ENROLLED' }).then(() => {
+					convertOpen.value = false
+					tableRef.value.refresh()
+				})
+			})
+		})
+	}
+	loadCourses()
+</script>
