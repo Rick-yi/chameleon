@@ -14,6 +14,7 @@ package vip.xiaonuo.platform.modular.tenant.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollStreamUtil;
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -27,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 import vip.xiaonuo.common.enums.CommonSortOrderEnum;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
+import vip.xiaonuo.platform.modular.tenantpackage.entity.TenantPackage;
+import vip.xiaonuo.platform.modular.tenantpackage.service.TenantPackageService;
 import vip.xiaonuo.platform.modular.tenant.entity.Tenant;
 import vip.xiaonuo.platform.modular.tenant.enums.TenantStatusEnum;
 import vip.xiaonuo.platform.modular.tenant.mapper.TenantMapper;
@@ -50,6 +53,9 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
 
     @Resource
     private TenantMapper tenantMapper;
+
+    @Resource
+    private TenantPackageService tenantPackageService;
 
     @Override
     public Page<Tenant> page(TenantPageParam tenantPageParam) {
@@ -79,6 +85,15 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
         }
         // 新开通租户默认试用状态
         tenant.setStatus(TenantStatusEnum.TRIAL.getValue());
+        // 套餐联动：校验套餐并按套餐有效期自动计算到期时间
+        if (ObjectUtil.isNotEmpty(tenant.getPackageId())) {
+            TenantPackage tenantPackage = tenantPackageService.queryEntity(tenant.getPackageId());
+            if (ObjectUtil.isEmpty(tenant.getExpireTime())) {
+                int validityDays = ObjectUtil.isNotEmpty(tenantPackage.getValidityDays())
+                        ? tenantPackage.getValidityDays() : 365;
+                tenant.setExpireTime(DateUtil.offsetDay(new java.util.Date(), validityDays));
+            }
+        }
         this.save(tenant);
         // 租户模板数据初始化（角色/字典/配置等），待底座表租户化后实现
         this.initTenantTemplate(tenant);
@@ -124,6 +139,22 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
     @Override
     public Tenant getTenantById(String id) {
         return this.getById(id);
+    }
+
+    @Override
+    public int checkExpired() {
+        java.util.List<Tenant> expiredList = this.list(new LambdaQueryWrapper<Tenant>()
+                .ne(Tenant::getStatus, TenantStatusEnum.STOP.getValue())
+                .isNotNull(Tenant::getExpireTime)
+                .lt(Tenant::getExpireTime, new java.util.Date()));
+        for (Tenant tenant : expiredList) {
+            tenant.setStatus(TenantStatusEnum.STOP.getValue());
+        }
+        if (ObjectUtil.isNotEmpty(expiredList)) {
+            this.updateBatchById(expiredList);
+            expiredList.forEach(tenant -> log.info(">>> 租户已到期，自动停用：{}（{}）", tenant.getName(), tenant.getId()));
+        }
+        return expiredList.size();
     }
 
     /**

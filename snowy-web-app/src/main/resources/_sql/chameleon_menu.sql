@@ -45,3 +45,10 @@ INSERT IGNORE INTO `SYS_RELATION` (`ID`, `TENANT_ID`, `OBJECT_ID`, `TARGET_ID`, 
 
 -- 兼容首次执行时租户字段为空的场景
 UPDATE `SYS_RELATION` SET `TENANT_ID` = @DEMO_TENANT_ID WHERE `ID` LIKE 'rel_m_%' AND `TENANT_ID` IS NULL;
+
+-- 套餐管理（平台运营模块）
+INSERT IGNORE INTO `SYS_RESOURCE` (`ID`, `PARENT_ID`, `TITLE`, `NAME`, `CODE`, `CATEGORY`, `MODULE`, `MENU_TYPE`, `PATH`, `COMPONENT`, `ICON`, `COLOR`, `VISIBLE`, `DISPLAY_LAYOUT`, `KEEP_LIVE`, `SORT_CODE`, `DELETE_FLAG`, `CREATE_TIME`, `CREATE_USER`) VALUES
+('menu_ppkg_001', '0', '套餐管理', 'platformPackage', 'platformPackage', 'MENU', 'mod_platform_001', 'MENU', '/platform/package', 'platform/package', 'database-outlined', NULL, 'YES', 'YES', 'YES', 2, 'NOT_DELETE', NOW(), '1');
+
+INSERT IGNORE INTO `SYS_RELATION` (`ID`, `TENANT_ID`, `OBJECT_ID`, `TARGET_ID`, `CATEGORY`, `EXT_JSON`) VALUES
+('rel_m_ppkg', @DEMO_TENANT_ID, '1570687866138206208', 'menu_ppkg_001', 'SYS_ROLE_HAS_RESOURCE', '{"menuId":"menu_ppkg_001","buttonInfo":[]}');

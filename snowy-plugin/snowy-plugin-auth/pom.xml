@@ -40,6 +40,12 @@
             <artifactId>snowy-plugin-dev-api</artifactId>
         </dependency>
 
+        <!-- 引入平台接口，用于登录时校验租户可用性 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-platform-api</artifactId>
+        </dependency>
+
         <!-- sa-token -->
         <dependency>
             <groupId>cn.dev33</groupId>

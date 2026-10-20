@@ -117,4 +117,17 @@ public class TenantController {
     public CommonResult<Tenant> detail(@Valid TenantIdParam tenantIdParam) {
         return CommonResult.data(tenantService.detail(tenantIdParam));
     }
+
+    /**
+     * 到期扫描（将过期租户置为停用，返回处理数量；后续可接入定时任务）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     */
+    @Operation(summary = "到期扫描")
+    @CommonLog("租户到期扫描")
+    @PostMapping("/platform/tenant/checkExpired")
+    public CommonResult<Integer> checkExpired() {
+        return CommonResult.data(tenantService.checkExpired());
+    }
 }

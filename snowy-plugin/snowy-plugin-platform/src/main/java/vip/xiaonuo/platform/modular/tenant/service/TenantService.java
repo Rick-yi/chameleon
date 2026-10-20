@@ -49,4 +49,7 @@ public interface TenantService {
 
     /** 按id获取租户，不存在返回null（不抛异常，供跨插件调用） */
     Tenant getTenantById(String id);
+
+    /** 到期扫描：将已过期租户置为停用，返回处理数量 */
+    int checkExpired();
 }

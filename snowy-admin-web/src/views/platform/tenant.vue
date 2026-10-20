@@ -37,10 +37,13 @@
 			:scroll="{ x: 'max-content' }"
 		>
 			<template #operator>
-				<a-button type="primary" @click="onOpenAdd">
-					<template #icon><plus-outlined /></template>
-					开通租户
-				</a-button>
+				<a-space>
+					<a-button type="primary" @click="onOpenAdd">
+						<template #icon><plus-outlined /></template>
+						开通租户
+					</a-button>
+					<a-button @click="onCheckExpired">到期扫描</a-button>
+				</a-space>
 			</template>
 			<template #bodyCell="{ column, record }">
 				<template v-if="column.dataIndex === 'status'">
@@ -78,8 +81,8 @@
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
-					<a-form-item label="套餐id" name="packageId">
-						<a-input v-model:value="formData.packageId" placeholder="如：pkg_demo" allow-clear />
+					<a-form-item label="套餐" name="packageId">
+						<a-select v-model:value="formData.packageId" placeholder="请选择套餐" :options="packageOptions" allow-clear />
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
@@ -103,6 +106,7 @@
 </template>
 
 <script setup name="platformTenant">
+	import { message } from 'ant-design-vue'
 	import tenantApi from '@/api/platform/tenantApi'
 	const searchFormState = ref({})
 	const tableRef = ref()
@@ -114,6 +118,22 @@
 		{ value: 'NORMAL', label: '正常' },
 		{ value: 'STOP', label: '停用' }
 	]
+	const packageOptions = ref([])
+	const loadPackages = () => {
+		tenantApi.packagePage({ current: 1, size: 100 }).then((data) => {
+			packageOptions.value = (data.records || []).map((p) => ({ value: p.id, label: `${p.name}（${p.validityDays || 365}天）` }))
+		})
+	}
+	const onCheckExpired = () => {
+		tenantApi.tenantCheckExpired().then((count) => {
+			tableRef.value.refresh()
+			if (count > 0) {
+				message.success(`已停用 ${count} 个到期租户`)
+			} else {
+				message.info('没有到期租户')
+			}
+		})
+	}
 	const columns = [
 		{ title: '机构名称', dataIndex: 'name' },
 		{ title: '联系人', dataIndex: 'contactName' },
@@ -153,4 +173,5 @@
 	const onDelete = (record) => {
 		tenantApi.tenantDelete([{ id: record.id }]).then(() => tableRef.value.refresh())
 	}
+	loadPackages()
 </script>

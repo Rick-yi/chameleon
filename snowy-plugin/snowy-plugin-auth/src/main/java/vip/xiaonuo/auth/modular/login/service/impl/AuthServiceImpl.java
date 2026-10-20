@@ -56,6 +56,7 @@ import vip.xiaonuo.common.util.CommonTimeFormatUtil;
 import vip.xiaonuo.dev.api.DevConfigApi;
 import vip.xiaonuo.dev.api.DevEmailApi;
 import vip.xiaonuo.dev.api.DevSmsApi;
+import vip.xiaonuo.platform.api.TenantApi;
 import vip.xiaonuo.sys.api.SysUserApi;
 
 import java.util.List;
@@ -179,6 +180,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Resource
     private SysUserApi sysUserApi;
+
+    @Resource
+    private TenantApi tenantApi;
 
     @Resource
     private ClientUserApi clientUserApi;
@@ -466,6 +470,8 @@ public class AuthServiceImpl implements AuthService {
     public String doLogin(AuthAccountPasswordLoginParam authAccountPasswordLoginParam, String type) {
         // 保证租户上下文（登录请求通常不带租户请求头，未指定时默认演示租户）
         ensureTenantContext();
+        // 校验租户可用性（停用/到期禁止登录）
+        validateTenantAvailable();
         // 判断账号是否被封禁
         isDisableTime(authAccountPasswordLoginParam.getAccount());
         // 获取账号
@@ -543,6 +549,8 @@ public class AuthServiceImpl implements AuthService {
     public String doLoginByPhone(AuthPhoneValidCodeLoginParam authPhoneValidCodeLoginParam, String type) {
         // 保证租户上下文（登录请求通常不带租户请求头，未指定时默认演示租户）
         ensureTenantContext();
+        // 校验租户可用性（停用/到期禁止登录）
+        validateTenantAvailable();
         // 校验是否允许手机号登录
         this.checkAllowPhoneLoginFlag(type);
         // 手机号
@@ -561,6 +569,8 @@ public class AuthServiceImpl implements AuthService {
     public String doLoginByEmail(AuthEmailValidCodeLoginParam authEmailValidCodeLoginParam, String type) {
         // 保证租户上下文（登录请求通常不带租户请求头，未指定时默认演示租户）
         ensureTenantContext();
+        // 校验租户可用性（停用/到期禁止登录）
+        validateTenantAvailable();
         // 校验是否允许邮箱登录
         this.checkAllowEmailLoginFlag(type);
         // 邮箱
@@ -705,6 +715,19 @@ public class AuthServiceImpl implements AuthService {
     private void ensureTenantContext() {
         if (ObjectUtil.isEmpty(TenantContext.getTenantId())) {
             TenantContext.setTenantId(DEFAULT_TENANT_ID);
+        }
+    }
+
+    /**
+     * 校验租户可用性（停用或已到期的机构禁止登录）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    private void validateTenantAvailable() {
+        String tenantId = TenantContext.getTenantId();
+        if (ObjectUtil.isNotEmpty(tenantId) && !tenantApi.isTenantAvailable(tenantId)) {
+            throw new CommonException("机构已停用或已到期，请联系平台运营");
         }
     }
 

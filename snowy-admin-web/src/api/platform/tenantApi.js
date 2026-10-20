@@ -32,5 +32,21 @@ export default {
 	},
 	tenantDetail(data) {
 		return request('tenant/detail', data, 'get')
+	},
+	tenantCheckExpired() {
+		return request('tenant/checkExpired', null)
+	},
+	// 套餐
+	packagePage(data) {
+		return request('package/page', data, 'get')
+	},
+	packageAdd(data) {
+		return request('package/add', data)
+	},
+	packageEdit(data) {
+		return request('package/edit', data)
+	},
+	packageDelete(data) {
+		return request('package/delete', data)
 	}
 }

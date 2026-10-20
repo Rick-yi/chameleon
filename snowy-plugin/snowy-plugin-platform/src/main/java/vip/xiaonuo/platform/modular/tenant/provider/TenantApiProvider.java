@@ -41,6 +41,10 @@ public class TenantApiProvider implements TenantApi {
     @Override
     public boolean isTenantAvailable(String tenantId) {
         Tenant tenant = tenantService.getTenantById(tenantId);
-        return ObjectUtil.isNotEmpty(tenant) && !TenantStatusEnum.STOP.getValue().equals(tenant.getStatus());
+        if (ObjectUtil.isEmpty(tenant) || TenantStatusEnum.STOP.getValue().equals(tenant.getStatus())) {
+            return false;
+        }
+        // 到期时间已过视为不可用（到期扫描可自动置停用，此处双保险）
+        return tenant.getExpireTime() == null || tenant.getExpireTime().after(new java.util.Date());
     }
 }
