@@ -51,4 +51,12 @@ public class DashboardOverviewDTO {
     /** 待收款订单 */
     @Schema(description = "待收款订单")
     private List<DashboardTodoDTO> unpaidOrderList;
+
+    /** 近 30 天课消趋势 */
+    @Schema(description = "近 30 天课消趋势")
+    private List<FinanceAttendTrendDTO> attendTrendList;
+
+    /** 校区经营对比 */
+    @Schema(description = "校区经营对比")
+    private List<FinanceCampusRankDTO> campusRankList;
 }

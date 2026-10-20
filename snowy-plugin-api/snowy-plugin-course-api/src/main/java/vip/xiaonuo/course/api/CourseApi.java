@@ -71,4 +71,12 @@ public interface CourseApi {
      * @date 2026/10/20 10:00
      **/
     List<String> listScheduleIdsByCampus(String campusId);
+
+    /**
+     * 获取排课所属校区id（报表按校区归集课消用）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    String getScheduleCampusId(String scheduleId);
 }

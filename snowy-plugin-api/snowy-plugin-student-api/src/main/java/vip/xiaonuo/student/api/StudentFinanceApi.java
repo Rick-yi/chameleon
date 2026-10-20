@@ -14,6 +14,8 @@ package vip.xiaonuo.student.api;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import vip.xiaonuo.student.api.dto.DashboardOverviewDTO;
+import vip.xiaonuo.student.api.dto.FinanceAttendTrendDTO;
+import vip.xiaonuo.student.api.dto.FinanceCampusRankDTO;
 import vip.xiaonuo.student.api.dto.FinanceChannelDTO;
 import vip.xiaonuo.student.api.dto.FinanceCourseRankDTO;
 import vip.xiaonuo.student.api.dto.FinancePaymentDTO;
@@ -21,6 +23,7 @@ import vip.xiaonuo.student.api.dto.FinanceRefundDTO;
 import vip.xiaonuo.student.api.dto.FinanceStatDTO;
 import vip.xiaonuo.student.api.dto.FinanceSummaryDTO;
 import vip.xiaonuo.student.api.dto.FinanceTrendDTO;
+import vip.xiaonuo.student.api.dto.ReportOptionDTO;
 import vip.xiaonuo.student.api.param.FinanceQueryParam;
 
 import java.util.List;
@@ -46,12 +49,28 @@ public interface StudentFinanceApi {
     Page<FinancePaymentDTO> paymentPage(FinanceQueryParam financeQueryParam);
 
     /**
+     * 收款单列表（导出用，不分页）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    List<FinancePaymentDTO> paymentList(FinanceQueryParam financeQueryParam);
+
+    /**
      * 退费单分页
      *
      * @author 会飞的猪
      * @date 2026/10/20 10:00
      **/
     Page<FinanceRefundDTO> refundPage(FinanceQueryParam financeQueryParam);
+
+    /**
+     * 退费单列表（导出用，不分页）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    List<FinanceRefundDTO> refundList(FinanceQueryParam financeQueryParam);
 
     /**
      * 经营报表（按课程汇总：收款 / 退费 / 消课课时 / 净营收）
@@ -92,6 +111,30 @@ public interface StudentFinanceApi {
      * @date 2026/10/20 10:00
      **/
     List<FinanceCourseRankDTO> courseRank(FinanceQueryParam financeQueryParam);
+
+    /**
+     * 校区经营对比
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    List<FinanceCampusRankDTO> campusRank(FinanceQueryParam financeQueryParam);
+
+    /**
+     * 课消趋势（默认近 30 天）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    List<FinanceAttendTrendDTO> attendTrend(FinanceQueryParam financeQueryParam);
+
+    /**
+     * 校区筛选项
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    List<ReportOptionDTO> campusOptions();
 
     /**
      * 经营看板聚合

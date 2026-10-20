@@ -44,5 +44,11 @@
             <groupId>vip.xiaonuo</groupId>
             <artifactId>snowy-plugin-platform-api</artifactId>
         </dependency>
+
+        <!-- 组织接口，报表按校区归集时取校区名称 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-sys-api</artifactId>
+        </dependency>
     </dependencies>
 </project>

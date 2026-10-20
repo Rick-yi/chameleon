@@ -27,6 +27,9 @@ INSERT IGNORE INTO `SYS_RESOURCE` (`ID`, `PARENT_ID`, `TITLE`, `NAME`, `CODE`, `
 ('menu_finance_001',  '0', '财务收款', 'financeIndex',   'finance',       'MENU', 'mod_edu_001', 'MENU', '/finance',         'finance/index',    'account-book-outlined',NULL, 'YES', 'YES', 'YES', 10,'NOT_DELETE', NOW(), '1'),
 ('menu_report_dash_001', '0', '经营看板', 'reportDashboard', 'reportDashboard', 'MENU', 'mod_report_001', 'MENU', '/report/dashboard', 'report/dashboard', 'dashboard-outlined', NULL, 'YES', 'YES', 'YES', 1, 'NOT_DELETE', NOW(), '1'),
 ('menu_report_fin_001',  '0', '财务报表', 'reportFinance',   'reportFinance',   'MENU', 'mod_report_001', 'MENU', '/report/finance',   'report/finance',   'fund-outlined',      NULL, 'YES', 'YES', 'YES', 2, 'NOT_DELETE', NOW(), '1'),
+('menu_report_acad_001', '0', '教务报表', 'reportAcademic', 'reportAcademic', 'MENU', 'mod_report_001', 'MENU', '/report/academic', 'report/academic', 'solution-outlined', NULL, 'YES', 'YES', 'YES', 3, 'NOT_DELETE', NOW(), '1'),
+('menu_report_crm_001',  '0', '招生报表', 'reportCrm',      'reportCrm',      'MENU', 'mod_report_001', 'MENU', '/report/crm',      'report/crm',      'funnel-plot-outlined', NULL, 'YES', 'YES', 'YES', 4, 'NOT_DELETE', NOW(), '1'),
+('menu_plat_dash_001', '0', '平台看板', 'platformDashboard', 'platformDashboard', 'MENU', 'mod_platform_001','MENU','/platform/dashboard','platform/dashboard','pie-chart-outlined', NULL, 'YES', 'YES', 'YES', 0, 'NOT_DELETE', NOW(), '1'),
 ('menu_tenant_001',   '0', '租户管理', 'platformTenant', 'platformTenant','MENU', 'mod_platform_001','MENU','/platform/tenant','platform/tenant', 'bank-outlined',        NULL, 'YES', 'YES', 'YES', 1, 'NOT_DELETE', NOW(), '1');
 
 -- 授权给超级管理员角色（SYS_ROLE_HAS_RESOURCE；父子菜单会自动带出）
@@ -45,6 +48,8 @@ INSERT IGNORE INTO `SYS_RELATION` (`ID`, `TENANT_ID`, `OBJECT_ID`, `TARGET_ID`, 
 ('rel_m_renew',  @DEMO_TENANT_ID, '1570687866138206208', 'menu_renew_001',    'SYS_ROLE_HAS_RESOURCE', '{"menuId":"menu_renew_001","buttonInfo":[]}'),
 ('rel_m_report_dash', @DEMO_TENANT_ID, '1570687866138206208', 'menu_report_dash_001', 'SYS_ROLE_HAS_RESOURCE', '{"menuId":"menu_report_dash_001","buttonInfo":[]}'),
 ('rel_m_report_fin',  @DEMO_TENANT_ID, '1570687866138206208', 'menu_report_fin_001',  'SYS_ROLE_HAS_RESOURCE', '{"menuId":"menu_report_fin_001","buttonInfo":[]}'),
+('rel_m_report_acad', @DEMO_TENANT_ID, '1570687866138206208', 'menu_report_acad_001', 'SYS_ROLE_HAS_RESOURCE', '{"menuId":"menu_report_acad_001","buttonInfo":[]}'),
+('rel_m_report_crm',  @DEMO_TENANT_ID, '1570687866138206208', 'menu_report_crm_001',  'SYS_ROLE_HAS_RESOURCE', '{"menuId":"menu_report_crm_001","buttonInfo":[]}'),
 ('rel_m_fin',    @DEMO_TENANT_ID, '1570687866138206208', 'menu_finance_001',  'SYS_ROLE_HAS_RESOURCE', '{"menuId":"menu_finance_001","buttonInfo":[]}');
 
 -- 注意：平台运营菜单（租户管理/套餐管理）不授权给业务租户，

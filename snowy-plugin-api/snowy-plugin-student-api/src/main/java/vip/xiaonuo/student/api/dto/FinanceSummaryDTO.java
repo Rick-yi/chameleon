@@ -79,4 +79,16 @@ public class FinanceSummaryDTO {
     /** 待处理续费预警数 */
     @Schema(description = "待处理续费预警数")
     private Long renewWarnCount = 0L;
+
+    /** 课消金额（权责口径） */
+    @Schema(description = "课消金额（权责口径）")
+    private BigDecimal recognizedAmount = BigDecimal.ZERO;
+
+    /** 生均收入 */
+    @Schema(description = "生均收入")
+    private BigDecimal perStudentRevenue = BigDecimal.ZERO;
+
+    /** 实收率（百分比） */
+    @Schema(description = "实收率（百分比）")
+    private BigDecimal collectionRate = BigDecimal.ZERO;
 }

@@ -13,7 +13,10 @@
 package vip.xiaonuo.finance.modular.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import jakarta.servlet.http.HttpServletResponse;
 import vip.xiaonuo.student.api.dto.DashboardOverviewDTO;
+import vip.xiaonuo.student.api.dto.FinanceAttendTrendDTO;
+import vip.xiaonuo.student.api.dto.FinanceCampusRankDTO;
 import vip.xiaonuo.student.api.dto.FinanceChannelDTO;
 import vip.xiaonuo.student.api.dto.FinanceCourseRankDTO;
 import vip.xiaonuo.student.api.dto.FinancePaymentDTO;
@@ -21,8 +24,10 @@ import vip.xiaonuo.student.api.dto.FinanceRefundDTO;
 import vip.xiaonuo.student.api.dto.FinanceStatDTO;
 import vip.xiaonuo.student.api.dto.FinanceSummaryDTO;
 import vip.xiaonuo.student.api.dto.FinanceTrendDTO;
+import vip.xiaonuo.student.api.dto.ReportOptionDTO;
 import vip.xiaonuo.student.api.param.FinanceQueryParam;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -54,6 +59,18 @@ public interface FinanceService {
     /** 课程收款排行 */
     List<FinanceCourseRankDTO> courseRank(FinanceQueryParam financeQueryParam);
 
+    /** 校区经营对比 */
+    List<FinanceCampusRankDTO> campusRank(FinanceQueryParam financeQueryParam);
+
+    /** 课消趋势 */
+    List<FinanceAttendTrendDTO> attendTrend(FinanceQueryParam financeQueryParam);
+
+    /** 校区筛选项 */
+    List<ReportOptionDTO> campusOptions();
+
     /** 经营看板 */
     DashboardOverviewDTO dashboard(FinanceQueryParam financeQueryParam);
+
+    /** 导出报表（PAYMENT/REFUND/COURSE_SUMMARY） */
+    void export(FinanceQueryParam financeQueryParam, String type, HttpServletResponse response) throws IOException;
 }

@@ -16,12 +16,16 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vip.xiaonuo.common.pojo.CommonResult;
 import vip.xiaonuo.finance.modular.service.FinanceService;
 import vip.xiaonuo.student.api.dto.DashboardOverviewDTO;
+import vip.xiaonuo.student.api.dto.FinanceAttendTrendDTO;
+import vip.xiaonuo.student.api.dto.FinanceCampusRankDTO;
 import vip.xiaonuo.student.api.dto.FinanceChannelDTO;
 import vip.xiaonuo.student.api.dto.FinanceCourseRankDTO;
 import vip.xiaonuo.student.api.dto.FinancePaymentDTO;
@@ -29,8 +33,10 @@ import vip.xiaonuo.student.api.dto.FinanceRefundDTO;
 import vip.xiaonuo.student.api.dto.FinanceStatDTO;
 import vip.xiaonuo.student.api.dto.FinanceSummaryDTO;
 import vip.xiaonuo.student.api.dto.FinanceTrendDTO;
+import vip.xiaonuo.student.api.dto.ReportOptionDTO;
 import vip.xiaonuo.student.api.param.FinanceQueryParam;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -129,6 +135,56 @@ public class FinanceController {
     @GetMapping("/finance/report/courseRank")
     public CommonResult<List<FinanceCourseRankDTO>> courseRank(FinanceQueryParam financeQueryParam) {
         return CommonResult.data(financeService.courseRank(financeQueryParam));
+    }
+
+    /**
+     * 校区经营对比
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     */
+    @Operation(summary = "校区经营对比")
+    @GetMapping("/finance/report/campusRank")
+    public CommonResult<List<FinanceCampusRankDTO>> campusRank(FinanceQueryParam financeQueryParam) {
+        return CommonResult.data(financeService.campusRank(financeQueryParam));
+    }
+
+    /**
+     * 课消趋势
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     */
+    @Operation(summary = "课消趋势")
+    @GetMapping("/finance/report/attendTrend")
+    public CommonResult<List<FinanceAttendTrendDTO>> attendTrend(FinanceQueryParam financeQueryParam) {
+        return CommonResult.data(financeService.attendTrend(financeQueryParam));
+    }
+
+    /**
+     * 校区筛选项
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     */
+    @Operation(summary = "校区筛选项")
+    @GetMapping("/finance/report/campusOptions")
+    public CommonResult<List<ReportOptionDTO>> campusOptions() {
+        return CommonResult.data(financeService.campusOptions());
+    }
+
+    /**
+     * 导出报表
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     */
+    @Operation(summary = "导出报表")
+    @GetMapping("/finance/report/export")
+    public void export(FinanceQueryParam financeQueryParam,
+                       @RequestParam(required = false, defaultValue = "PAYMENT") String type,
+                       HttpServletResponse response) throws IOException {
+        financeService.export(financeQueryParam, type, response);
     }
 
     /**

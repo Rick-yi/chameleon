@@ -10,28 +10,74 @@
  */
 import { baseRequest } from '@/utils/request'
 
-const request = (url, ...arg) => baseRequest(`/finance/report/` + url, ...arg)
+const financeRequest = (url, ...arg) => baseRequest(`/finance/report/` + url, ...arg)
+const academicRequest = (url, ...arg) => baseRequest(`/course/report/academic/` + url, ...arg)
+const crmRequest = (url, ...arg) => baseRequest(`/crm/report/` + url, ...arg)
 
 /**
- * 报表接口
+ * 报表接口（财务/教务/招生）
  *
  * @author 会飞的猪
  * @date 2026-10-20
  */
 export default {
+	// 财务
 	dashboard(data) {
-		return request('dashboard', data, 'get')
+		return financeRequest('dashboard', data, 'get')
 	},
 	summary(data) {
-		return request('summary', data, 'get')
+		return financeRequest('summary', data, 'get')
 	},
 	trend(data) {
-		return request('trend', data, 'get')
+		return financeRequest('trend', data, 'get')
 	},
 	channel(data) {
-		return request('channel', data, 'get')
+		return financeRequest('channel', data, 'get')
 	},
 	courseRank(data) {
-		return request('courseRank', data, 'get')
+		return financeRequest('courseRank', data, 'get')
+	},
+	campusRank(data) {
+		return financeRequest('campusRank', data, 'get')
+	},
+	attendTrend(data) {
+		return financeRequest('attendTrend', data, 'get')
+	},
+	campusOptions() {
+		return financeRequest('campusOptions', null, 'get')
+	},
+	exportReport(data) {
+		return financeRequest('export', data, 'get', {
+			responseType: 'blob'
+		})
+	},
+	// 教务
+	academicAttendance(data) {
+		return academicRequest('attendance', data, 'get')
+	},
+	academicClassFill(data) {
+		return academicRequest('classFill', data, 'get')
+	},
+	academicTeacherWorkload(data) {
+		return academicRequest('teacherWorkload', data, 'get')
+	},
+	academicLessonProgress(data) {
+		return academicRequest('lessonProgress', data, 'get')
+	},
+	academicRiskStudents(data) {
+		return academicRequest('riskStudents', data, 'get')
+	},
+	// 招生
+	crmFunnel(data) {
+		return crmRequest('funnel', data, 'get')
+	},
+	crmSource(data) {
+		return crmRequest('source', data, 'get')
+	},
+	crmFollowRank(data) {
+		return crmRequest('followRank', data, 'get')
+	},
+	crmTrial(data) {
+		return crmRequest('trial', data, 'get')
 	}
 }

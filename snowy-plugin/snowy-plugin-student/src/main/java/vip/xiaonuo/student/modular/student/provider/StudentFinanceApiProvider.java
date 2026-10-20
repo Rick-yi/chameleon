@@ -15,6 +15,7 @@ package vip.xiaonuo.student.modular.student.provider;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -25,6 +26,8 @@ import vip.xiaonuo.course.api.CourseApi;
 import vip.xiaonuo.student.api.StudentFinanceApi;
 import vip.xiaonuo.student.api.dto.DashboardOverviewDTO;
 import vip.xiaonuo.student.api.dto.DashboardTodoDTO;
+import vip.xiaonuo.student.api.dto.FinanceAttendTrendDTO;
+import vip.xiaonuo.student.api.dto.FinanceCampusRankDTO;
 import vip.xiaonuo.student.api.dto.FinanceChannelDTO;
 import vip.xiaonuo.student.api.dto.FinanceCourseRankDTO;
 import vip.xiaonuo.student.api.dto.FinancePaymentDTO;
@@ -32,6 +35,7 @@ import vip.xiaonuo.student.api.dto.FinanceRefundDTO;
 import vip.xiaonuo.student.api.dto.FinanceStatDTO;
 import vip.xiaonuo.student.api.dto.FinanceSummaryDTO;
 import vip.xiaonuo.student.api.dto.FinanceTrendDTO;
+import vip.xiaonuo.student.api.dto.ReportOptionDTO;
 import vip.xiaonuo.student.api.param.FinanceQueryParam;
 import vip.xiaonuo.student.modular.student.entity.Student;
 import vip.xiaonuo.student.modular.student.enums.StudentStatusEnum;
@@ -48,15 +52,19 @@ import vip.xiaonuo.student.modular.studentrefund.mapper.StudentRefundMapper;
 import vip.xiaonuo.student.modular.studentrenewarn.entity.StudentRenewWarn;
 import vip.xiaonuo.student.modular.studentrenewarn.enums.StudentRenewWarnStatusEnum;
 import vip.xiaonuo.student.modular.studentrenewarn.mapper.StudentRenewWarnMapper;
+import vip.xiaonuo.sys.api.SysOrgApi;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -70,6 +78,9 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
 
     /** 未知课程占位 */
     private static final String UNKNOWN_COURSE = "UNKNOWN";
+
+    /** 未分配校区占位 */
+    private static final String UNKNOWN_CAMPUS = "UNKNOWN";
 
     @Resource
     private StudentOrderMapper studentOrderMapper;
@@ -89,8 +100,44 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
     @Resource
     private CourseApi courseApi;
 
+    @Resource
+    private SysOrgApi sysOrgApi;
+
     @Override
     public Page<FinancePaymentDTO> paymentPage(FinanceQueryParam financeQueryParam) {
+        Page<StudentOrder> orderPage = studentOrderMapper.selectPage(CommonPageRequest.defaultPage(),
+                buildPaymentQuery(financeQueryParam));
+        Page<FinancePaymentDTO> resultPage = new Page<>(orderPage.getCurrent(), orderPage.getSize(), orderPage.getTotal());
+        resultPage.setRecords(toPaymentDtoList(orderPage.getRecords()));
+        return resultPage;
+    }
+
+    @Override
+    public List<FinancePaymentDTO> paymentList(FinanceQueryParam financeQueryParam) {
+        return toPaymentDtoList(studentOrderMapper.selectList(buildPaymentQuery(financeQueryParam)));
+    }
+
+    @Override
+    public Page<FinanceRefundDTO> refundPage(FinanceQueryParam financeQueryParam) {
+        Page<StudentRefund> refundPage = studentRefundMapper.selectPage(CommonPageRequest.defaultPage(),
+                buildRefundQuery(financeQueryParam));
+        Page<FinanceRefundDTO> resultPage = new Page<>(refundPage.getCurrent(), refundPage.getSize(), refundPage.getTotal());
+        resultPage.setRecords(toRefundDtoList(refundPage.getRecords()));
+        return resultPage;
+    }
+
+    @Override
+    public List<FinanceRefundDTO> refundList(FinanceQueryParam financeQueryParam) {
+        return toRefundDtoList(studentRefundMapper.selectList(buildRefundQuery(financeQueryParam)));
+    }
+
+    /**
+     * 收款单查询条件
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    private QueryWrapper<StudentOrder> buildPaymentQuery(FinanceQueryParam financeQueryParam) {
         QueryWrapper<StudentOrder> queryWrapper = new QueryWrapper<StudentOrder>().checkSqlInjection();
         queryWrapper.lambda()
                 .in(StudentOrder::getStatus, StudentOrderStatusEnum.PAID.getValue(), StudentOrderStatusEnum.REFUNDED.getValue());
@@ -108,12 +155,61 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
         if (ObjectUtil.isNotEmpty(financeQueryParam.getChannel())) {
             queryWrapper.lambda().eq(StudentOrder::getPayChannel, financeQueryParam.getChannel());
         }
+        if (ObjectUtil.isNotEmpty(financeQueryParam.getCampusId())) {
+            queryWrapper.lambda().eq(StudentOrder::getCampusId, financeQueryParam.getCampusId());
+        }
+        if (ObjectUtil.isNotEmpty(financeQueryParam.getCourseId())) {
+            queryWrapper.lambda().eq(StudentOrder::getCourseId, financeQueryParam.getCourseId());
+        }
         queryWrapper.lambda().orderByDesc(StudentOrder::getPayTime);
-        Page<StudentOrder> orderPage = studentOrderMapper.selectPage(CommonPageRequest.defaultPage(), queryWrapper);
-        Map<String, String> studentNameMap = loadStudentNameMap(orderPage.getRecords().stream()
+        return queryWrapper;
+    }
+
+    /**
+     * 退费单查询条件
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    private QueryWrapper<StudentRefund> buildRefundQuery(FinanceQueryParam financeQueryParam) {
+        QueryWrapper<StudentRefund> queryWrapper = new QueryWrapper<StudentRefund>().checkSqlInjection();
+        if (ObjectUtil.isNotEmpty(financeQueryParam.getStatus())) {
+            queryWrapper.lambda().eq(StudentRefund::getStatus, financeQueryParam.getStatus());
+        }
+        if (ObjectUtil.isNotEmpty(financeQueryParam.getStartTime())) {
+            queryWrapper.lambda().ge(StudentRefund::getCreateTime, DateUtil.parse(financeQueryParam.getStartTime()));
+        }
+        if (ObjectUtil.isNotEmpty(financeQueryParam.getEndTime())) {
+            queryWrapper.lambda().le(StudentRefund::getCreateTime, DateUtil.parse(financeQueryParam.getEndTime()));
+        }
+        if (ObjectUtil.isNotEmpty(financeQueryParam.getCourseId())) {
+            queryWrapper.lambda().eq(StudentRefund::getCourseId, financeQueryParam.getCourseId());
+        }
+        if (ObjectUtil.isNotEmpty(financeQueryParam.getCampusId())) {
+            List<String> orderIdList = studentOrderMapper.selectList(new LambdaQueryWrapper<StudentOrder>()
+                            .eq(StudentOrder::getCampusId, financeQueryParam.getCampusId()))
+                    .stream().map(StudentOrder::getId).collect(Collectors.toList());
+            if (orderIdList.isEmpty()) {
+                queryWrapper.apply("1 = 0");
+            } else {
+                queryWrapper.lambda().in(StudentRefund::getOrderId, orderIdList);
+            }
+        }
+        queryWrapper.lambda().orderByDesc(StudentRefund::getCreateTime);
+        return queryWrapper;
+    }
+
+    /**
+     * 收款单DTO转换
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    private List<FinancePaymentDTO> toPaymentDtoList(List<StudentOrder> orderList) {
+        Map<String, String> studentNameMap = loadStudentNameMap(orderList.stream()
                 .map(StudentOrder::getStudentId).collect(Collectors.toList()));
         List<FinancePaymentDTO> dtoList = new ArrayList<>();
-        for (StudentOrder order : orderPage.getRecords()) {
+        for (StudentOrder order : orderList) {
             FinancePaymentDTO dto = new FinancePaymentDTO();
             dto.setId(order.getId());
             dto.setStudentId(order.getStudentId());
@@ -129,29 +225,20 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
             dto.setCreateTime(order.getCreateTime());
             dtoList.add(dto);
         }
-        Page<FinancePaymentDTO> resultPage = new Page<>(orderPage.getCurrent(), orderPage.getSize(), orderPage.getTotal());
-        resultPage.setRecords(dtoList);
-        return resultPage;
+        return dtoList;
     }
 
-    @Override
-    public Page<FinanceRefundDTO> refundPage(FinanceQueryParam financeQueryParam) {
-        QueryWrapper<StudentRefund> queryWrapper = new QueryWrapper<StudentRefund>().checkSqlInjection();
-        if (ObjectUtil.isNotEmpty(financeQueryParam.getStatus())) {
-            queryWrapper.lambda().eq(StudentRefund::getStatus, financeQueryParam.getStatus());
-        }
-        if (ObjectUtil.isNotEmpty(financeQueryParam.getStartTime())) {
-            queryWrapper.lambda().ge(StudentRefund::getCreateTime, DateUtil.parse(financeQueryParam.getStartTime()));
-        }
-        if (ObjectUtil.isNotEmpty(financeQueryParam.getEndTime())) {
-            queryWrapper.lambda().le(StudentRefund::getCreateTime, DateUtil.parse(financeQueryParam.getEndTime()));
-        }
-        queryWrapper.lambda().orderByDesc(StudentRefund::getCreateTime);
-        Page<StudentRefund> refundPage = studentRefundMapper.selectPage(CommonPageRequest.defaultPage(), queryWrapper);
-        Map<String, String> studentNameMap = loadStudentNameMap(refundPage.getRecords().stream()
+    /**
+     * 退费单DTO转换
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    private List<FinanceRefundDTO> toRefundDtoList(List<StudentRefund> refundList) {
+        Map<String, String> studentNameMap = loadStudentNameMap(refundList.stream()
                 .map(StudentRefund::getStudentId).collect(Collectors.toList()));
         List<FinanceRefundDTO> dtoList = new ArrayList<>();
-        for (StudentRefund refund : refundPage.getRecords()) {
+        for (StudentRefund refund : refundList) {
             FinanceRefundDTO dto = new FinanceRefundDTO();
             dto.setId(refund.getId());
             dto.setOrderId(refund.getOrderId());
@@ -166,9 +253,7 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
             dto.setCreateTime(refund.getCreateTime());
             dtoList.add(dto);
         }
-        Page<FinanceRefundDTO> resultPage = new Page<>(refundPage.getCurrent(), refundPage.getSize(), refundPage.getTotal());
-        resultPage.setRecords(dtoList);
-        return resultPage;
+        return dtoList;
     }
 
     @Override
@@ -191,6 +276,7 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
             FinanceStatDTO stat = statOf(statMap, order.getCourseId());
             stat.setPaidAmount(stat.getPaidAmount().add(ObjectUtil.isNotEmpty(order.getPaidAmount())
                     ? order.getPaidAmount() : BigDecimal.ZERO));
+            stat.setOrderCount(stat.getOrderCount() + 1);
         }
         // 退费（已退款，按创建时间）
         LambdaQueryWrapper<StudentRefund> refundWrapper = new LambdaQueryWrapper<StudentRefund>()
@@ -230,6 +316,7 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
         return statMap.computeIfAbsent(key, k -> {
             FinanceStatDTO stat = new FinanceStatDTO();
             stat.setCourseId(k);
+            stat.setCourseName(UNKNOWN_COURSE.equals(k) ? "未关联课程" : courseApi.getCourseName(k));
             return stat;
         });
     }
@@ -308,6 +395,18 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
             }
         }
         summary.setRenewWarnCount(studentRenewWarnMapper.selectCount(warnWrapper));
+
+        summary.setRecognizedAmount(orderList.stream().map(this::recognizedAmountOf)
+                .reduce(BigDecimal.ZERO, BigDecimal::add));
+        if (summary.getPayingStudentCount() > 0) {
+            summary.setPerStudentRevenue(paidAmount.divide(BigDecimal.valueOf(summary.getPayingStudentCount()),
+                    2, RoundingMode.HALF_UP));
+        }
+        BigDecimal receivableAmount = paidAmount.add(nvl(summary.getUnpaidAmount()));
+        if (receivableAmount.compareTo(BigDecimal.ZERO) > 0) {
+            summary.setCollectionRate(paidAmount.multiply(BigDecimal.valueOf(100))
+                    .divide(receivableAmount, 2, RoundingMode.HALF_UP));
+        }
         return summary;
     }
 
@@ -423,6 +522,122 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
     }
 
     @Override
+    public List<FinanceCampusRankDTO> campusRank(FinanceQueryParam financeQueryParam) {
+        Date start = parseStart(financeQueryParam.getStartTime());
+        Date end = parseEnd(financeQueryParam.getEndTime());
+        if (start == null) {
+            start = DateUtil.beginOfMonth(new Date());
+        }
+        if (end == null) {
+            end = new Date();
+        }
+        Map<String, FinanceCampusRankDTO> rankMap = new LinkedHashMap<>();
+        List<StudentOrder> orderList = studentOrderMapper.selectList(paidOrderWrapper(financeQueryParam, start, end));
+        Map<String, String> orderCampusMap = new HashMap<>();
+        for (StudentOrder order : orderList) {
+            String campusId = StrUtil.blankToDefault(order.getCampusId(), UNKNOWN_CAMPUS);
+            orderCampusMap.put(order.getId(), campusId);
+            FinanceCampusRankDTO dto = campusRankOf(rankMap, campusId);
+            dto.setPaidAmount(dto.getPaidAmount().add(orderPaidAmount(order)));
+            dto.setOrderCount(dto.getOrderCount() + 1);
+        }
+        List<StudentRefund> refundList = studentRefundMapper.selectList(refundWrapper(financeQueryParam, start, end));
+        List<String> refundOrderIdList = refundList.stream().map(StudentRefund::getOrderId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (ObjectUtil.isNotEmpty(refundOrderIdList)) {
+            for (StudentOrder order : studentOrderMapper.selectBatchIds(refundOrderIdList)) {
+                orderCampusMap.put(order.getId(), StrUtil.blankToDefault(order.getCampusId(), UNKNOWN_CAMPUS));
+            }
+        }
+        for (StudentRefund refund : refundList) {
+            String campusId = StrUtil.blankToDefault(orderCampusMap.get(refund.getOrderId()), UNKNOWN_CAMPUS);
+            FinanceCampusRankDTO dto = campusRankOf(rankMap, campusId);
+            dto.setRefundAmount(dto.getRefundAmount().add(nvl(refund.getRefundAmount())));
+        }
+        Map<String, String> scheduleCampusCache = new HashMap<>();
+        for (StudentLessonFlow flow : studentLessonFlowMapper.selectList(flowWrapper(financeQueryParam, start, end))) {
+            String campusId;
+            if (StrUtil.isBlank(flow.getScheduleId())) {
+                campusId = UNKNOWN_CAMPUS;
+            } else {
+                campusId = scheduleCampusCache.computeIfAbsent(flow.getScheduleId(),
+                        scheduleId -> StrUtil.blankToDefault(courseApi.getScheduleCampusId(scheduleId), UNKNOWN_CAMPUS));
+            }
+            FinanceCampusRankDTO dto = campusRankOf(rankMap, campusId);
+            dto.setAttendLessons(dto.getAttendLessons().add(flowLessons(flow)));
+        }
+        Map<String, String> campusNameMap = loadCampusNameMap(rankMap.keySet());
+        List<FinanceCampusRankDTO> resultList = new ArrayList<>(rankMap.values());
+        resultList.forEach(dto -> {
+            dto.setCampusName(UNKNOWN_CAMPUS.equals(dto.getCampusId()) ? "未分配校区"
+                    : StrUtil.blankToDefault(campusNameMap.get(dto.getCampusId()), dto.getCampusId()));
+            dto.setNetAmount(dto.getPaidAmount().subtract(dto.getRefundAmount()));
+        });
+        resultList.sort((a, b) -> b.getPaidAmount().compareTo(a.getPaidAmount()));
+        return resultList;
+    }
+
+    @Override
+    public List<FinanceAttendTrendDTO> attendTrend(FinanceQueryParam financeQueryParam) {
+        Date end = parseEnd(financeQueryParam.getEndTime());
+        if (end == null) {
+            end = new Date();
+        }
+        Date start = parseStart(financeQueryParam.getStartTime());
+        if (start == null) {
+            start = DateUtil.beginOfDay(DateUtil.offsetDay(end, -29));
+        }
+        Map<String, FinanceAttendTrendDTO> resultMap = new LinkedHashMap<>();
+        Date cursor = DateUtil.beginOfDay(start);
+        int guard = 0;
+        while (!cursor.after(end) && guard < 93) {
+            String period = DateUtil.formatDate(cursor);
+            FinanceAttendTrendDTO dto = new FinanceAttendTrendDTO();
+            dto.setPeriod(period);
+            resultMap.put(period, dto);
+            cursor = DateUtil.offsetDay(cursor, 1);
+            guard++;
+        }
+        for (StudentLessonFlow flow : studentLessonFlowMapper.selectList(flowWrapper(financeQueryParam, start, end))) {
+            FinanceAttendTrendDTO dto = resultMap.get(DateUtil.formatDate(flow.getCreateTime()));
+            if (dto == null) {
+                continue;
+            }
+            dto.setAttendLessons(dto.getAttendLessons().add(flowLessons(flow)));
+            if (LessonFlowTypeEnum.ATTEND.getValue().equals(flow.getFlowType())) {
+                dto.setAttendCount(dto.getAttendCount() + 1);
+            }
+        }
+        return new ArrayList<>(resultMap.values());
+    }
+
+    @Override
+    public List<ReportOptionDTO> campusOptions() {
+        Set<String> campusIdSet = new LinkedHashSet<>();
+        for (Object campusId : studentMapper.selectObjs(new QueryWrapper<Student>()
+                .select("DISTINCT CAMPUS_ID").isNotNull("CAMPUS_ID"))) {
+            if (campusId != null) {
+                campusIdSet.add(campusId.toString());
+            }
+        }
+        for (Object campusId : studentOrderMapper.selectObjs(new QueryWrapper<StudentOrder>()
+                .select("DISTINCT CAMPUS_ID").isNotNull("CAMPUS_ID"))) {
+            if (campusId != null) {
+                campusIdSet.add(campusId.toString());
+            }
+        }
+        if (campusIdSet.isEmpty()) {
+            return new ArrayList<>();
+        }
+        Map<String, String> campusNameMap = loadCampusNameMap(campusIdSet);
+        return campusIdSet.stream()
+                .map(campusId -> new ReportOptionDTO(campusId,
+                        StrUtil.blankToDefault(campusNameMap.get(campusId), campusId)))
+                .sorted((a, b) -> a.getLabel().compareTo(b.getLabel()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public DashboardOverviewDTO dashboard(FinanceQueryParam financeQueryParam) {
         DashboardOverviewDTO overview = new DashboardOverviewDTO();
         overview.setSummary(summary(financeQueryParam));
@@ -434,6 +649,13 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
         trendParam.setStartTime(DateUtil.formatDateTime(DateUtil.beginOfMonth(DateUtil.offsetMonth(new Date(), -5))));
         trendParam.setEndTime(DateUtil.formatDateTime(new Date()));
         overview.setTrendList(trend(trendParam));
+
+        overview.setCampusRankList(campusRank(financeQueryParam));
+
+        FinanceQueryParam attendParam = copyParam(financeQueryParam);
+        attendParam.setStartTime(DateUtil.formatDateTime(DateUtil.beginOfDay(DateUtil.offsetDay(new Date(), -29))));
+        attendParam.setEndTime(DateUtil.formatDateTime(new Date()));
+        overview.setAttendTrendList(attendTrend(attendParam));
 
         List<StudentRenewWarn> warnList = studentRenewWarnMapper.selectList(new LambdaQueryWrapper<StudentRenewWarn>()
                 .eq(StudentRenewWarn::getStatus, StudentRenewWarnStatusEnum.PENDING)
@@ -656,6 +878,9 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
         target.setCourseId(source.getCourseId());
         target.setChannel(source.getChannel());
         target.setLimit(source.getLimit());
+        target.setStartTime(source.getStartTime());
+        target.setEndTime(source.getEndTime());
+        target.setDimension(source.getDimension());
         return target;
     }
 
@@ -687,6 +912,60 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
      **/
     private BigDecimal nvl(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    /**
+     * 课消金额（权责口径）：已消耗购买课时 × 订单单价
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    private BigDecimal recognizedAmountOf(StudentOrder order) {
+        BigDecimal packageLessons = nvl(order.getPackageLessons());
+        if (packageLessons.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal consumedLessons = nvl(order.getConsumedLessons()).min(packageLessons);
+        if (consumedLessons.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return orderPaidAmount(order).multiply(consumedLessons)
+                .divide(packageLessons, 2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * 取或创建校区统计对象
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    private FinanceCampusRankDTO campusRankOf(Map<String, FinanceCampusRankDTO> rankMap, String campusId) {
+        return rankMap.computeIfAbsent(campusId, key -> {
+            FinanceCampusRankDTO dto = new FinanceCampusRankDTO();
+            dto.setCampusId(key);
+            return dto;
+        });
+    }
+
+    /**
+     * 批量加载校区名称
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    private Map<String, String> loadCampusNameMap(Collection<String> campusIdList) {
+        Map<String, String> nameMap = new HashMap<>();
+        List<String> distinctIdList = campusIdList.stream()
+                .filter(StrUtil::isNotBlank)
+                .filter(id -> !UNKNOWN_CAMPUS.equals(id))
+                .distinct().collect(Collectors.toList());
+        if (ObjectUtil.isEmpty(distinctIdList)) {
+            return nameMap;
+        }
+        for (JSONObject org : sysOrgApi.getOrgListByIdListWithoutException(distinctIdList)) {
+            nameMap.put(org.getStr("id"), org.getStr("name"));
+        }
+        return nameMap;
     }
 
     private Map<String, String> loadStudentNameMap(List<String> studentIdList) {

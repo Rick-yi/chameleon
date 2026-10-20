@@ -132,4 +132,14 @@ public class CourseApiProvider implements CourseApi {
                         .in(CourseSchedule::getClassId, classIdList))
                 .stream().map(CourseSchedule::getId).distinct().collect(Collectors.toList());
     }
+
+    @Override
+    public String getScheduleCampusId(String scheduleId) {
+        CourseSchedule courseSchedule = courseScheduleMapper.selectById(scheduleId);
+        if (ObjectUtil.isEmpty(courseSchedule)) {
+            return null;
+        }
+        CourseClass courseClass = courseClassMapper.selectById(courseSchedule.getClassId());
+        return ObjectUtil.isEmpty(courseClass) ? null : courseClass.getCampusId();
+    }
 }

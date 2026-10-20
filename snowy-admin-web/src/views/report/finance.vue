@@ -5,6 +5,9 @@
 				<a-form-item label="时间">
 					<a-range-picker v-model:value="dateRange" value-format="YYYY-MM-DD" allow-clear />
 				</a-form-item>
+				<a-form-item label="校区">
+					<a-select v-model:value="query.campusId" placeholder="全部校区" :options="campusOptions" allow-clear style="width: 160px" />
+				</a-form-item>
 				<a-form-item label="课程">
 					<a-select v-model:value="query.courseId" placeholder="全部课程" :options="courseOptions" allow-clear style="width: 180px" />
 				</a-form-item>
@@ -15,6 +18,19 @@
 					<a-space>
 						<a-button type="primary" @click="loadAll">查询</a-button>
 						<a-button @click="reset">重置</a-button>
+						<a-dropdown>
+							<a-button>
+								导出
+								<down-outlined />
+							</a-button>
+							<template #overlay>
+								<a-menu @click="onExport">
+									<a-menu-item key="PAYMENT">收款明细</a-menu-item>
+									<a-menu-item key="REFUND">退费明细</a-menu-item>
+									<a-menu-item key="COURSE_SUMMARY">课程汇总</a-menu-item>
+								</a-menu>
+							</template>
+						</a-dropdown>
 					</a-space>
 				</a-form-item>
 			</a-form>
@@ -32,13 +48,22 @@
 					<a-card :bordered="false"><a-statistic title="净营收" :value="summary.netAmount" :precision="2" prefix="¥" :value-style="{ color: '#52c41a' }" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
+					<a-card :bordered="false"><a-statistic title="课消金额" :value="summary.recognizedAmount" :precision="2" prefix="¥" /></a-card>
+				</a-col>
+				<a-col :xs="24" :sm="12" :md="8" :xl="4">
 					<a-card :bordered="false"><a-statistic title="订单数" :value="summary.orderCount" suffix="笔" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
 					<a-card :bordered="false"><a-statistic title="客单价" :value="summary.avgOrderAmount" :precision="2" prefix="¥" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
+					<a-card :bordered="false"><a-statistic title="生均收入" :value="summary.perStudentRevenue" :precision="2" prefix="¥" /></a-card>
+				</a-col>
+				<a-col :xs="24" :sm="12" :md="8" :xl="4">
 					<a-card :bordered="false"><a-statistic title="退费率" :value="summary.refundRate" :precision="2" suffix="%" /></a-card>
+				</a-col>
+				<a-col :xs="24" :sm="12" :md="8" :xl="4">
+					<a-card :bordered="false"><a-statistic title="实收率" :value="summary.collectionRate" :precision="2" suffix="%" /></a-card>
 				</a-col>
 			</a-row>
 
@@ -51,6 +76,26 @@
 				<a-col :xs="24" :xl="8">
 					<a-card title="收款渠道" :bordered="false">
 						<div id="financeChannelChart" class="report-chart"></div>
+					</a-card>
+				</a-col>
+			</a-row>
+
+			<a-row :gutter="16" style="margin-top: 16px">
+				<a-col :xs="24" :xl="16">
+					<a-card title="近 30 天课消趋势" :bordered="false">
+						<div id="financeAttendChart" class="report-chart"></div>
+					</a-card>
+				</a-col>
+				<a-col :xs="24" :xl="8">
+					<a-card title="校区经营对比" :bordered="false">
+						<a-table
+							:columns="campusColumns"
+							:data-source="campusRankList"
+							:row-key="(r) => r.campusId"
+							:pagination="false"
+							size="small"
+							bordered
+						/>
 					</a-card>
 				</a-col>
 			</a-row>
@@ -98,12 +143,14 @@
 	import reportApi from '@/api/report/reportApi'
 	import financeApi from '@/api/finance/financeApi'
 	import courseApi from '@/api/course/courseApi'
+	import downloadUtil from '@/utils/downloadUtil'
 
 	const loading = ref(false)
 	const detailLoading = ref(false)
 	const activeTab = ref('payment')
 	const dateRange = ref([dayjs().startOf('month').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')])
-	const query = reactive({ courseId: undefined, channel: undefined })
+	const query = reactive({ campusId: undefined, courseId: undefined, channel: undefined })
+	const campusOptions = ref([])
 	const courseOptions = ref([])
 	const channelOptions = [
 		{ value: 'OFFLINE', label: '线下转账' },
@@ -116,13 +163,18 @@
 		paidAmount: 0,
 		refundAmount: 0,
 		netAmount: 0,
+		recognizedAmount: 0,
 		orderCount: 0,
 		avgOrderAmount: 0,
-		refundRate: 0
+		perStudentRevenue: 0,
+		refundRate: 0,
+		collectionRate: 0
 	})
 	const trendList = ref([])
 	const channelList = ref([])
 	const courseRankList = ref([])
+	const campusRankList = ref([])
+	const attendTrendList = ref([])
 	const paymentList = ref([])
 	const refundList = ref([])
 	const paymentPage = reactive({ current: 1, pageSize: 10, total: 0, showSizeChanger: true })
@@ -130,15 +182,19 @@
 
 	let trendChart
 	let channelChart
+	let attendChart
 
 	const money = (value) => Number(value || 0)
 	const emptySummary = () => ({
 		paidAmount: 0,
 		refundAmount: 0,
 		netAmount: 0,
+		recognizedAmount: 0,
 		orderCount: 0,
 		avgOrderAmount: 0,
-		refundRate: 0
+		perStudentRevenue: 0,
+		refundRate: 0,
+		collectionRate: 0
 	})
 
 	const buildQuery = () => {
@@ -146,6 +202,7 @@
 		return {
 			startTime: start ? `${start} 00:00:00` : undefined,
 			endTime: end ? `${end} 23:59:59` : undefined,
+			campusId: query.campusId,
 			courseId: query.courseId,
 			channel: query.channel
 		}
@@ -154,6 +211,7 @@
 	const renderCharts = () => {
 		trendChart?.destroy()
 		channelChart?.destroy()
+		attendChart?.destroy()
 		const trendData = []
 		trendList.value.forEach((item) => {
 			trendData.push({ period: item.period, series: '收款', value: money(item.paidAmount) })
@@ -187,6 +245,23 @@
 			})
 			channelChart.render()
 		}
+
+		const attendData = attendTrendList.value.map((item) => ({
+			period: item.period,
+			value: money(item.attendLessons)
+		}))
+		if (attendData.length) {
+			attendChart = new Line('financeAttendChart', {
+				data: attendData,
+				xField: 'period',
+				yField: 'value',
+				height: 300,
+				color: '#722ed1',
+				smooth: true,
+				appendPadding: [8, 0, 0, 0]
+			})
+			attendChart.render()
+		}
 	}
 
 	const loadSummary = () => {
@@ -195,12 +270,16 @@
 			reportApi.summary(params),
 			reportApi.trend({ ...params, dimension: 'DAY' }),
 			reportApi.channel(params),
-			reportApi.courseRank(params)
-		]).then(([summaryData, trendData, channelData, rankData]) => {
+			reportApi.courseRank(params),
+			reportApi.campusRank(params),
+			reportApi.attendTrend(params)
+		]).then(([summaryData, trendData, channelData, rankData, campusData, attendData]) => {
 			summary.value = summaryData || emptySummary()
 			trendList.value = trendData || []
 			channelList.value = channelData || []
 			courseRankList.value = rankData || []
+			campusRankList.value = campusData || []
+			attendTrendList.value = attendData || []
 			nextTick(renderCharts)
 		})
 	}
@@ -238,8 +317,16 @@
 		})
 	}
 
+	const onExport = ({ key }) => {
+		const params = { ...buildQuery(), type: key }
+		reportApi.exportReport(params).then((res) => {
+			downloadUtil.resultDownload(res)
+		})
+	}
+
 	const reset = () => {
 		dateRange.value = [dayjs().startOf('month').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')]
+		query.campusId = undefined
 		query.courseId = undefined
 		query.channel = undefined
 		paymentPage.current = 1
@@ -266,6 +353,12 @@
 		{ title: '课消课时', dataIndex: 'attendLessons', customRender: ({ text }) => Number(text || 0).toFixed(2) },
 		{ title: '订单数', dataIndex: 'orderCount' }
 	]
+	const campusColumns = [
+		{ title: '校区', dataIndex: 'campusName' },
+		{ title: '收款', dataIndex: 'paidAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
+		{ title: '退费', dataIndex: 'refundAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
+		{ title: '净营收', dataIndex: 'netAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` }
+	]
 	const paymentColumns = [
 		{ title: '学员', dataIndex: 'studentName' },
 		{ title: '课包', dataIndex: 'packageName' },
@@ -288,8 +381,15 @@
 		})
 	}
 
+	const loadCampusOptions = () => {
+		reportApi.campusOptions().then((data) => {
+			campusOptions.value = (data || []).map((item) => ({ value: item.value, label: item.label }))
+		})
+	}
+
 	onMounted(() => {
 		loadCourses()
+		loadCampusOptions()
 		loadAll()
 	})
 </script>

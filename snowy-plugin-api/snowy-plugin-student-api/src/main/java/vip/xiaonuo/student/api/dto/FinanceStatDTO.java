@@ -32,6 +32,10 @@ public class FinanceStatDTO {
     @Schema(description = "课程id")
     private String courseId;
 
+    /** 课程名称 */
+    @Schema(description = "课程名称")
+    private String courseName;
+
     /** 收款金额 */
     @Schema(description = "收款金额")
     private BigDecimal paidAmount = BigDecimal.ZERO;
@@ -47,4 +51,8 @@ public class FinanceStatDTO {
     /** 净营收（收款-退费） */
     @Schema(description = "净营收")
     private BigDecimal netAmount = BigDecimal.ZERO;
+
+    /** 订单数 */
+    @Schema(description = "订单数")
+    private Long orderCount = 0L;
 }

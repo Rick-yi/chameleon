@@ -32,5 +32,11 @@
             <groupId>vip.xiaonuo</groupId>
             <artifactId>snowy-plugin-student-api</artifactId>
         </dependency>
+
+        <!-- 组织/用户接口，教务报表展示教师与校区名称 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-sys-api</artifactId>
+        </dependency>
     </dependencies>
 </project>

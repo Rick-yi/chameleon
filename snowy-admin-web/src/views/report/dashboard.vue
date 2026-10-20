@@ -24,12 +24,35 @@
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
 					<a-card :bordered="false" class="report-kpi">
+						<a-statistic title="课消金额" :value="summary.recognizedAmount" :precision="2" prefix="¥" />
+					</a-card>
+				</a-col>
+				<a-col :xs="24" :sm="12" :md="8" :xl="4">
+					<a-card :bordered="false" class="report-kpi">
+						<a-statistic title="本月新增学员" :value="summary.newStudentCount" suffix="人" />
+					</a-card>
+				</a-col>
+				<a-col :xs="24" :sm="12" :md="8" :xl="4">
+					<a-card :bordered="false" class="report-kpi">
 						<a-statistic title="在读学员" :value="summary.studyingStudentCount" suffix="人" />
 					</a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
 					<a-card :bordered="false" class="report-kpi">
 						<a-statistic title="待续费预警" :value="summary.renewWarnCount" suffix="条" :value-style="{ color: '#faad14' }" />
+					</a-card>
+				</a-col>
+			</a-row>
+
+			<a-row :gutter="16" style="margin-top: 16px">
+				<a-col :xs="24" :xl="16">
+					<a-card title="近 30 天课消趋势" :bordered="false">
+						<div id="reportAttendChart" class="report-chart"></div>
+					</a-card>
+				</a-col>
+				<a-col :xs="24" :xl="8">
+					<a-card title="校区经营对比" :bordered="false">
+						<div id="reportCampusChart" class="report-chart"></div>
 					</a-card>
 				</a-col>
 			</a-row>
@@ -90,26 +113,34 @@
 		paidAmount: 0,
 		refundAmount: 0,
 		netAmount: 0,
+		recognizedAmount: 0,
 		attendLessons: 0,
+		newStudentCount: 0,
 		studyingStudentCount: 0,
 		renewWarnCount: 0
 	})
 	const trendList = ref([])
 	const channelList = ref([])
 	const courseRankList = ref([])
+	const campusRankList = ref([])
+	const attendTrendList = ref([])
 	const renewWarnList = ref([])
 	const unpaidOrderList = ref([])
 
 	let trendChart
 	let channelChart
 	let rankChart
+	let attendChart
+	let campusChart
 
 	const money = (value) => Number(value || 0)
 	const emptySummary = () => ({
 		paidAmount: 0,
 		refundAmount: 0,
 		netAmount: 0,
+		recognizedAmount: 0,
 		attendLessons: 0,
+		newStudentCount: 0,
 		studyingStudentCount: 0,
 		renewWarnCount: 0
 	})
@@ -118,6 +149,8 @@
 		trendChart?.destroy()
 		channelChart?.destroy()
 		rankChart?.destroy()
+		attendChart?.destroy()
+		campusChart?.destroy()
 
 		const trendData = []
 		trendList.value.forEach((item) => {
@@ -169,6 +202,39 @@
 			})
 			rankChart.render()
 		}
+
+		const attendData = attendTrendList.value.map((item) => ({
+			period: item.period,
+			value: money(item.attendLessons)
+		}))
+		if (attendData.length) {
+			attendChart = new Line('reportAttendChart', {
+				data: attendData,
+				xField: 'period',
+				yField: 'value',
+				height: 300,
+				color: '#722ed1',
+				smooth: true,
+				appendPadding: [8, 0, 0, 0]
+			})
+			attendChart.render()
+		}
+
+		const campusData = campusRankList.value.map((item) => ({
+			name: item.campusName || item.campusId || '未分配校区',
+			amount: money(item.paidAmount)
+		}))
+		if (campusData.length) {
+			campusChart = new Bar('reportCampusChart', {
+				data: campusData.sort((a, b) => a.amount - b.amount),
+				xField: 'amount',
+				yField: 'name',
+				height: 300,
+				color: '#13c2c2',
+				label: { position: 'right' }
+			})
+			campusChart.render()
+		}
 	}
 
 	const loadData = () => {
@@ -180,6 +246,8 @@
 				trendList.value = data?.trendList || []
 				channelList.value = data?.channelList || []
 				courseRankList.value = data?.courseRankList || []
+				campusRankList.value = data?.campusRankList || []
+				attendTrendList.value = data?.attendTrendList || []
 				renewWarnList.value = data?.renewWarnList || []
 				unpaidOrderList.value = data?.unpaidOrderList || []
 				nextTick(renderCharts)
