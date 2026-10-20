@@ -9,6 +9,8 @@
  *	6.若您的项目无法满足以上几点，需要更多功能代码，获取Snowy商业授权许可，请在官网购买授权，地址为 https://www.xiaonuo.vip
  */
 // 静态路由配置
+// 说明：业务菜单（招生/教务/财务/平台）已迁移至数据库（SYS_RESOURCE + SYS_ROLE_HAS_RESOURCE），
+// 由后端登录菜单接口统一下发；此处仅保留默认模块与个人中心。
 const routes = {
 	// 默认模块，仅限于后端未添加任何单页配置，用此路由
 	module: [
@@ -36,128 +38,6 @@ const routes = {
 				title: '个人中心',
 				type: 'menu',
 				hidden: true
-			}
-		},
-		{
-			id: '002',
-			name: 'crmLead',
-			path: '/crm',
-			component: 'crm/index',
-			meta: {
-				title: '招生线索',
-				type: 'menu',
-				icon: 'funnel-plot-outlined'
-			}
-		},
-		{
-			id: '003',
-			name: 'courseIndex',
-			path: '/course',
-			component: 'course/index',
-			meta: {
-				title: '课程管理',
-				type: 'menu',
-				icon: 'book-outlined'
-			}
-		},
-		{
-			id: '004',
-			name: 'coursePackage',
-			path: '/course/package',
-			component: 'course/package',
-			meta: {
-				title: '课包管理',
-				type: 'menu',
-				icon: 'gift-outlined'
-			}
-		},
-		{
-			id: '005',
-			name: 'courseClass',
-			path: '/course/class',
-			component: 'course/class',
-			meta: {
-				title: '班级管理',
-				type: 'menu',
-				icon: 'team-outlined'
-			}
-		},
-		{
-			id: '006',
-			name: 'courseSchedule',
-			path: '/course/schedule',
-			component: 'course/schedule',
-			meta: {
-				title: '排课课表',
-				type: 'menu',
-				icon: 'calendar-outlined'
-			}
-		},
-		{
-			id: '007',
-			name: 'courseAttend',
-			path: '/course/attend',
-			component: 'course/attend',
-			meta: {
-				title: '点名消课',
-				type: 'menu',
-				icon: 'check-square-outlined'
-			}
-		},
-		{
-			id: '008',
-			name: 'studentIndex',
-			path: '/student',
-			component: 'student/index',
-			meta: {
-				title: '学员管理',
-				type: 'menu',
-				icon: 'smile-outlined'
-			}
-		},
-		{
-			id: '009',
-			name: 'studentDetail',
-			path: '/student/detail',
-			component: 'student/detail',
-			meta: {
-				title: '学员详情',
-				type: 'menu',
-				icon: 'profile-outlined',
-				hidden: true
-			}
-		},
-		{
-			id: '010',
-			name: 'renewWarn',
-			path: '/student/renewWarn',
-			component: 'student/renewWarn',
-			meta: {
-				title: '续费预警',
-				type: 'menu',
-				icon: 'bell-outlined'
-			}
-		},
-		{
-			id: '011',
-			name: 'platformTenant',
-			path: '/platform/tenant',
-			component: 'platform/tenant',
-			meta: {
-				title: '租户管理',
-				type: 'menu',
-				icon: 'bank-outlined'
-			}
-		},
-		{
-			id: '012',
-			name: 'financeIndex',
-			path: '/finance',
-			component: 'finance/index',
-			meta: {
-				title: '财务收款',
-				type: 'menu',
-				icon: 'account-book-outlined'
 			}
 		}
 	]
