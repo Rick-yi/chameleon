@@ -47,6 +47,10 @@ public class StudentOrder extends CommonEntity {
     @Schema(description = "课包id")
     private String coursePackageId;
 
+    /** 课程id(快照) */
+    @Schema(description = "课程id(快照)")
+    private String courseId;
+
     /** 课包名称快照 */
     @Schema(description = "课包名称快照")
     private String packageName;
@@ -82,6 +86,10 @@ public class StudentOrder extends CommonEntity {
     /** 支付流水号 */
     @Schema(description = "支付流水号")
     private String tradeNo;
+
+    /** 支付时间 */
+    @Schema(description = "支付时间")
+    private java.util.Date payTime;
 
     /** 状态 */
     @Schema(description = "状态(待支付/已支付/已退费/已取消)")

@@ -224,6 +224,13 @@
                 <version>${snowy.version}</version>
             </dependency>
 
+            <!-- snowy-plugin-finance -->
+            <dependency>
+                <groupId>vip.xiaonuo</groupId>
+                <artifactId>snowy-plugin-finance</artifactId>
+                <version>${snowy.version}</version>
+            </dependency>
+
             <!-- snowy-plugin-gen -->
             <dependency>
                 <groupId>vip.xiaonuo</groupId>

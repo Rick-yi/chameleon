@@ -148,6 +148,17 @@ const routes = {
 				type: 'menu',
 				icon: 'bank-outlined'
 			}
+		},
+		{
+			id: '012',
+			name: 'financeIndex',
+			path: '/finance',
+			component: 'finance/index',
+			meta: {
+				title: '财务收款',
+				type: 'menu',
+				icon: 'account-book-outlined'
+			}
 		}
 	]
 }

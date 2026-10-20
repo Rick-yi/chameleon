@@ -33,6 +33,9 @@
         <!-- 开发工具插件 -->
         <module>snowy-plugin-dev</module>
 
+        <!-- 财务域插件 -->
+        <module>snowy-plugin-finance</module>
+
         <!-- 代码生成插件 -->
         <module>snowy-plugin-gen</module>
 

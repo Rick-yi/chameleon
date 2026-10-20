@@ -98,6 +98,7 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
         StudentOrder order = new StudentOrder();
         order.setStudentId(studentOrderAddParam.getStudentId());
         order.setCoursePackageId(studentOrderAddParam.getCoursePackageId());
+        order.setCourseId(packageInfo.getStr("courseId"));
         // 课包快照（改价不影响已购）
         order.setPackageName(packageInfo.getStr("name"));
         order.setPackagePrice(packageInfo.getBigDecimal("price"));
@@ -135,6 +136,7 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
                 .eq(StudentOrder::getStatus, StudentOrderStatusEnum.UNPAID.getValue())
                 .set(StudentOrder::getStatus, StudentOrderStatusEnum.PAID.getValue())
                 .set(StudentOrder::getTradeNo, studentOrderPayCallbackParam.getTradeNo())
+                .set(StudentOrder::getPayTime, new java.util.Date())
                 .set(StudentOrder::getPaidAmount, ObjectUtil.isNotEmpty(studentOrderPayCallbackParam.getPaidAmount())
                         ? studentOrderPayCallbackParam.getPaidAmount() : order.getAmount())
                 .set(StudentOrder::getPayChannel, ObjectUtil.isNotEmpty(studentOrderPayCallbackParam.getPayChannel())

@@ -113,6 +113,12 @@
             <artifactId>snowy-plugin-dev</artifactId>
         </dependency>
 
+        <!-- 财务域插件 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-finance</artifactId>
+        </dependency>
+
         <!-- 代码生成插件 -->
         <dependency>
             <groupId>vip.xiaonuo</groupId>
