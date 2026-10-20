@@ -142,13 +142,18 @@ npm run dev
 | 前端依赖安装与生产构建 `npm run build` | ✅ 已实测（1134 包，5320 模块，产物 870 文件） |
 | 后端 Maven 编译 `mvn compile` | ✅ 已实测（JDK 17.0.20.1，18 个模块全部 SUCCESS） |
 | 后端打包 `mvn package`（可执行 jar） | ✅ 已实测（`snowy-web-app-3.0.0.jar`，194.8 MiB，含 `BOOT-INF/classes/vip/xiaonuo/Application.class`） |
-| 数据库脚本导入 / 启动服务 / 登录进系统管理 | ❌ **未验证**（本机缺 MySQL + Redis） |
+| 数据库脚本导入 | ✅ 已实测（760 条语句 0 失败，33 张表，`SYS_USER` 2 行，`SNOWY_SYS_NAME=Chameleon`） |
+| 后端启动 | ✅ 已实测（`Started Application in 47.987 seconds`，`http://localhost:82`，Knife4j `/doc.html` 200） |
+| **登录进系统管理** | ✅ 已实测（`superAdmin` / `Chameleon@2026!` 取得 token；`getLoginUser`、`loginMenu`、`sys/user/page` 均返回真实数据） |
+| 前端开发服务器 `npm run dev` | ⚠️ 未验证（接口层已验证，浏览器端视觉验收待做） |
 | `mvn test` | ⚠️ 未验证。`snowy-web-app/src/test` 为 JUnit 4 空测试，依赖已具备 |
 
 > 本仓库内置了一份便携 JDK 17（`.jdk/jdk-17`，已被 `.gitignore` 忽略），
 > 用法见 [docs/01-环境准备.md](docs/01-环境准备.md) 第 1.1 节。
 
-**"能登录进系统管理"仍需你在装好 MySQL + Redis 后确认**，操作步骤见 [docs/02-启动与验证.md](docs/02-启动与验证.md)。
+> 上表的数据库与登录验证使用**外部 MySQL / Redis 实例**，连接信息通过环境变量
+> （`SPRING_DATASOURCE_*` / `SPRING_DATA_REDIS_*`）注入，未写入任何受版本控制的文件。
+> 复现步骤见 [docs/02-启动与验证.md](docs/02-启动与验证.md)。
 
 ## 九、文档索引
 
