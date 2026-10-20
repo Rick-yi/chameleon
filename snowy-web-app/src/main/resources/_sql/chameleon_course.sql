@@ -1,0 +1,148 @@
+-- ============================================================
+-- chameleon M2：课程域建表（课程 / 课包 / 班级 / 排课）
+-- 执行方式：mysql -uroot -p chameleon < chameleon_course.sql
+-- 依赖：先导入 snowy_mysql.sql + chameleon_platform.sql + chameleon_tenant_migration.sql
+-- 说明：
+--   - 所有表含 TENANT_ID（varchar(20)），由应用层租户拦截器自动拼条件/填充；
+--   - 点名表 COURSE_CLASS_ATTEND 随 M3 课时账务一起建（点名联动扣课需要课时账户）；
+--   - 教师/校区为外键引用 SYS_USER / SYS_ORG，仅存 id，不做强外键。
+-- ============================================================
+
+-- 课程大类
+CREATE TABLE `COURSE_CATEGORY`  (
+  `ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '主键',
+  `TENANT_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '租户id',
+  `NAME` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '大类名称',
+  `PARENT_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '父级id',
+  `SORT_CODE` int(11) NULL DEFAULT NULL COMMENT '排序码',
+  `EXT_JSON` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL COMMENT '扩展信息',
+  `DELETE_FLAG` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '删除标志',
+  `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+  `CREATE_USER` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '创建用户',
+  `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '修改时间',
+  `UPDATE_USER` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '修改用户',
+  PRIMARY KEY (`ID`) USING BTREE,
+  INDEX `IDX_COURSE_CATEGORY_TENANT` (`TENANT_ID`)
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '课程大类' ROW_FORMAT = Dynamic;
+
+-- 课程
+CREATE TABLE `COURSE`  (
+  `ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '主键',
+  `TENANT_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '租户id',
+  `CATEGORY_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '课程大类id',
+  `NAME` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '课程名称',
+  `CLASS_TYPE` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '班型(小班/大班/一对一)',
+  `AGE_RANGE` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '适合年龄',
+  `LESSONS_PER_CLASS` decimal(10,2) NULL DEFAULT NULL COMMENT '每课扣课时数',
+  `STATUS` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '状态(启用/停用)',
+  `EXT_JSON` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL COMMENT '扩展信息',
+  `DELETE_FLAG` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '删除标志',
+  `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+  `CREATE_USER` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '创建用户',
+  `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '修改时间',
+  `UPDATE_USER` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '修改用户',
+  PRIMARY KEY (`ID`) USING BTREE,
+  INDEX `IDX_COURSE_TENANT` (`TENANT_ID`),
+  INDEX `IDX_COURSE_CATEGORY` (`CATEGORY_ID`)
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '课程' ROW_FORMAT = Dynamic;
+
+-- 课包
+CREATE TABLE `COURSE_PACKAGE`  (
+  `ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '主键',
+  `TENANT_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '租户id',
+  `COURSE_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '课程id',
+  `NAME` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '课包名称',
+  `LESSONS` decimal(10,2) NULL DEFAULT NULL COMMENT '课时数',
+  `GIFT_LESSONS` decimal(10,2) NULL DEFAULT NULL COMMENT '赠课课时',
+  `PRICE` decimal(12,2) NULL DEFAULT NULL COMMENT '价格(元)',
+  `VALIDITY_DAYS` int(11) NULL DEFAULT NULL COMMENT '有效期(天)',
+  `STATUS` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '状态(上架/下架)',
+  `EXT_JSON` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL COMMENT '扩展信息',
+  `DELETE_FLAG` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '删除标志',
+  `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+  `CREATE_USER` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '创建用户',
+  `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '修改时间',
+  `UPDATE_USER` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '修改用户',
+  PRIMARY KEY (`ID`) USING BTREE,
+  INDEX `IDX_COURSE_PACKAGE_TENANT` (`TENANT_ID`),
+  INDEX `IDX_COURSE_PACKAGE_COURSE` (`COURSE_ID`)
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '课包' ROW_FORMAT = Dynamic;
+
+-- 班级
+CREATE TABLE `COURSE_CLASS`  (
+  `ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '主键',
+  `TENANT_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '租户id',
+  `COURSE_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '课程id',
+  `NAME` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '班级名称',
+  `CAMPUS_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '校区id(引用SYS_ORG)',
+  `TEACHER_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '教师id(引用SYS_USER)',
+  `CLASSROOM` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '默认教室',
+  `CAPACITY` int(11) NULL DEFAULT NULL COMMENT '容量(人)',
+  `WEEK_TEMPLATE_JSON` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL COMMENT '周课表模板(JSON数组)',
+  `STATUS` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '状态(启用/停用)',
+  `EXT_JSON` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL COMMENT '扩展信息',
+  `DELETE_FLAG` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '删除标志',
+  `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+  `CREATE_USER` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '创建用户',
+  `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '修改时间',
+  `UPDATE_USER` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '修改用户',
+  PRIMARY KEY (`ID`) USING BTREE,
+  INDEX `IDX_COURSE_CLASS_TENANT` (`TENANT_ID`),
+  INDEX `IDX_COURSE_CLASS_COURSE` (`COURSE_ID`)
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '班级' ROW_FORMAT = Dynamic;
+
+-- 班级学员
+CREATE TABLE `COURSE_CLASS_STUDENT`  (
+  `ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '主键',
+  `TENANT_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '租户id',
+  `CLASS_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '班级id',
+  `STUDENT_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '学员id(引用STUDENT，M3建表)',
+  `STATUS` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '状态(在读/退班)',
+  `DELETE_FLAG` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '删除标志',
+  `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+  `CREATE_USER` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '创建用户',
+  `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '修改时间',
+  `UPDATE_USER` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '修改用户',
+  PRIMARY KEY (`ID`) USING BTREE,
+  INDEX `IDX_CLASS_STUDENT_TENANT` (`TENANT_ID`),
+  UNIQUE INDEX `UK_CLASS_STUDENT` (`CLASS_ID`, `STUDENT_ID`, `DELETE_FLAG`)
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '班级学员' ROW_FORMAT = Dynamic;
+
+-- 排课
+CREATE TABLE `COURSE_SCHEDULE`  (
+  `ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '主键',
+  `TENANT_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '租户id',
+  `CLASS_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '班级id',
+  `SCHEDULE_DATE` date NULL DEFAULT NULL COMMENT '上课日期',
+  `START_TIME` time NULL DEFAULT NULL COMMENT '开始时间',
+  `END_TIME` time NULL DEFAULT NULL COMMENT '结束时间',
+  `CLASSROOM` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '教室',
+  `TEACHER_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '教师id(引用SYS_USER)',
+  `STATUS` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '状态(正常/已调/已取消)',
+  `DELETE_FLAG` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '删除标志',
+  `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+  `CREATE_USER` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '创建用户',
+  `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '修改时间',
+  `UPDATE_USER` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '修改用户',
+  PRIMARY KEY (`ID`) USING BTREE,
+  INDEX `IDX_SCHEDULE_TENANT_DATE` (`TENANT_ID`, `SCHEDULE_DATE`),
+  INDEX `IDX_SCHEDULE_CLASS` (`CLASS_ID`, `SCHEDULE_DATE`),
+  INDEX `IDX_SCHEDULE_ROOM` (`CLASSROOM`),
+  INDEX `IDX_SCHEDULE_TEACHER` (`TEACHER_ID`)
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '排课' ROW_FORMAT = Dynamic;
+
+-- 调课记录
+CREATE TABLE `COURSE_SCHEDULE_CHANGE`  (
+  `ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '主键',
+  `TENANT_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '租户id',
+  `FROM_SCHEDULE_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '原排课id',
+  `TO_SCHEDULE_ID` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '新排课id',
+  `CHANGE_REASON` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '调课原因',
+  `DELETE_FLAG` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '删除标志',
+  `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+  `CREATE_USER` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '创建用户',
+  `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '修改时间',
+  `UPDATE_USER` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '修改用户',
+  PRIMARY KEY (`ID`) USING BTREE,
+  INDEX `IDX_SCHEDULE_CHANGE_TENANT` (`TENANT_ID`)
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '调课记录' ROW_FORMAT = Dynamic;

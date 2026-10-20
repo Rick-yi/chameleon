@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>招生线索 · Chameleon 原型</title>
+<link rel="stylesheet" href="../assets/prototype.css">
+<script src="../assets/prototype.js" defer></script>
+</head>
+<body>
+<div class="layout">
+  <header class="topbar">
+    <div class="tb-logo"><span class="logo-dot">C</span>Chameleon 教务云</div>
+    <div class="tb-title"><span class="crumb">机构端 / 招生</span> 线索列表</div>
+    <div class="tb-right">绵阳童彩艺术培训学校 <span class="tb-icon">🔔</span> <span class="avatar">管</span></div>
+  </header>
+  <div class="body">
+    <aside class="dock">
+      <a class="dock-item" href="dashboard.html"><span class="d-icon">🏠</span>工作台</a>
+      <a class="dock-item active" href="lead.html"><span class="d-icon">🎯</span>招生</a>
+      <a class="dock-item" href="student.html"><span class="d-icon">👦</span>教务</a>
+      <a class="dock-item" href="finance.html"><span class="d-icon">💰</span>财务</a>
+      <a class="dock-item" href="platform-tenant.html"><span class="d-icon">🏢</span>平台</a>
+    </aside>
+    <aside class="sider">
+      <div class="menu-title">招生管理</div>
+      <nav class="menu">
+        <a class="menu-item active" href="lead.html"><span class="m-icon">🎯</span>线索列表</a>
+        <a class="menu-item" href="#"><span class="m-icon">🎧</span>试听预约</a>
+        <a class="menu-item" href="#"><span class="m-icon">📈</span>转化分析</a>
+      </nav>
+    </aside>
+    <div class="main">
+      <div class="content">
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-label">本月新增线索</div><div class="stat-value">46</div><div class="stat-extra">地推 21 · 转介绍 15 · 线上 10</div></div>
+          <div class="stat-card"><div class="stat-label">试听预约</div><div class="stat-value">18</div><div class="stat-extra">本周待试听 5</div></div>
+          <div class="stat-card"><div class="stat-label">线索转化率</div><div class="stat-value">31%</div><div class="stat-extra">本月报名 14 人</div></div>
+          <div class="stat-card"><div class="stat-label">待跟进</div><div class="stat-value text-orange">9</div><div class="stat-extra">超过 3 天未跟进 4 条</div></div>
+        </div>
+
+        <div class="xn-panel">
+          <div class="panel-head"><span class="p-title">线索列表 <span class="sub">共 46 条</span></span>
+            <div class="panel-tools"><span class="pt" title="刷新">⟳</span><span class="pt" title="导出">⤓</span></div>
+          </div>
+          <div class="search-form">
+            <div class="sf-row">
+              <div class="sf-item"><label class="sf-label">姓名/手机</label><input class="a-input" placeholder="请输入"></div>
+              <div class="sf-item"><label class="sf-label">状态</label><select class="a-select"><option>全部状态</option><option>新线索</option><option>已跟进</option><option>已试听</option><option>已报名</option><option>已流失</option></select></div>
+              <div class="sf-item"><label class="sf-label">来源</label><select class="a-select"><option>全部来源</option><option>地推活动</option><option>转介绍</option><option>线上投放</option></select></div>
+              <div class="sf-item sf-actions">
+                <a class="a-btn primary">查询</a><a class="a-btn">重置</a>
+                <a class="a-btn primary" style="margin-left:auto;" onclick="openModal('addModal')">＋ 新增线索</a>
+              </div>
+            </div>
+          </div>
+          <div class="s-toolbar">
+            <span class="s-alert">已选择 <b>0</b> 项</span>
+            <div class="s-ops"><a class="a-btn" onclick="openModal('trialModal')">排试听</a></div>
+          </div>
+          <div class="s-table-wrap">
+            <table class="s-table">
+              <thead><tr><th>学员/家长</th><th>意向课程</th><th>来源</th><th>状态</th><th>跟进人</th><th>下次跟进</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr><td class="cell-main">吴悠 <span class="cell-sub"><br>138****2290</span></td><td>少儿美术</td><td><span class="a-tag blue">地推</span></td><td><span class="a-tag orange">已试听</span></td><td>前台·刘丽</td><td class="num text-orange">今天</td><td><a class="a-link" onclick="openModal('followModal')">跟进</a><span class="a-divider-v"></span><a class="a-link">转学员</a></td></tr>
+                <tr><td class="cell-main">郑好 <span class="cell-sub"><br>139****6671</span></td><td>机器人编程</td><td><span class="a-tag green">转介绍</span></td><td><span class="a-tag blue">新线索</span></td><td>教务·周敏</td><td class="num">10-22</td><td><a class="a-link" onclick="openModal('followModal')">跟进</a><span class="a-divider-v"></span><a class="a-link" onclick="openModal('trialModal')">约试听</a></td></tr>
+                <tr><td class="cell-main">冯语嫣 <span class="cell-sub"><br>136****1048</span></td><td>中国舞</td><td><span class="a-tag gray">线上</span></td><td><span class="a-tag green">已报名</span></td><td>前台·刘丽</td><td class="num">—</td><td><a class="a-link" onclick="openModal('followModal')">跟进</a><span class="a-divider-v"></span><a class="a-link" href="student-detail.html">查看学员</a></td></tr>
+                <tr><td class="cell-main">何俊熙 <span class="cell-sub"><br>135****8816</span></td><td>硬笔书法</td><td><span class="a-tag blue">地推</span></td><td><span class="a-tag blue">新线索</span></td><td>教务·周敏</td><td class="num text-red">超期 4 天</td><td><a class="a-link" onclick="openModal('followModal')">跟进</a><span class="a-divider-v"></span><a class="a-link danger">放弃</a></td></tr>
+                <tr><td class="cell-main">高子萱 <span class="cell-sub"><br>137****4493</span></td><td>钢琴</td><td><span class="a-tag green">转介绍</span></td><td><span class="a-tag red">已流失</span></td><td>前台·刘丽</td><td class="num">—</td><td><a class="a-link">复活</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="s-pagination">
+            <span class="total">共 46 条</span>
+            <a class="a-btn sm">‹ 上一页</a><span class="a-tag blue">1</span><a class="a-btn sm">下一页 ›</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增线索 -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-head">新增线索 <button class="modal-close" onclick="closeModal('addModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="a-form-row"><label class="a-form-label required">学员姓名</label><div class="a-form-item"><input class="a-input"></div></div>
+      <div class="a-form-row"><label class="a-form-label required">家长手机</label><div class="a-form-item"><input class="a-input"></div></div>
+      <div class="a-form-row"><label class="a-form-label">意向课程</label><div class="a-form-item"><select class="a-select"><option>少儿美术</option><option>中国舞</option><option>机器人编程</option><option>钢琴</option><option>硬笔书法</option></select></div></div>
+      <div class="a-form-row"><label class="a-form-label">来源</label><div class="a-form-item"><select class="a-select"><option>地推活动</option><option>转介绍</option><option>线上投放</option><option>门店自然到访</option></select></div></div>
+      <div class="a-form-row"><label class="a-form-label">跟进人</label><div class="a-form-item"><select class="a-select"><option>前台·刘丽</option><option>教务·周敏</option></select></div></div>
+    </div>
+    <div class="modal-foot"><a class="a-btn" onclick="closeModal('addModal')">取消</a><a class="a-btn primary">保存</a></div>
+  </div>
+</div>
+
+<!-- 跟进记录 -->
+<div class="modal-overlay" id="followModal">
+  <div class="modal wide">
+    <div class="modal-head">跟进记录 · 吴悠 <button class="modal-close" onclick="closeModal('followModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-info">上次跟进：10-15 电话沟通，家长意向少儿美术启蒙班，已约试听。</div>
+      <div class="a-form-row"><label class="a-form-label required">本次跟进</label><div class="a-form-item"><textarea class="a-input" placeholder="沟通内容、家长反馈、下一步计划"></textarea></div></div>
+      <div class="a-form-row"><label class="a-form-label">跟进方式</label><div class="a-form-item"><select class="a-select" style="width:160px"><option>电话</option><option>微信</option><option>到店</option></select></div></div>
+      <div class="a-form-row"><label class="a-form-label">下次跟进</label><div class="a-form-item"><input class="a-input" type="date" style="width:160px"></div></div>
+      <div class="a-form-row"><label class="a-form-label">线索状态</label><div class="a-form-item"><select class="a-select" style="width:160px"><option>已跟进</option><option>已试听</option><option>已报名</option><option>已流失</option></select></div></div>
+      <table class="s-table">
+        <thead><tr><th>时间</th><th>方式</th><th>内容</th><th>跟进人</th></tr></thead>
+        <tbody>
+          <tr><td class="num">10-15 14:20</td><td>电话</td><td>家长意向明确，约周六试听</td><td>刘丽</td></tr>
+          <tr><td class="num">10-12 10:05</td><td>微信</td><td>发送课程介绍与价格表</td><td>刘丽</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-foot"><a class="a-btn" onclick="closeModal('followModal')">取消</a><a class="a-btn primary">保存跟进</a></div>
+  </div>
+</div>
+
+<!-- 试听预约 -->
+<div class="modal-overlay" id="trialModal">
+  <div class="modal">
+    <div class="modal-head">预约试听 <button class="modal-close" onclick="closeModal('trialModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="a-form-row"><label class="a-form-label required">线索</label><div class="a-form-item"><select class="a-select"><option>吴悠（少儿美术）</option><option>郑好（机器人编程）</option></select></div></div>
+      <div class="a-form-row"><label class="a-form-label required">试听课程</label><div class="a-form-item"><select class="a-select"><option>少儿美术启蒙 · 周六 09:00 A1</option><option>编程入门 · 周六 14:00 C1</option></select></div></div>
+      <div class="a-form-row"><label class="a-form-label required">试听时间</label><div class="a-form-item"><input class="a-input" type="datetime-local" style="width:220px"></div></div>
+    </div>
+    <div class="modal-foot"><a class="a-btn" onclick="closeModal('trialModal')">取消</a><a class="a-btn primary">确认预约</a></div>
+  </div>
+</div>
+</body>
+</html>

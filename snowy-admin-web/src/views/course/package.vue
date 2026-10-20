@@ -1,0 +1,170 @@
+<template>
+	<xn-panel>
+		<a-form ref="searchFormRef" :model="searchFormState">
+			<a-row :gutter="10">
+				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
+					<a-form-item label="课包名称" name="searchKey">
+						<a-input v-model:value="searchFormState.searchKey" placeholder="请输入课包名称" allow-clear />
+					</a-form-item>
+				</a-col>
+				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
+					<a-form-item label="课程" name="courseId">
+						<a-select v-model:value="searchFormState.courseId" placeholder="请选择课程" :options="courseOptions" allow-clear />
+					</a-form-item>
+				</a-col>
+				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
+					<a-form-item>
+						<a-space>
+							<a-button type="primary" @click="tableRef.refresh(true)">
+								<template #icon><SearchOutlined /></template>
+								查询
+							</a-button>
+							<a-button @click="reset">
+								<template #icon><redo-outlined /></template>
+								重置
+							</a-button>
+						</a-space>
+					</a-form-item>
+				</a-col>
+			</a-row>
+		</a-form>
+		<s-table
+			ref="tableRef"
+			:columns="columns"
+			:data="loadData"
+			bordered
+			:row-key="(record) => record.id"
+			:scroll="{ x: 'max-content' }"
+		>
+			<template #operator>
+				<a-button type="primary" @click="onOpenAdd">
+					<template #icon><plus-outlined /></template>
+					新增课包
+				</a-button>
+			</template>
+			<template #bodyCell="{ column, record }">
+				<template v-if="column.dataIndex === 'courseId'">
+					{{ courseName(record.courseId) }}
+				</template>
+				<template v-if="column.dataIndex === 'status'">
+					<a-tag :color="record.status === 'ENABLE' ? 'green' : 'default'">
+						{{ record.status === 'ENABLE' ? '上架' : '下架' }}
+					</a-tag>
+				</template>
+				<template v-if="column.dataIndex === 'action'">
+					<a-space>
+						<a @click="onOpenEdit(record)">编辑</a>
+						<a-divider type="vertical" />
+						<a-popconfirm title="确定要删除吗？" @confirm="onDelete(record)">
+							<a-button type="link" danger size="small">删除</a-button>
+						</a-popconfirm>
+					</a-space>
+				</template>
+			</template>
+		</s-table>
+	</xn-panel>
+
+	<a-modal v-model:open="open" :title="formData.id ? '编辑课包' : '新增课包'" :width="600" :destroy-on-close="true" @ok="onSubmit">
+		<a-form ref="formRef" :model="formData" layout="vertical">
+			<a-row :gutter="16">
+				<a-col :span="12">
+					<a-form-item label="课程" name="courseId" :rules="[{ required: true, message: '请选择课程' }]">
+						<a-select v-model:value="formData.courseId" placeholder="请选择课程" :options="courseOptions" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="课包名称" name="name" :rules="[{ required: true, message: '请输入课包名称' }]">
+						<a-input v-model:value="formData.name" placeholder="如：30课时包" allow-clear />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="课时数" name="lessons">
+						<a-input-number v-model:value="formData.lessons" :min="1" style="width: 100%" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="赠课课时" name="giftLessons">
+						<a-input-number v-model:value="formData.giftLessons" :min="0" style="width: 100%" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="价格(元)" name="price">
+						<a-input-number v-model:value="formData.price" :min="0" :precision="2" style="width: 100%" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="有效期(天)" name="validityDays">
+						<a-input-number v-model:value="formData.validityDays" :min="0" style="width: 100%" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="状态" name="status">
+						<a-radio-group v-model:value="formData.status" :options="statusOptions" />
+					</a-form-item>
+				</a-col>
+			</a-row>
+		</a-form>
+	</a-modal>
+</template>
+
+<script setup name="coursePackage">
+	import courseApi from '@/api/course/courseApi'
+	const searchFormState = ref({})
+	const tableRef = ref()
+	const formRef = ref()
+	const formData = ref({})
+	const open = ref(false)
+	const courseOptions = ref([])
+	const statusOptions = [
+		{ value: 'ENABLE', label: '上架' },
+		{ value: 'DISABLE', label: '下架' }
+	]
+	const columns = [
+		{ title: '课包名称', dataIndex: 'name' },
+		{ title: '课程', dataIndex: 'courseId' },
+		{ title: '课时', dataIndex: 'lessons' },
+		{ title: '赠课', dataIndex: 'giftLessons' },
+		{ title: '价格(元)', dataIndex: 'price' },
+		{ title: '有效期(天)', dataIndex: 'validityDays' },
+		{ title: '状态', dataIndex: 'status' },
+		{ title: '操作', dataIndex: 'action', align: 'center', fixed: 'right' }
+	]
+	const loadData = (parameter) => {
+		return courseApi.packagePage(Object.assign(parameter, searchFormState.value)).then((data) => data)
+	}
+	const reset = () => {
+		searchFormState.value = {}
+		tableRef.value.refresh(true)
+	}
+	const loadCourses = () => {
+		courseApi.coursePage({ current: 1, size: 100 }).then((data) => {
+			courseOptions.value = (data.records || []).map((item) => ({ value: item.id, label: item.name }))
+		})
+	}
+	const courseName = (id) => {
+		const item = courseOptions.value.find((i) => i.value === id)
+		return item ? item.label : '-'
+	}
+	const onOpenAdd = () => {
+		formData.value = { status: 'ENABLE', giftLessons: 0 }
+		open.value = true
+	}
+	const onOpenEdit = (record) => {
+		formData.value = { ...record }
+		open.value = true
+	}
+	const onSubmit = () => {
+		formRef.value.validate().then(() => {
+			const edit = !!formData.value.id
+			const api = edit ? courseApi.packageEdit : courseApi.packageAdd
+			api(formData.value).then(() => {
+				open.value = false
+				tableRef.value.refresh()
+			})
+		})
+	}
+	const onDelete = (record) => {
+		courseApi.packageDelete([{ id: record.id }]).then(() => tableRef.value.refresh())
+	}
+	loadCourses()
+</script>

@@ -36,7 +36,9 @@ import com.baomidou.mybatisplus.core.injector.DefaultSqlInjector;
 import com.baomidou.mybatisplus.core.injector.ISqlInjector;
 import com.baomidou.mybatisplus.core.metadata.TableInfo;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.handler.TenantLineHandler;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -67,6 +69,7 @@ import vip.xiaonuo.auth.core.util.StpClientUtil;
 import vip.xiaonuo.common.annotation.CommonNoRepeat;
 import vip.xiaonuo.common.annotation.CommonWrapper;
 import vip.xiaonuo.common.cache.CommonCacheOperator;
+import vip.xiaonuo.common.context.TenantContext;
 import vip.xiaonuo.common.enums.CommonDeleteFlagEnum;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.interceptor.CommonTraceInterceptor;
@@ -80,6 +83,8 @@ import vip.xiaonuo.common.util.CommonServletUtil;
 import vip.xiaonuo.common.util.CommonTimeFormatUtil;
 import vip.xiaonuo.core.handler.GlobalExceptionUtil;
 import vip.xiaonuo.sys.core.enums.SysBuildInEnum;
+import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.StringValue;
 
 import javax.sql.DataSource;
 import java.lang.reflect.Array;
@@ -105,6 +110,18 @@ public class GlobalConfigure implements WebMvcConfigurer {
     private SaTokenConfig saTokenConfig;
 
     private static final String COMMON_REPEAT_SUBMIT_CACHE_KEY = "common-repeatSubmit:";
+
+    /**
+     * 已纳入租户行级隔离的业务表清单
+     * 新业务表建表（含TENANT_ID字段）后在此登记，未登记的表不参与租户条件拼接
+     */
+    private static final java.util.HashSet<String> TENANT_TABLES = CollectionUtil.newHashSet(
+            "SYS_USER", "SYS_ORG", "SYS_POSITION", "SYS_ROLE", "SYS_RELATION", "SYS_GROUP",
+            "DEV_CONFIG", "DEV_DICT", "CLIENT_USER",
+            "COURSE_CATEGORY", "COURSE", "COURSE_PACKAGE", "COURSE_CLASS", "COURSE_CLASS_STUDENT",
+            "COURSE_SCHEDULE", "COURSE_SCHEDULE_CHANGE", "COURSE_CLASS_ATTEND",
+            "STUDENT", "STUDENT_PARENT_BIND", "STUDENT_ORDER", "STUDENT_LESSON_ACCOUNT",
+            "STUDENT_LESSON_FLOW", "STUDENT_REFUND", "STUDENT_RENEW_WARN");
 
     /**
      * 无需登录的接口地址集合
@@ -547,8 +564,36 @@ public class GlobalConfigure implements WebMvcConfigurer {
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
         MybatisPlusInterceptor mybatisPlusInterceptor = new MybatisPlusInterceptor();
+        // 租户行级隔离（仅对TENANT_TABLES中登记的表生效），先于分页插件执行以保证count查询正确
+        mybatisPlusInterceptor.addInnerInterceptor(new TenantLineInnerInterceptor(tenantLineHandler()));
         mybatisPlusInterceptor.addInnerInterceptor(new PaginationInnerInterceptor());
         return mybatisPlusInterceptor;
+    }
+
+    /**
+     * 租户行级隔离处理器
+     * <p>
+     * 从请求级租户上下文取租户id；TENANT_TABLES 中未登记的表（平台表、未改造的底座表）一律忽略，
+     * 避免对未含TENANT_ID字段的表误拼接租户条件。
+     * </p>
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    @Bean
+    public TenantLineHandler tenantLineHandler() {
+        return new TenantLineHandler() {
+            @Override
+            public Expression getTenantId() {
+                String tenantId = TenantContext.getTenantId();
+                return new StringValue(ObjectUtil.isEmpty(tenantId) ? "0" : tenantId);
+            }
+
+            @Override
+            public boolean ignoreTable(String tableName) {
+                return !TENANT_TABLES.contains(tableName.toUpperCase());
+            }
+        };
     }
 
     /**

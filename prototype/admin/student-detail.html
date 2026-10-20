@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>学员详情 · Chameleon 原型</title>
+<link rel="stylesheet" href="../assets/prototype.css">
+<script src="../assets/prototype.js" defer></script>
+</head>
+<body>
+<div class="layout">
+  <header class="topbar">
+    <div class="tb-logo"><span class="logo-dot">C</span>Chameleon 教务云</div>
+    <div class="tb-title"><span class="crumb">机构端 / 教务 / 学员管理</span> 学员详情 · 王小明</div>
+    <div class="tb-right">绵阳童彩艺术培训学校 <span class="tb-icon">🔔</span> <span class="avatar">管</span></div>
+  </header>
+  <div class="body">
+    <aside class="dock">
+      <a class="dock-item" href="dashboard.html"><span class="d-icon">🏠</span>工作台</a>
+      <a class="dock-item" href="lead.html"><span class="d-icon">🎯</span>招生</a>
+      <a class="dock-item active" href="student.html"><span class="d-icon">👦</span>教务</a>
+      <a class="dock-item" href="finance.html"><span class="d-icon">💰</span>财务</a>
+      <a class="dock-item" href="platform-tenant.html"><span class="d-icon">🏢</span>平台</a>
+    </aside>
+    <aside class="sider">
+      <div class="menu-title">教务管理</div>
+      <nav class="menu">
+        <a class="menu-item active" href="student.html"><span class="m-icon">👦</span>学员管理</a>
+        <a class="menu-item" href="student-detail.html"><span class="m-icon">📋</span>学员详情</a>
+        <a class="menu-item" href="course.html"><span class="m-icon">📚</span>课程课包</a>
+        <a class="menu-item" href="schedule.html"><span class="m-icon">📅</span>排课课表</a>
+        <a class="menu-item" href="attend.html"><span class="m-icon">✅</span>点名消课</a>
+        <a class="menu-item" href="renew.html"><span class="m-icon">⏰</span>续费预警</a>
+      </nav>
+    </aside>
+    <div class="main">
+      <div class="content">
+        <div class="alert alert-warning">⚠️ 该学员 <b>少儿美术</b> 剩余课时 <b>2.5</b>，低于预警阈值（3），建议尽快联系续费。</div>
+
+        <div class="xn-panel">
+          <div class="panel-head"><span class="p-title">基本信息 <span class="sub">学员档案</span></span>
+            <div class="panel-tools"><span class="pt" title="编辑">✎</span></div>
+          </div>
+          <div class="desc-grid">
+            <div class="desc-item"><div class="d-label">姓名</div><div class="d-value">王小明</div></div>
+            <div class="desc-item"><div class="d-label">性别 / 年龄</div><div class="d-value">男 · 7岁</div></div>
+            <div class="desc-item"><div class="d-label">生日</div><div class="d-value">2019-03-12</div></div>
+            <div class="desc-item"><div class="d-label">家长手机</div><div class="d-value num">138****8821</div></div>
+            <div class="desc-item"><div class="d-label">家长姓名</div><div class="d-value">王建国</div></div>
+            <div class="desc-item"><div class="d-label">所属校区</div><div class="d-value">总校</div></div>
+            <div class="desc-item"><div class="d-label">家长端绑定</div><div class="d-value"><span class="a-tag green">已绑定</span></div></div>
+            <div class="desc-item"><div class="d-label">状态</div><div class="d-value"><span class="a-tag green">在读</span></div></div>
+            <div class="desc-item"><div class="d-label">来源</div><div class="d-value">地推活动（线索 #20261009）</div></div>
+          </div>
+        </div>
+
+        <div class="xn-panel">
+          <div class="panel-head"><span class="p-title">课时账户 <span class="sub">每学员 × 每课程一个账户，扣课联动点名</span></span>
+            <div class="panel-tools"><span class="pt" title="刷新">⟳</span></div>
+          </div>
+          <div class="s-table-wrap">
+            <table class="s-table">
+              <thead><tr><th>课程</th><th>班级</th><th>总课时</th><th>赠课</th><th>已用</th><th>剩余</th><th>课包到期</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td class="cell-main">少儿美术</td><td>少儿美术启蒙 A1</td>
+                  <td class="num">30</td><td class="num text-green">+2</td>
+                  <td class="num">29.5</td><td class="num text-red">2.5</td>
+                  <td class="num text-orange">2026-11-01</td>
+                  <td><span class="a-tag orange">低余量</span></td>
+                  <td><a class="a-link" onclick="openModal('renewModal')">报名续费</a><span class="a-divider-v"></span><a class="a-link" onclick="openModal('adjustModal')">调整课时</a></td>
+                </tr>
+                <tr>
+                  <td class="cell-main">硬笔书法</td><td>硬笔书法 D3</td>
+                  <td class="num">20</td><td class="num">0</td>
+                  <td class="num">8</td><td class="num">12</td>
+                  <td class="num">2027-03-01</td>
+                  <td><span class="a-tag green">正常</span></td>
+                  <td><a class="a-link" onclick="openModal('renewModal')">报名续费</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="xn-panel">
+          <div class="panel-head"><span class="p-title">课时流水 <span class="sub">入账 / 点名消课 / 回补 / 人工调整（赠课不可退）</span></span>
+            <div class="panel-tools"><span class="pt" title="刷新">⟳</span><span class="pt" title="导出">⤓</span></div>
+          </div>
+          <div class="s-table-wrap">
+            <table class="s-table">
+              <thead><tr><th>时间</th><th>类型</th><th>课时</th><th>关联排课</th><th>操作人</th></tr></thead>
+              <tbody>
+                <tr><td class="num">10-19 16:30</td><td><span class="a-tag red">点名消课</span></td><td class="num text-red">-1.5</td><td>10-19 少儿美术启蒙 A1</td><td>陈老师</td></tr>
+                <tr><td class="num">10-15 16:30</td><td><span class="a-tag gray">请假</span></td><td class="num">0</td><td>10-15 少儿美术启蒙 A1</td><td>陈老师</td></tr>
+                <tr><td class="num">10-12 16:30</td><td><span class="a-tag red">点名消课</span></td><td class="num text-red">-1.5</td><td>10-12 少儿美术启蒙 A1</td><td>陈老师</td></tr>
+                <tr><td class="num">10-08 10:00</td><td><span class="a-tag blue">购课入账</span></td><td class="num text-green">+32</td><td>—</td><td>前台·刘丽</td></tr>
+                <tr><td class="num">09-01 10:00</td><td><span class="a-tag blue">人工调整</span></td><td class="num text-green">+2</td><td>—</td><td>教务·周敏</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="panel-body flex-between" style="padding: 12px 16px;">
+            <span class="page-tip">共 46 条流水，全部可追溯</span>
+            <a class="a-btn sm" onclick="openModal('flowModal')">查看全部流水</a>
+          </div>
+        </div>
+
+        <div class="xn-panel">
+          <div class="panel-head"><span class="p-title">报名订单 <span class="sub">价格快照，支付后入账</span></span></div>
+          <div class="s-table-wrap">
+            <table class="s-table">
+              <thead><tr><th>订单号</th><th>课包</th><th>金额</th><th>渠道</th><th>时间</th><th>状态</th></tr></thead>
+              <tbody>
+                <tr><td class="num cell-main">ORD20261008-0031</td><td>少儿美术 · 30课时包（赠2）</td><td class="num">¥1,980</td><td>微信支付</td><td class="num">10-08 10:02</td><td><span class="a-tag green">已支付</span></td></tr>
+                <tr><td class="num cell-main">ORD20260901-0012</td><td>硬笔书法 · 20课时包</td><td class="num">¥1,200</td><td>线下收款</td><td class="num">09-01 09:30</td><td><span class="a-tag green">已支付</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 报名续费 -->
+<div class="modal-overlay" id="renewModal">
+  <div class="modal">
+    <div class="modal-head">报名续费 · 少儿美术 <button class="modal-close" onclick="closeModal('renewModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="a-form-row"><label class="a-form-label required">选择课包</label><div class="a-form-item"><select class="a-select"><option>30课时包（赠2）· ¥1,980 · 365天</option><option>60课时包（赠5）· ¥3,600 · 540天</option><option>100课时包（赠10）· ¥5,600 · 730天</option></select></div></div>
+      <div class="a-form-row"><label class="a-form-label">支付方式</label><div class="a-form-item"><select class="a-select"><option>微信支付</option><option>支付宝</option><option>线下收款</option></select></div></div>
+      <div class="alert alert-info">支付成功后自动入账到课时账户，并清除该课程的续费预警。</div>
+    </div>
+    <div class="modal-foot"><a class="a-btn" onclick="closeModal('renewModal')">取消</a><a class="a-btn primary">确认报名</a></div>
+  </div>
+</div>
+
+<!-- 调整课时 -->
+<div class="modal-overlay" id="adjustModal">
+  <div class="modal">
+    <div class="modal-head">人工调整课时 <button class="modal-close" onclick="closeModal('adjustModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="a-form-row"><label class="a-form-label required">课程</label><div class="a-form-item"><select class="a-select"><option>少儿美术</option></select></div></div>
+      <div class="a-form-row"><label class="a-form-label required">调整类型</label><div class="a-form-item"><label class="radio"><input type="radio" name="adj" checked> 增加（赠送/补正）</label> <label class="radio" style="margin-left:16px"><input type="radio" name="adj"> 扣减（扣除/冲正）</label></div></div>
+      <div class="a-form-row"><label class="a-form-label required">课时数</label><div class="a-form-item"><input class="a-input" style="width:140px" placeholder="如 2 或 0.5"></div></div>
+      <div class="a-form-row"><label class="a-form-label required">原因</label><div class="a-form-item"><input class="a-input" placeholder="如：校区活动赠送 / 扣课冲正"></div></div>
+      <div class="alert alert-warning">扣减超过剩余课时会被拦截；调整留痕（操作人 + 原因），不可删除。</div>
+    </div>
+    <div class="modal-foot"><a class="a-btn" onclick="closeModal('adjustModal')">取消</a><a class="a-btn primary">确认调整</a></div>
+  </div>
+</div>
+
+<!-- 流水 -->
+<div class="modal-overlay" id="flowModal">
+  <div class="modal wide">
+    <div class="modal-head">全部课时流水 <button class="modal-close" onclick="closeModal('flowModal')">✕</button></div>
+    <div class="modal-body" style="max-height:60vh; overflow-y:auto;">
+      <table class="s-table">
+        <thead><tr><th>时间</th><th>类型</th><th>课时</th><th>关联</th><th>操作人</th></tr></thead>
+        <tbody>
+          <tr><td class="num">10-19 16:30</td><td><span class="a-tag red">点名消课</span></td><td class="num text-red">-1.5</td><td>10-19 A1</td><td>陈老师</td></tr>
+          <tr><td class="num">10-15 16:30</td><td><span class="a-tag gray">请假</span></td><td class="num">0</td><td>10-15 A1</td><td>陈老师</td></tr>
+          <tr><td class="num">10-12 16:30</td><td><span class="a-tag red">点名消课</span></td><td class="num text-red">-1.5</td><td>10-12 A1</td><td>陈老师</td></tr>
+          <tr><td class="num">10-10 16:30</td><td><span class="a-tag gray">请假</span></td><td class="num">0</td><td>10-10 A1</td><td>陈老师</td></tr>
+          <tr><td class="num">10-08 10:00</td><td><span class="a-tag blue">购课入账</span></td><td class="num text-green">+32</td><td>ORD20261008-0031</td><td>前台·刘丽</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-foot"><a class="a-btn primary" onclick="closeModal('flowModal')">关闭</a></div>
+  </div>
+</div>
+</body>
+</html>

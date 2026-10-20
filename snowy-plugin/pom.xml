@@ -24,6 +24,9 @@
          <!-- C端功能插件 -->
         <module>snowy-plugin-client</module>
 
+        <!-- 课程域插件 -->
+        <module>snowy-plugin-course</module>
+
         <!-- 开发工具插件 -->
         <module>snowy-plugin-dev</module>
 
@@ -32,6 +35,12 @@
 
         <!-- 移动端管理插件 -->
         <module>snowy-plugin-mobile</module>
+
+        <!-- SaaS平台管理插件 -->
+        <module>snowy-plugin-platform</module>
+
+        <!-- 学员与课时账务插件 -->
+        <module>snowy-plugin-student</module>
 
         <!-- 系统功能插件 -->
         <module>snowy-plugin-sys</module>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>课程与课包 · Chameleon 原型</title>
+<link rel="stylesheet" href="../assets/prototype.css">
+<script src="../assets/prototype.js" defer></script>
+</head>
+<body>
+<div class="layout">
+  <header class="topbar">
+    <div class="tb-logo"><span class="logo-dot">C</span>Chameleon 教务云</div>
+    <div class="tb-title"><span class="crumb">机构端 / 教务</span> 课程课包</div>
+    <div class="tb-right">绵阳童彩艺术培训学校 <span class="tb-icon">🔔</span> <span class="avatar">管</span></div>
+  </header>
+  <div class="body">
+    <aside class="dock">
+      <a class="dock-item" href="dashboard.html"><span class="d-icon">🏠</span>工作台</a>
+      <a class="dock-item" href="lead.html"><span class="d-icon">🎯</span>招生</a>
+      <a class="dock-item active" href="student.html"><span class="d-icon">👦</span>教务</a>
+      <a class="dock-item" href="finance.html"><span class="d-icon">💰</span>财务</a>
+      <a class="dock-item" href="platform-tenant.html"><span class="d-icon">🏢</span>平台</a>
+    </aside>
+    <aside class="sider">
+      <div class="menu-title">教务管理</div>
+      <nav class="menu">
+        <a class="menu-item" href="student.html"><span class="m-icon">👦</span>学员管理</a>
+        <a class="menu-item" href="student-detail.html"><span class="m-icon">📋</span>学员详情</a>
+        <a class="menu-item active" href="course.html"><span class="m-icon">📚</span>课程课包</a>
+        <a class="menu-item" href="schedule.html"><span class="m-icon">📅</span>排课课表</a>
+        <a class="menu-item" href="attend.html"><span class="m-icon">✅</span>点名消课</a>
+        <a class="menu-item" href="renew.html"><span class="m-icon">⏰</span>续费预警</a>
+      </nav>
+    </aside>
+    <div class="main">
+      <div class="content">
+        <div class="xn-panel">
+          <div class="panel-head"><span class="p-title">课程大类</span></div>
+          <div class="panel-body flex" style="padding: 14px 16px; gap:10px; flex-wrap:wrap;">
+            <span class="a-tag blue" style="padding:5px 16px; font-size:14px;">少儿美术</span>
+            <span class="a-tag blue" style="padding:5px 16px; font-size:14px;">中国舞</span>
+            <span class="a-tag blue" style="padding:5px 16px; font-size:14px;">机器人编程</span>
+            <span class="a-tag blue" style="padding:5px 16px; font-size:14px;">钢琴</span>
+            <span class="a-tag blue" style="padding:5px 16px; font-size:14px;">硬笔书法</span>
+            <span class="a-tag gray" style="padding:5px 16px; font-size:14px; cursor:pointer;">＋ 新增大类</span>
+          </div>
+        </div>
+
+        <div class="xn-panel">
+          <div class="panel-head"><span class="p-title">课程列表</span>
+            <div class="panel-tools"><span class="pt" title="刷新">⟳</span></div>
+          </div>
+          <div class="search-form">
+            <div class="sf-row">
+              <div class="sf-item"><label class="sf-label">大类</label><select class="a-select"><option>全部大类</option><option>少儿美术</option><option>中国舞</option></select></div>
+              <div class="sf-item"><label class="sf-label">课程名称</label><input class="a-input" placeholder="请输入"></div>
+              <div class="sf-item"></div>
+              <div class="sf-item sf-actions">
+                <a class="a-btn primary">查询</a><a class="a-btn">重置</a>
+                <a class="a-btn primary" style="margin-left:auto;" onclick="openModal('addCourseModal')">＋ 新增课程</a>
+              </div>
+            </div>
+          </div>
+          <div class="s-table-wrap">
+            <table class="s-table">
+              <thead><tr><th>课程</th><th>大类</th><th>班型</th><th>适合年龄</th><th>每课扣课时</th><th>在学学员</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr><td class="cell-main">少儿美术启蒙</td><td>少儿美术</td><td>小班（≤15人）</td><td>6-9岁</td><td class="num">1.5</td><td class="num">42</td><td><a class="a-link" onclick="openModal('addPackageModal')">建课包</a><span class="a-divider-v"></span><a class="a-link">编辑</a></td></tr>
+                <tr><td class="cell-main">创意涂鸦</td><td>少儿美术</td><td>小班（≤12人）</td><td>4-6岁</td><td class="num">1</td><td class="num">36</td><td><a class="a-link" onclick="openModal('addPackageModal')">建课包</a><span class="a-divider-v"></span><a class="a-link">编辑</a></td></tr>
+                <tr><td class="cell-main">中国舞基础</td><td>中国舞</td><td>小班（≤20人）</td><td>5-8岁</td><td class="num">1</td><td class="num">58</td><td><a class="a-link" onclick="openModal('addPackageModal')">建课包</a><span class="a-divider-v"></span><a class="a-link">编辑</a></td></tr>
+                <tr><td class="cell-main">街舞基础</td><td>中国舞</td><td>小班（≤18人）</td><td>8-12岁</td><td class="num">1</td><td class="num">26</td><td><a class="a-link" onclick="openModal('addPackageModal')">建课包</a><span class="a-divider-v"></span><a class="a-link">编辑</a></td></tr>
+                <tr><td class="cell-main">机器人编程入门</td><td>机器人编程</td><td>小班（≤10人）</td><td>7-10岁</td><td class="num">1</td><td class="num">34</td><td><a class="a-link" onclick="openModal('addPackageModal')">建课包</a><span class="a-divider-v"></span><a class="a-link">编辑</a></td></tr>
+                <tr><td class="cell-main">钢琴一对一</td><td>钢琴</td><td>一对一</td><td>不限</td><td class="num">1</td><td class="num">42</td><td><a class="a-link" onclick="openModal('addPackageModal')">建课包</a><span class="a-divider-v"></span><a class="a-link">编辑</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="s-pagination"><span class="total">共 6 条</span></div>
+        </div>
+
+        <div class="xn-panel">
+          <div class="panel-head"><span class="p-title">课包 <span class="sub">课时数 / 赠课 / 价格 / 有效期（订单价格快照）</span></span></div>
+          <div class="s-table-wrap">
+            <table class="s-table">
+              <thead><tr><th>课包</th><th>课时</th><th>赠课</th><th>价格</th><th>单价(折算)</th><th>有效期</th><th>每课扣课时</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr><td class="cell-main">少儿美术 · 30课时包</td><td class="num">30</td><td class="num text-green">+2</td><td class="num">¥1,980</td><td class="num">¥66</td><td class="num">365天</td><td class="num">1.5</td><td><span class="a-tag green">上架</span></td><td><a class="a-link">编辑</a><span class="a-divider-v"></span><a class="a-link danger">下架</a></td></tr>
+                <tr><td class="cell-main">少儿美术 · 60课时包</td><td class="num">60</td><td class="num text-green">+5</td><td class="num">¥3,600</td><td class="num">¥60</td><td class="num">540天</td><td class="num">1.5</td><td><span class="a-tag green">上架</span></td><td><a class="a-link">编辑</a><span class="a-divider-v"></span><a class="a-link danger">下架</a></td></tr>
+                <tr><td class="cell-main">中国舞 · 40课时包</td><td class="num">40</td><td class="num">0</td><td class="num">¥2,800</td><td class="num">¥70</td><td class="num">365天</td><td class="num">1</td><td><span class="a-tag green">上架</span></td><td><a class="a-link">编辑</a><span class="a-divider-v"></span><a class="a-link danger">下架</a></td></tr>
+                <tr><td class="cell-main">钢琴一对一 · 12课时包</td><td class="num">12</td><td class="num">0</td><td class="num">¥3,960</td><td class="num">¥330</td><td class="num">180天</td><td class="num">1</td><td><span class="a-tag green">上架</span></td><td><a class="a-link">编辑</a><span class="a-divider-v"></span><a class="a-link danger">下架</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增课程 -->
+<div class="modal-overlay" id="addCourseModal">
+  <div class="modal">
+    <div class="modal-head">新增课程 <button class="modal-close" onclick="closeModal('addCourseModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="a-form-row"><label class="a-form-label required">课程名称</label><div class="a-form-item"><input class="a-input" placeholder="如：素描基础"></div></div>
+      <div class="a-form-row"><label class="a-form-label required">课程大类</label><div class="a-form-item"><select class="a-select"><option>少儿美术</option><option>中国舞</option><option>机器人编程</option><option>钢琴</option></select></div></div>
+      <div class="a-form-row"><label class="a-form-label">班型</label><div class="a-form-item"><select class="a-select"><option>小班（≤15人）</option><option>大班（≤30人）</option><option>一对一</option></select></div></div>
+      <div class="a-form-row"><label class="a-form-label">适合年龄</label><div class="a-form-item"><input class="a-input" placeholder="如 6-9岁"></div></div>
+      <div class="a-form-row"><label class="a-form-label">每课扣课时</label><div class="a-form-item"><input class="a-input" style="width:120px" value="1"></div></div>
+    </div>
+    <div class="modal-foot"><a class="a-btn" onclick="closeModal('addCourseModal')">取消</a><a class="a-btn primary">保存</a></div>
+  </div>
+</div>
+
+<!-- 新建课包 -->
+<div class="modal-overlay" id="addPackageModal">
+  <div class="modal">
+    <div class="modal-head">新建课包 · 少儿美术启蒙 <button class="modal-close" onclick="closeModal('addPackageModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="a-form-row"><label class="a-form-label required">课包名称</label><div class="a-form-item"><input class="a-input" placeholder="如：90课时年卡"></div></div>
+      <div class="a-form-row"><label class="a-form-label required">课时数</label><div class="a-form-item"><input class="a-input" style="width:140px" value="90"></div></div>
+      <div class="a-form-row"><label class="a-form-label">赠课课时</label><div class="a-form-item"><input class="a-input" style="width:140px" value="6"></div></div>
+      <div class="a-form-row"><label class="a-form-label required">价格(元)</label><div class="a-form-item"><input class="a-input" style="width:140px" value="4980"></div></div>
+      <div class="a-form-row"><label class="a-form-label">有效期</label><div class="a-form-item"><select class="a-select" style="width:180px"><option>365天</option><option>540天</option><option>730天</option><option>不限</option></select></div></div>
+    </div>
+    <div class="modal-foot"><a class="a-btn" onclick="closeModal('addPackageModal')">取消</a><a class="a-btn primary">保存并上架</a></div>
+  </div>
+</div>
+</body>
+</html>

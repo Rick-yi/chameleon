@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>续费预警 · Chameleon 原型</title>
+<link rel="stylesheet" href="../assets/prototype.css">
+<script src="../assets/prototype.js" defer></script>
+</head>
+<body>
+<div class="layout">
+  <header class="topbar">
+    <div class="tb-logo"><span class="logo-dot">C</span>Chameleon 教务云</div>
+    <div class="tb-title"><span class="crumb">机构端 / 教务</span> 续费预警</div>
+    <div class="tb-right">绵阳童彩艺术培训学校 <span class="tb-icon">🔔</span> <span class="avatar">管</span></div>
+  </header>
+  <div class="body">
+    <aside class="dock">
+      <a class="dock-item" href="dashboard.html"><span class="d-icon">🏠</span>工作台</a>
+      <a class="dock-item" href="lead.html"><span class="d-icon">🎯</span>招生</a>
+      <a class="dock-item active" href="student.html"><span class="d-icon">👦</span>教务</a>
+      <a class="dock-item" href="finance.html"><span class="d-icon">💰</span>财务</a>
+      <a class="dock-item" href="platform-tenant.html"><span class="d-icon">🏢</span>平台</a>
+    </aside>
+    <aside class="sider">
+      <div class="menu-title">教务管理</div>
+      <nav class="menu">
+        <a class="menu-item" href="student.html"><span class="m-icon">👦</span>学员管理</a>
+        <a class="menu-item" href="student-detail.html"><span class="m-icon">📋</span>学员详情</a>
+        <a class="menu-item" href="course.html"><span class="m-icon">📚</span>课程课包</a>
+        <a class="menu-item" href="schedule.html"><span class="m-icon">📅</span>排课课表</a>
+        <a class="menu-item" href="attend.html"><span class="m-icon">✅</span>点名消课</a>
+        <a class="menu-item active" href="renew.html"><span class="m-icon">⏰</span>续费预警</a>
+      </nav>
+    </aside>
+    <div class="main">
+      <div class="content">
+        <div class="alert alert-info">⏰ 系统每日扫描：剩余课时 ≤ <b>3</b> 或课包 <b>7 天内到期</b> 自动生成预警（阈值可在系统配置调整）；同一学员×课程 7 天内不重复提醒。</div>
+
+        <div class="xn-panel">
+          <div class="panel-head"><span class="p-title">预警列表 <span class="sub">共 12 条待处理</span></span>
+            <div class="flex" style="gap:8px;">
+              <a class="a-btn primary sm">批量提醒家长</a>
+              <a class="a-btn sm" onclick="openModal('configModal')">预警规则</a>
+            </div>
+          </div>
+          <div class="search-form">
+            <div class="sf-row">
+              <div class="sf-item"><label class="sf-label">状态</label><select class="a-select"><option>全部状态</option><option>待处理</option><option>已续费</option><option>已忽略</option></select></div>
+              <div class="sf-item"><label class="sf-label">原因</label><select class="a-select"><option>全部原因</option><option>课时不足</option><option>即将到期</option></select></div>
+              <div class="sf-item"><label class="sf-label">学员</label><input class="a-input" placeholder="请输入"></div>
+              <div class="sf-item sf-actions"><a class="a-btn primary">查询</a><a class="a-btn">重置</a></div>
+            </div>
+          </div>
+          <div class="s-table-wrap">
+            <table class="s-table">
+              <thead><tr><th>学员</th><th>课程</th><th>剩余课时</th><th>课包到期</th><th>原因</th><th>状态</th><th>最近提醒</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr><td class="cell-main">王小明</td><td>少儿美术</td><td class="num text-red">2.5</td><td class="num">2026-11-01</td><td><span class="a-tag red">课时不足</span></td><td><span class="a-tag orange">待处理</span></td><td class="num">10-19</td><td><a class="a-link">提醒家长</a><span class="a-divider-v"></span><a class="a-link">去报名</a><span class="a-divider-v"></span><a class="a-link">忽略</a></td></tr>
+                <tr><td class="cell-main">李思雨</td><td>中国舞</td><td class="num text-orange">3</td><td class="num text-orange">2026-10-25</td><td><span class="a-tag orange">即将到期</span></td><td><span class="a-tag orange">待处理</span></td><td class="num">10-18</td><td><a class="a-link">提醒家长</a><span class="a-divider-v"></span><a class="a-link">去报名</a><span class="a-divider-v"></span><a class="a-link">忽略</a></td></tr>
+                <tr><td class="cell-main">张梓萱</td><td>钢琴</td><td class="num text-red">1.5</td><td class="num">2026-12-01</td><td><span class="a-tag red">课时不足</span></td><td><span class="a-tag orange">待处理</span></td><td class="num">10-17</td><td><a class="a-link">提醒家长</a><span class="a-divider-v"></span><a class="a-link">去报名</a><span class="a-divider-v"></span><a class="a-link">忽略</a></td></tr>
+                <tr><td class="cell-main">赵一诺</td><td>机器人编程</td><td class="num">6</td><td class="num text-orange">2026-10-26</td><td><span class="a-tag orange">即将到期</span></td><td><span class="a-tag orange">待处理</span></td><td class="num">10-19</td><td><a class="a-link">提醒家长</a><span class="a-divider-v"></span><a class="a-link">去报名</a><span class="a-divider-v"></span><a class="a-link">忽略</a></td></tr>
+                <tr><td class="cell-main">钱朵朵</td><td>少儿美术</td><td class="num">18</td><td class="num">2026-10-23</td><td><span class="a-tag orange">即将到期</span></td><td><span class="a-tag green">已续费</span></td><td class="num">10-16</td><td><span class="text-muted">10-20 已续 30 课时包</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="s-pagination">
+            <span class="total">共 12 条待处理</span>
+            <a class="a-btn sm">‹ 上一页</a><span class="a-tag blue">1</span><a class="a-btn sm">下一页 ›</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 预警规则 -->
+<div class="modal-overlay" id="configModal">
+  <div class="modal">
+    <div class="modal-head">续费预警规则 <button class="modal-close" onclick="closeModal('configModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="a-form-row"><label class="a-form-label">课时阈值</label><div class="a-form-item"><input class="a-input" style="width:120px" value="3"> <span class="text-muted">课时（剩余 ≤ 阈值时预警）</span></div></div>
+      <div class="a-form-row"><label class="a-form-label">到期提前</label><div class="a-form-item"><input class="a-input" style="width:120px" value="7"> <span class="text-muted">天（课包到期前 N 天预警）</span></div></div>
+      <div class="a-form-row"><label class="a-form-label">去重周期</label><div class="a-form-item"><input class="a-input" style="width:120px" value="7"> <span class="text-muted">天内不重复提醒</span></div></div>
+      <div class="a-form-row"><label class="a-form-label">提醒渠道</label><div class="a-form-item">
+        <label class="checkbox"><input type="checkbox" checked> 家长订阅消息</label>
+        <label class="checkbox" style="margin-left:12px"><input type="checkbox" checked> 机构端待办</label>
+        <label class="checkbox" style="margin-left:12px"><input type="checkbox"> 短信</label>
+      </div></div>
+    </div>
+    <div class="modal-foot"><a class="a-btn" onclick="closeModal('configModal')">取消</a><a class="a-btn primary">保存规则</a></div>
+  </div>
+</div>
+</body>
+</html>

@@ -37,6 +37,106 @@ const routes = {
 				type: 'menu',
 				hidden: true
 			}
+		},
+		{
+			id: '002',
+			name: 'courseIndex',
+			path: '/course',
+			component: 'course/index',
+			meta: {
+				title: '课程管理',
+				type: 'menu',
+				icon: 'book-outlined'
+			}
+		},
+		{
+			id: '003',
+			name: 'coursePackage',
+			path: '/course/package',
+			component: 'course/package',
+			meta: {
+				title: '课包管理',
+				type: 'menu',
+				icon: 'gift-outlined'
+			}
+		},
+		{
+			id: '004',
+			name: 'courseClass',
+			path: '/course/class',
+			component: 'course/class',
+			meta: {
+				title: '班级管理',
+				type: 'menu',
+				icon: 'team-outlined'
+			}
+		},
+		{
+			id: '005',
+			name: 'courseSchedule',
+			path: '/course/schedule',
+			component: 'course/schedule',
+			meta: {
+				title: '排课课表',
+				type: 'menu',
+				icon: 'calendar-outlined'
+			}
+		},
+		{
+			id: '006',
+			name: 'courseAttend',
+			path: '/course/attend',
+			component: 'course/attend',
+			meta: {
+				title: '点名消课',
+				type: 'menu',
+				icon: 'check-square-outlined'
+			}
+		},
+		{
+			id: '007',
+			name: 'studentIndex',
+			path: '/student',
+			component: 'student/index',
+			meta: {
+				title: '学员管理',
+				type: 'menu',
+				icon: 'smile-outlined'
+			}
+		},
+		{
+			id: '008',
+			name: 'studentDetail',
+			path: '/student/detail',
+			component: 'student/detail',
+			meta: {
+				title: '学员详情',
+				type: 'menu',
+				icon: 'profile-outlined',
+				hidden: true
+			}
+		},
+		{
+			id: '009',
+			name: 'renewWarn',
+			path: '/student/renewWarn',
+			component: 'student/renewWarn',
+			meta: {
+				title: '续费预警',
+				type: 'menu',
+				icon: 'bell-outlined'
+			}
+		},
+		{
+			id: '010',
+			name: 'platformTenant',
+			path: '/platform/tenant',
+			component: 'platform/tenant',
+			meta: {
+				title: '租户管理',
+				type: 'menu',
+				icon: 'bank-outlined'
+			}
 		}
 	]
 }

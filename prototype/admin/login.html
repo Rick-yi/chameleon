@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>登录 · Chameleon 原型</title>
+<link rel="stylesheet" href="../assets/prototype.css">
+<style>
+  .login-stage { display: flex; min-height: 100vh; }
+  .login-bg { flex: 1; background: linear-gradient(135deg, #1677ff 0%, #69b1ff 100%); display: flex; align-items: center; justify-content: center; }
+  .login-left { color: #fff; padding: 40px; max-width: 460px; }
+  .login-left .login-logo { display: flex; align-items: center; gap: 12px; font-size: 28px; font-weight: 700; }
+  .login-left .login-logo .logo-dot { width: 44px; height: 44px; border-radius: 10px; background: rgba(255,255,255,.2); font-size: 24px; }
+  .login-left .login-desc { font-size: 16px; opacity: .92; margin-top: 14px; line-height: 1.8; }
+  .login-left .login-version { position: fixed; bottom: 24px; left: 40px; font-size: 12px; opacity: .75; }
+  .login-right { width: 560px; background: #fff; display: flex; align-items: center; justify-content: center; }
+  .login-card { width: 400px; }
+  .login-tabs { display: flex; gap: 28px; border-bottom: 1px solid #f0f0f0; margin-bottom: 24px; }
+  .login-tabs .lt { padding: 10px 2px; font-size: 15px; color: var(--text-2); cursor: pointer; border-bottom: 2px solid transparent; }
+  .login-tabs .lt.active { color: var(--primary-color); border-bottom-color: var(--primary-color); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="login-stage">
+  <div class="login-bg">
+    <div class="login-left">
+      <div class="login-logo"><span class="logo-dot">C</span>Chameleon 教务云</div>
+      <p class="login-desc">教培机构经营管理 SaaS<br>招生 · 报名 · 排课 · 消课 · 续费 · 家校互动</p>
+      <div class="login-version">Copyright ©2026 Chameleon · Powered by Snowy</div>
+    </div>
+  </div>
+  <div class="login-right">
+    <div class="login-card">
+      <h2 style="font-size: 22px; margin-bottom: 4px;">欢迎登录</h2>
+      <p class="text-muted" style="margin-bottom: 18px;">请选择登录机构并输入账号密码</p>
+      <div class="login-tabs">
+        <span class="lt active">账号密码</span><span class="lt">手机号</span><span class="lt">邮箱</span>
+      </div>
+      <div class="a-form-row">
+        <label class="a-form-label">登录机构</label>
+        <div class="a-form-item">
+          <select class="a-select">
+            <option>绵阳童彩艺术培训学校</option>
+            <option>成都星起点舞蹈</option>
+            <option>绵阳乐高机器人俱乐部</option>
+          </select>
+          <p class="text-muted mt8" style="font-size:12px;">多机构账号在此选择登录租户（对应 X-Tenant-Id）</p>
+        </div>
+      </div>
+      <div class="a-form-row">
+        <label class="a-form-label">账号</label>
+        <div class="a-form-item"><input class="a-input" placeholder="请输入账号" value="superAdmin"></div>
+      </div>
+      <div class="a-form-row">
+        <label class="a-form-label">密码</label>
+        <div class="a-form-item"><input class="a-input" type="password" placeholder="请输入密码" value="········"></div>
+      </div>
+      <div class="flex-between mb16">
+        <label class="checkbox"><input type="checkbox" checked> 记住我</label>
+        <a href="#" class="text-muted" style="font-size:13px;">忘记密码？</a>
+      </div>
+      <a class="a-btn primary block" style="height:40px; font-size:15px;" href="dashboard.html">登 录</a>
+      <p class="text-muted mt16" style="text-align:center; font-size:12px;">演示账号 superAdmin / Chameleon@2026!（首次登录强制改密）</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

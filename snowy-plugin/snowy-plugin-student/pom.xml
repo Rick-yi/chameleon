@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>vip.xiaonuo</groupId>
+        <artifactId>snowy-plugin</artifactId>
+        <version>3.0.0</version>
+    </parent>
+
+    <artifactId>snowy-plugin-student</artifactId>
+    <packaging>jar</packaging>
+    <description>学员与课时账务插件（学员/订单/课时账户/流水/退费/预警）</description>
+
+    <dependencies>
+        <!-- 每个插件都要引入自己的对外接口 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-student-api</artifactId>
+        </dependency>
+
+        <!-- 课程域接口，用于报名下单时课包快照 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-course-api</artifactId>
+        </dependency>
+
+        <!-- 开发工具接口，用于续费预警阈值配置 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-dev-api</artifactId>
+        </dependency>
+
+        <!-- 引入登录鉴权接口，用于获取登录用户 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-auth-api</artifactId>
+        </dependency>
+    </dependencies>
+</project>

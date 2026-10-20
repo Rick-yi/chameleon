@@ -126,6 +126,13 @@
                 <version>${snowy.version}</version>
             </dependency>
 
+            <!-- snowy-plugin-course-api -->
+            <dependency>
+                <groupId>vip.xiaonuo</groupId>
+                <artifactId>snowy-plugin-course-api</artifactId>
+                <version>${snowy.version}</version>
+            </dependency>
+
             <!-- snowy-plugin-dev-api -->
             <dependency>
                 <groupId>vip.xiaonuo</groupId>
@@ -144,6 +151,20 @@
             <dependency>
                 <groupId>vip.xiaonuo</groupId>
                 <artifactId>snowy-plugin-mobile-api</artifactId>
+                <version>${snowy.version}</version>
+            </dependency>
+
+            <!-- snowy-plugin-platform-api -->
+            <dependency>
+                <groupId>vip.xiaonuo</groupId>
+                <artifactId>snowy-plugin-platform-api</artifactId>
+                <version>${snowy.version}</version>
+            </dependency>
+
+            <!-- snowy-plugin-student-api -->
+            <dependency>
+                <groupId>vip.xiaonuo</groupId>
+                <artifactId>snowy-plugin-student-api</artifactId>
                 <version>${snowy.version}</version>
             </dependency>
 
@@ -175,6 +196,13 @@
                 <version>${snowy.version}</version>
             </dependency>
 
+            <!-- snowy-plugin-course -->
+            <dependency>
+                <groupId>vip.xiaonuo</groupId>
+                <artifactId>snowy-plugin-course</artifactId>
+                <version>${snowy.version}</version>
+            </dependency>
+
             <!-- snowy-plugin-dev -->
             <dependency>
                 <groupId>vip.xiaonuo</groupId>
@@ -193,6 +221,20 @@
             <dependency>
                 <groupId>vip.xiaonuo</groupId>
                 <artifactId>snowy-plugin-mobile</artifactId>
+                <version>${snowy.version}</version>
+            </dependency>
+
+            <!-- snowy-plugin-platform -->
+            <dependency>
+                <groupId>vip.xiaonuo</groupId>
+                <artifactId>snowy-plugin-platform</artifactId>
+                <version>${snowy.version}</version>
+            </dependency>
+
+            <!-- snowy-plugin-student -->
+            <dependency>
+                <groupId>vip.xiaonuo</groupId>
+                <artifactId>snowy-plugin-student</artifactId>
                 <version>${snowy.version}</version>
             </dependency>
 

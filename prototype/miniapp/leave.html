@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>家长端 · 请假 · Chameleon 原型</title>
+<link rel="stylesheet" href="../assets/prototype.css">
+</head>
+<body class="mp-stage">
+<div class="phone-frame">
+  <div class="mp-header"><span class="mp-back">‹</span>请假</div>
+  <div class="mp-content">
+    <div class="mp-card">
+      <div style="font-weight:600; margin-bottom:12px;">提交请假</div>
+      <div class="mp-cell" style="border-bottom:none;"><span class="c-label">学员</span><span class="c-value strong">王小明</span></div>
+      <div style="height:1px; background:#f5f5f5; margin:4px 0;"></div>
+      <div class="form-row" style="margin-top:12px;">
+        <label class="form-label required" style="width:64px;">课程</label>
+        <div class="form-item"><select class="mp-input"><option>少儿美术启蒙 A1</option><option>硬笔书法 D3</option></select></div>
+      </div>
+      <div class="form-row">
+        <label class="form-label required" style="width:64px;">请假日期</label>
+        <div class="form-item"><input class="mp-input" type="date" value="2026-10-24"></div>
+      </div>
+      <div class="form-row">
+        <label class="form-label" style="width:64px;">请假原因</label>
+        <div class="form-item"><input class="mp-input" placeholder="如：感冒发烧 / 家中有事"></div>
+      </div>
+      <button class="mp-btn mt8">提交请假</button>
+      <div class="alert alert-info mt16" style="border-radius:12px;">请假经机构审批后生效，请假不扣课时</div>
+    </div>
+
+    <div class="mp-card">
+      <div style="font-weight:600; margin-bottom:4px;">请假记录</div>
+      <div class="mp-cell"><div><div>10-24 少儿美术启蒙 A1</div><div class="text-muted" style="font-size:12px;">感冒发烧 · 提交于 10-20</div></div><span class="tag tag-orange">待审批</span></div>
+      <div class="mp-cell"><div><div>10-10 少儿美术启蒙 A1</div><div class="text-muted" style="font-size:12px;">家中有事</div></div><span class="tag tag-green">已通过</span></div>
+      <div class="mp-cell"><div><div>09-26 少儿美术启蒙 A1</div><div class="text-muted" style="font-size:12px;">外出旅游</div></div><span class="tag tag-green">已通过</span></div>
+    </div>
+  </div>
+  <div class="mp-tabbar">
+    <div class="mp-tab"><span class="t-icon">🏠</span>首页</div>
+    <div class="mp-tab"><span class="t-icon">📅</span>课表</div>
+    <div class="mp-tab"><span class="t-icon">⏱️</span>课时</div>
+    <div class="mp-tab"><span class="t-icon">💬</span>消息</div>
+    <div class="mp-tab"><span class="t-icon">👤</span>我的</div>
+  </div>
+</div>
+</body>
+</html>

@@ -24,6 +24,9 @@
         <!-- C端功能插件api接口 -->
         <module>snowy-plugin-client-api</module>
 
+        <!-- 课程域插件api接口 -->
+        <module>snowy-plugin-course-api</module>
+
         <!-- 开发工具插件api接口 -->
         <module>snowy-plugin-dev-api</module>
 
@@ -32,6 +35,12 @@
 
         <!-- 移动端管理插件api接口 -->
         <module>snowy-plugin-mobile-api</module>
+
+        <!-- SaaS平台管理插件api接口 -->
+        <module>snowy-plugin-platform-api</module>
+
+        <!-- 学员与课时账务插件api接口 -->
+        <module>snowy-plugin-student-api</module>
 
         <!-- 系统功能插件api接口 -->
         <module>snowy-plugin-sys-api</module>

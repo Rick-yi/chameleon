@@ -48,6 +48,7 @@ import vip.xiaonuo.auth.modular.login.service.AuthService;
 import vip.xiaonuo.client.ClientUserApi;
 import vip.xiaonuo.common.cache.CommonCacheOperator;
 import vip.xiaonuo.common.exception.CommonException;
+import vip.xiaonuo.common.context.TenantContext;
 import vip.xiaonuo.common.util.CommonCryptogramUtil;
 import vip.xiaonuo.common.util.CommonEmailUtil;
 import vip.xiaonuo.common.util.CommonOtpUtil;
@@ -59,6 +60,7 @@ import vip.xiaonuo.sys.api.SysUserApi;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -72,6 +74,9 @@ public class AuthServiceImpl implements AuthService {
 
     /** B端验证码是否开启（适用图片验证码） */
     private static final String SNOWY_SYS_DEFAULT_CAPTCHA_OPEN_FLAG_FOR_B_KEY = "SNOWY_SYS_DEFAULT_CAPTCHA_OPEN_FLAG_FOR_B";
+
+    /** 演示租户id（前端登录页接入租户选择前的临时默认） */
+    private static final String DEFAULT_TENANT_ID = "1554740179362967450";
 
     /** C端验证码是否开启（适用图片验证码） */
     private static final String SNOWY_SYS_DEFAULT_CAPTCHA_OPEN_FLAG_FOR_C_KEY = "SNOWY_SYS_DEFAULT_CAPTCHA_OPEN_FLAG_FOR_C";
@@ -459,6 +464,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String doLogin(AuthAccountPasswordLoginParam authAccountPasswordLoginParam, String type) {
+        // 保证租户上下文（登录请求通常不带租户请求头，未指定时默认演示租户）
+        ensureTenantContext();
         // 判断账号是否被封禁
         isDisableTime(authAccountPasswordLoginParam.getAccount());
         // 获取账号
@@ -534,6 +541,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String doLoginByPhone(AuthPhoneValidCodeLoginParam authPhoneValidCodeLoginParam, String type) {
+        // 保证租户上下文（登录请求通常不带租户请求头，未指定时默认演示租户）
+        ensureTenantContext();
         // 校验是否允许手机号登录
         this.checkAllowPhoneLoginFlag(type);
         // 手机号
@@ -550,6 +559,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String doLoginByEmail(AuthEmailValidCodeLoginParam authEmailValidCodeLoginParam, String type) {
+        // 保证租户上下文（登录请求通常不带租户请求头，未指定时默认演示租户）
+        ensureTenantContext();
         // 校验是否允许邮箱登录
         this.checkAllowEmailLoginFlag(type);
         // 邮箱
@@ -681,6 +692,42 @@ public class AuthServiceImpl implements AuthService {
      * @author xuyuxiang
      * @date 2022/8/25 14:36
      **/
+    /**
+     * 保证请求级租户上下文存在
+     * <p>
+     * 登录请求通常不带 X-Tenant-Id 请求头，此处兜底为演示租户；
+     * 待前端登录页接入租户选择后，此兜底逻辑可移除。
+     * </p>
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    private void ensureTenantContext() {
+        if (ObjectUtil.isEmpty(TenantContext.getTenantId())) {
+            TenantContext.setTenantId(DEFAULT_TENANT_ID);
+        }
+    }
+
+    /**
+     * 在异步线程中执行并恢复租户上下文
+     * <p>
+     * CompletableFuture 线程池不继承请求级 ThreadLocal，需在任务内显式设置租户，结束后清理。
+     * </p>
+     *
+     * @author 会飞的猪
+     * @date 2026/10/20 10:00
+     **/
+    private <T> Supplier<T> withTenantContext(String tenantId, Supplier<T> supplier) {
+        return () -> {
+            TenantContext.setTenantId(tenantId);
+            try {
+                return supplier.get();
+            } finally {
+                TenantContext.clear();
+            }
+        };
+    }
+
     private String execLoginB(SaBaseLoginUser saBaseLoginUser, String device) {
         // 校验状态
         if(!saBaseLoginUser.getEnabled()) {
@@ -701,6 +748,8 @@ public class AuthServiceImpl implements AuthService {
      * @date 2024/7/22 22:00
      */
     private void fillSaBaseLoginUserAndUpdateCache(SaBaseLoginUser saBaseLoginUser) {
+        // 租户id，供异步线程恢复租户上下文（异步线程不继承请求级ThreadLocal）
+        String tenantId = saBaseLoginUser.getTenantId();
         // 角色集合（后续查询依赖角色ID，必须先执行）
         List<JSONObject> roleList = loginUserApi.getRoleListByUserId(saBaseLoginUser.getId());
         // 角色id集合
@@ -710,13 +759,13 @@ public class AuthServiceImpl implements AuthService {
         // 角色id和用户id集合
         List<String> userAndRoleIdList = CollectionUtil.unionAll(roleIdList, CollectionUtil.newArrayList(saBaseLoginUser.getId()));
         // 以下三个查询互不依赖，并行执行
-        CompletableFuture<List<String>> buttonCodeFuture = CompletableFuture.supplyAsync(() ->
-                loginUserApi.getButtonCodeListListByUserAndRoleIdList(userAndRoleIdList));
-        CompletableFuture<List<String>> mobileButtonCodeFuture = CompletableFuture.supplyAsync(() ->
-                loginUserApi.getMobileButtonCodeListListByUserIdAndRoleIdList(userAndRoleIdList));
-        CompletableFuture<List<SaBaseLoginUser.DataScope>> dataScopeFuture = CompletableFuture.supplyAsync(() ->
+        CompletableFuture<List<String>> buttonCodeFuture = CompletableFuture.supplyAsync(withTenantContext(tenantId, () ->
+                loginUserApi.getButtonCodeListListByUserAndRoleIdList(userAndRoleIdList)));
+        CompletableFuture<List<String>> mobileButtonCodeFuture = CompletableFuture.supplyAsync(withTenantContext(tenantId, () ->
+                loginUserApi.getMobileButtonCodeListListByUserIdAndRoleIdList(userAndRoleIdList)));
+        CompletableFuture<List<SaBaseLoginUser.DataScope>> dataScopeFuture = CompletableFuture.supplyAsync(withTenantContext(tenantId, () ->
                 Convert.toList(SaBaseLoginUser.DataScope.class,
-                        loginUserApi.getPermissionListByUserIdAndRoleIdList(userAndRoleIdList, saBaseLoginUser.getOrgId())));
+                        loginUserApi.getPermissionListByUserIdAndRoleIdList(userAndRoleIdList, saBaseLoginUser.getOrgId()))));
         // 等待所有查询完成
         CompletableFuture.allOf(buttonCodeFuture, mobileButtonCodeFuture, dataScopeFuture).join();
         // 获取按钮码
@@ -734,10 +783,15 @@ public class AuthServiceImpl implements AuthService {
         saBaseLoginUser.setRoleCodeList(roleCodeList);
         // 缓存用户信息，此处使用TokenSession为了指定时间内无操作则自动下线
         StpUtil.getTokenSession().set("loginUser", saBaseLoginUser);
+        // 缓存租户id，供请求过滤器回退租户上下文（TenantContextFilter）
+        StpUtil.getTokenSession().set("tenantId", tenantId);
         // 异步刷新用户数据范围预计算表（不阻塞登录返回，权限数据已写入TokenSession）
         String userId = saBaseLoginUser.getId();
         List<SaBaseLoginUser.DataScope> dataScopeList = saBaseLoginUser.getDataScopeList();
-        CompletableFuture.runAsync(() -> loginUserApi.refreshUserDataScope(userId, dataScopeList));
+        CompletableFuture.supplyAsync(withTenantContext(tenantId, () -> {
+            loginUserApi.refreshUserDataScope(userId, dataScopeList);
+            return null;
+        }));
     }
 
     /**
@@ -766,6 +820,8 @@ public class AuthServiceImpl implements AuthService {
      * @date 2024/7/22 22:00
      */
     private void fillSaBaseClientLoginUserAndUpdateCache(SaBaseClientLoginUser saBaseClientLoginUser) {
+        // 租户id，供异步线程恢复租户上下文（异步线程不继承请求级ThreadLocal）
+        String tenantId = saBaseClientLoginUser.getTenantId();
         // 角色集合（后续查询依赖角色ID，必须先执行）
         List<JSONObject> roleList = clientLoginUserApi.getRoleListByUserId(saBaseClientLoginUser.getId());
         // 角色id集合
@@ -775,13 +831,13 @@ public class AuthServiceImpl implements AuthService {
         // 角色id和用户id集合
         List<String> userAndRoleIdList = CollectionUtil.unionAll(roleIdList, CollectionUtil.newArrayList(saBaseClientLoginUser.getId()));
         // 以下三个查询互不依赖，并行执行
-        CompletableFuture<List<String>> buttonCodeFuture = CompletableFuture.supplyAsync(() ->
-                clientLoginUserApi.getButtonCodeListListByUserAndRoleIdList(userAndRoleIdList));
-        CompletableFuture<List<String>> mobileButtonCodeFuture = CompletableFuture.supplyAsync(() ->
-                clientLoginUserApi.getMobileButtonCodeListListByUserIdAndRoleIdList(userAndRoleIdList));
-        CompletableFuture<List<SaBaseClientLoginUser.DataScope>> dataScopeFuture = CompletableFuture.supplyAsync(() ->
+        CompletableFuture<List<String>> buttonCodeFuture = CompletableFuture.supplyAsync(withTenantContext(tenantId, () ->
+                clientLoginUserApi.getButtonCodeListListByUserAndRoleIdList(userAndRoleIdList)));
+        CompletableFuture<List<String>> mobileButtonCodeFuture = CompletableFuture.supplyAsync(withTenantContext(tenantId, () ->
+                clientLoginUserApi.getMobileButtonCodeListListByUserIdAndRoleIdList(userAndRoleIdList)));
+        CompletableFuture<List<SaBaseClientLoginUser.DataScope>> dataScopeFuture = CompletableFuture.supplyAsync(withTenantContext(tenantId, () ->
                 Convert.toList(SaBaseClientLoginUser.DataScope.class,
-                        clientLoginUserApi.getPermissionListByUserIdAndRoleIdList(userAndRoleIdList, null)));
+                        clientLoginUserApi.getPermissionListByUserIdAndRoleIdList(userAndRoleIdList, null))));
         // 等待所有查询完成
         CompletableFuture.allOf(buttonCodeFuture, mobileButtonCodeFuture, dataScopeFuture).join();
         // 获取按钮码
@@ -799,6 +855,8 @@ public class AuthServiceImpl implements AuthService {
         saBaseClientLoginUser.setRoleCodeList(roleCodeList);
         // 缓存用户信息，此处使用TokenSession为了指定时间内无操作则自动下线
         StpClientUtil.getTokenSession().set("loginUser", saBaseClientLoginUser);
+        // 缓存租户id，供请求过滤器回退租户上下文（TenantContextFilter）
+        StpClientUtil.getTokenSession().set("tenantId", tenantId);
     }
 
     /**

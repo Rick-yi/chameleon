@@ -95,6 +95,12 @@
             <artifactId>snowy-plugin-client</artifactId>
         </dependency>
 
+        <!-- 课程域插件 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-course</artifactId>
+        </dependency>
+
         <!-- 开发工具插件 -->
         <dependency>
             <groupId>vip.xiaonuo</groupId>
@@ -111,6 +117,18 @@
         <dependency>
             <groupId>vip.xiaonuo</groupId>
             <artifactId>snowy-plugin-mobile</artifactId>
+        </dependency>
+
+        <!-- SaaS平台管理插件 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-platform</artifactId>
+        </dependency>
+
+        <!-- 学员与课时账务插件 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-student</artifactId>
         </dependency>
 
         <!-- 系统功能插件 -->

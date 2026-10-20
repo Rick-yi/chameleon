@@ -45,6 +45,10 @@ public class SysUser extends CommonEntity {
     @Schema(description = "id")
     private String id;
 
+    /** 租户id */
+    @Schema(description = "租户id")
+    private String tenantId;
+
     /** 头像 */
     @Schema(description = "头像")
     @TableField(insertStrategy = FieldStrategy.ALWAYS, updateStrategy = FieldStrategy.ALWAYS)

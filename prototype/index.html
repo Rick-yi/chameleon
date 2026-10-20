@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Chameleon 教培 SaaS · 原型总览</title>
+<link rel="stylesheet" href="assets/prototype.css">
+</head>
+<body>
+<div class="content" style="max-width: 1100px; margin: 0 auto;">
+  <div class="xn-panel">
+    <div class="panel-head"><span class="p-title">Chameleon 教培 SaaS · 高保真原型</span></div>
+    <div class="panel-body" style="padding: 16px 20px;">
+      <p style="margin-bottom:6px;">基于 docs/04、docs/05 设计的高保真可点击原型（纯静态 HTML，浏览器直接打开）。数据为演示数据，交互为原型演示。</p>
+      <p class="text-muted" style="font-size:13px;">定位：本原型是<b>交互设计稿</b>——机构端页面最终实现将落在 Snowy admin-web（Vue3 + AntD + xn 组件体系）中，由 gen 代码生成器按此设计生成页面壳，再定制业务逻辑；家长端小程序（uni-app）无现成前端，原型即其设计基线。</p>
+    </div>
+  </div>
+
+  <div class="xn-panel">
+    <div class="panel-head"><span class="p-title">机构端（Web 管理后台 · 对齐 Snowy xn 组件 / s-table 视觉）</span></div>
+    <div class="s-table-wrap">
+      <table class="s-table">
+        <thead><tr><th>页面</th><th>对应模块</th><th>核心演示点</th></tr></thead>
+        <tbody>
+          <tr><td><a href="admin/login.html" target="_blank">登录页（含租户选择）</a></td><td>auth</td><td>对齐真实登录页（多 Tab + 品牌区），新增租户选择器</td></tr>
+          <tr><td><a href="admin/dashboard.html" target="_blank">工作台</a></td><td>经营概览</td><td>统计卡、今日课表、续费预警待办</td></tr>
+          <tr><td><a href="admin/lead.html" target="_blank">招生线索</a></td><td>crm 插件</td><td>线索列表、跟进记录、试听预约</td></tr>
+          <tr><td><a href="admin/student.html" target="_blank">学员管理</a></td><td>student 插件</td><td>学员列表、剩余课时、进度、报名</td></tr>
+          <tr><td><a href="admin/student-detail.html" target="_blank">学员详情（课时账户）</a></td><td>student 插件</td><td>课时账户、课时流水、人工调整</td></tr>
+          <tr><td><a href="admin/course.html" target="_blank">课程与课包</a></td><td>course 插件</td><td>课程、课包（课时/价格/赠课）</td></tr>
+          <tr><td><a href="admin/schedule.html" target="_blank">排课课表（周视图）</a></td><td>course 插件</td><td>周课表、冲突提示、调课、批量生成</td></tr>
+          <tr><td><a href="admin/attend.html" target="_blank">点名消课</a></td><td>student 插件</td><td>点名状态、扣课规则、余额不足拦截</td></tr>
+          <tr><td><a href="admin/finance.html" target="_blank">财务收款</a></td><td>finance 插件</td><td>收款单、统计卡、经营报表</td></tr>
+          <tr><td><a href="admin/renew.html" target="_blank">续费预警</a></td><td>student 插件</td><td>预警列表、批量提醒、预警规则</td></tr>
+          <tr><td><a href="admin/platform-tenant.html" target="_blank">平台端 · 租户管理</a></td><td>platform 插件</td><td>租户列表、开通向导、到期停用</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="xn-panel">
+    <div class="panel-head"><span class="p-title">家长端（微信小程序 · 375×812 手机框 · 无现成前端，此即设计基线）</span></div>
+    <div class="s-table-wrap">
+      <table class="s-table">
+        <thead><tr><th>页面</th><th>对应模块</th><th>核心演示点</th></tr></thead>
+        <tbody>
+          <tr><td><a href="miniapp/home.html" target="_blank">首页</a></td><td>家长端</td><td>学员卡片、课时剩余、功能宫格、续费提醒</td></tr>
+          <tr><td><a href="miniapp/schedule.html" target="_blank">课表</a></td><td>家长端</td><td>周课表、课程卡片</td></tr>
+          <tr><td><a href="miniapp/lessons.html" target="_blank">课时明细</a></td><td>家长端</td><td>课时账户、消课流水</td></tr>
+          <tr><td><a href="miniapp/leave.html" target="_blank">请假</a></td><td>家长端</td><td>请假表单、请假记录</td></tr>
+          <tr><td><a href="miniapp/homework.html" target="_blank">作业</a></td><td>家长端</td><td>作业列表、提交状态</td></tr>
+          <tr><td><a href="miniapp/message.html" target="_blank">消息中心</a></td><td>家长端</td><td>上课提醒/消课通知/续费提醒/调课通知</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="xn-panel">
+    <div class="panel-head"><span class="p-title">原型说明</span></div>
+    <div class="panel-body" style="padding: 16px 20px;">
+      <ul class="text-muted" style="padding-left: 18px; line-height: 2; font-size:13px;">
+        <li>静态页面，无后端依赖；交互仅演示（模态框、点名状态切换、登录跳转）。</li>
+        <li>设计稿对应 docs/05 的课时账务 / 排课核心规则（扣课联动、余额不足拦截、续费预警）。</li>
+        <li>机构端视觉对齐 Snowy admin-web（topbar + 模块坞 + 侧边菜单 + xn-panel + s-table + AntD 标签/按钮），最终实现以 gen 代码生成器输出为准。</li>
+        <li>家长端按 uni-app 微信小程序实现，原型即页面线稿。</li>
+      </ul>
+    </div>
+  </div>
+</div>
+</body>
+</html>
