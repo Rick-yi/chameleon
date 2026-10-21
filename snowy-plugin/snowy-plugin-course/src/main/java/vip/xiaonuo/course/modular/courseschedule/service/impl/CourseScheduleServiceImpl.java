@@ -53,6 +53,7 @@ import vip.xiaonuo.student.api.StudentNotifyApi;
 import vip.xiaonuo.sys.api.SysUserApi;
 import vip.xiaonuo.course.api.dto.CourseScheduleGenerateResultDTO;
 import vip.xiaonuo.course.api.dto.CourseScheduleViewDTO;
+import vip.xiaonuo.course.core.util.CourseScheduleAttendStatusUtil;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleWeekParam;
 
 import java.time.DayOfWeek;
@@ -442,6 +443,19 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                     .forEach(user -> teacherNameMap.put(user.getStr("id"), user.getStr("name")));
         }
         List<CourseScheduleViewDTO> resultList = new ArrayList<>();
+        // 批量统计：在读学员数（按班级）与已点名人数（按排课），供课表标注点名状态
+        Map<String, Integer> studentCountMap = new HashMap<>();
+        for (String classId : classIdList) {
+            long studyingCount = courseClassStudentService.listByClassId(classId).stream()
+                    .filter(item -> CourseClassStudentStatusEnum.STUDYING.getValue().equals(item.getStatus()))
+                    .count();
+            studentCountMap.put(classId, (int) studyingCount);
+        }
+        Map<String, Integer> attendCountMap = new HashMap<>();
+        List<String> scheduleIdList = scheduleList.stream().map(CourseSchedule::getId).collect(Collectors.toList());
+        courseClassAttendMapper.selectList(new LambdaQueryWrapper<CourseClassAttend>()
+                        .in(CourseClassAttend::getScheduleId, scheduleIdList))
+                .forEach(item -> attendCountMap.merge(item.getScheduleId(), 1, Integer::sum));
         for (CourseSchedule schedule : scheduleList) {
             CourseScheduleViewDTO dto = new CourseScheduleViewDTO();
             dto.setId(schedule.getId());
@@ -453,6 +467,11 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             dto.setEndTime(schedule.getEndTime() == null ? null : schedule.getEndTime().toString());
             dto.setClassroom(schedule.getClassroom());
             dto.setStatus(schedule.getStatus());
+            int studentCount = studentCountMap.getOrDefault(schedule.getClassId(), 0);
+            int attendCount = attendCountMap.getOrDefault(schedule.getId(), 0);
+            dto.setStudentCount(studentCount);
+            dto.setAttendCount(attendCount);
+            dto.setAttendStatus(CourseScheduleAttendStatusUtil.attendStatus(attendCount, studentCount));
             CourseClass courseClass = classMap.get(schedule.getClassId());
             if (ObjectUtil.isNotEmpty(courseClass)) {
                 dto.setClassName(courseClass.getName());

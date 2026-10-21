@@ -12,6 +12,7 @@
  */
 package vip.xiaonuo.student.modular.studentrenewarn.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
@@ -35,6 +36,16 @@ public class StudentRenewWarn extends CommonEntity {
     /** id */
     @Schema(description = "id")
     private String id;
+
+    /** 学员姓名（列表查询时填充，非数据库字段） */
+    @Schema(description = "学员姓名")
+    @TableField(exist = false)
+    private String studentName;
+
+    /** 课程名称（列表查询时填充，非数据库字段） */
+    @Schema(description = "课程名称")
+    @TableField(exist = false)
+    private String courseName;
 
     /** 租户id */
     @Schema(description = "租户id")

@@ -124,6 +124,16 @@ public class CourseApiProvider implements CourseApi {
     }
 
     @Override
+    public java.util.Map<String, String> listCourseNameMap(java.util.List<String> courseIdList) {
+        java.util.Map<String, String> nameMap = new java.util.HashMap<>();
+        if (ObjectUtil.isEmpty(courseIdList)) {
+            return nameMap;
+        }
+        courseMapper.selectBatchIds(courseIdList).forEach(course -> nameMap.put(course.getId(), course.getName()));
+        return nameMap;
+    }
+
+    @Override
     public List<String> listScheduleIdsByCampus(String campusId) {
         List<String> classIdList = courseClassMapper.selectList(new LambdaQueryWrapper<CourseClass>()
                         .eq(CourseClass::getCampusId, campusId))

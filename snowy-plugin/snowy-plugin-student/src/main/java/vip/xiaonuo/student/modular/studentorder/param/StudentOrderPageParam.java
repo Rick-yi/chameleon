@@ -49,4 +49,20 @@ public class StudentOrderPageParam {
     /** 状态 */
     @Schema(description = "状态")
     private String status;
+
+    /** 学员姓名/家长手机关键词 */
+    @Schema(description = "学员姓名/家长手机关键词")
+    private String searchKey;
+
+    /** 校区id */
+    @Schema(description = "校区id")
+    private String campusId;
+
+    /** 下单时间起（yyyy-MM-dd HH:mm:ss） */
+    @Schema(description = "下单时间起")
+    private String startTime;
+
+    /** 下单时间止（yyyy-MM-dd HH:mm:ss） */
+    @Schema(description = "下单时间止")
+    private String endTime;
 }

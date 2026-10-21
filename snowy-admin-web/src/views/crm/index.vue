@@ -33,6 +33,15 @@
 				</a-col>
 			</a-row>
 		</a-form>
+		<a-alert
+			v-if="searchFormState.excludeStatus"
+			type="warning"
+			show-icon
+			style="margin-bottom: 12px"
+			message="当前显示「待跟进」线索：下次跟进时间已到或已过期，且未报名/未流失"
+			closable
+			@close="reset"
+		/>
 		<s-table
 			ref="tableRef"
 			:columns="columns"
@@ -56,6 +65,9 @@
 				</template>
 				<template v-if="column.dataIndex === 'status'">
 					<a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
+				</template>
+				<template v-if="column.dataIndex === 'nextFollowTime'">
+					<span :style="overdueStyle(record.nextFollowTime)">{{ record.nextFollowTime ? record.nextFollowTime.slice(0, 16).replace('T', ' ') : '-' }}</span>
 				</template>
 				<template v-if="column.dataIndex === 'action'">
 					<a-space>
@@ -230,7 +242,7 @@
 		{ title: '意向课程', dataIndex: 'intentCourseId' },
 		{ title: '来源', dataIndex: 'source' },
 		{ title: '状态', dataIndex: 'status' },
-		{ title: '跟进人id', dataIndex: 'followUserId' },
+		{ title: '跟进人', dataIndex: 'followUserName' },
 		{ title: '下次跟进', dataIndex: 'nextFollowTime' },
 		{ title: '操作', dataIndex: 'action', align: 'center', fixed: 'right' }
 	]
@@ -243,13 +255,20 @@
 	const loadData = (parameter) => {
 		return crmApi.leadPage(Object.assign(parameter, searchFormState.value)).then((data) => data)
 	}
-	// 支持从报表带参下钻（状态 / 来源）
+	// 支持从报表/工作台带参下钻（状态 / 来源 / 待跟进）
 	const applyDrillParams = () => {
 		if (route.query.status) {
 			searchFormState.value.status = route.query.status
 		}
 		if (route.query.source) {
 			searchFormState.value.source = route.query.source
+		}
+		if (route.query.todo === '1') {
+			// 待跟进：今天到期及以前需要再次跟进的线索
+			const now = new Date()
+			const pad = (n) => String(n).padStart(2, '0')
+			searchFormState.value.nextFollowBefore = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} 23:59:59`
+			searchFormState.value.excludeStatus = 'ENROLLED,LOST'
 		}
 	}
 	applyDrillParams()
@@ -271,6 +290,12 @@
 	const sourceText = (s) => (sourceOptions.find((i) => i.value === s) || {}).label || s
 	const sourceColor = (s) => ({ GROUND: 'blue', REFERRAL: 'green', ONLINE: 'purple', VISIT: 'default' }[s] || 'default')
 	const followTypeText = (t) => (followTypeOptions.find((i) => i.value === t) || {}).label || t
+	// 下次跟进已过期：标红提示今天必须跟进
+	const overdueStyle = (nextFollowTime) => {
+		if (!nextFollowTime) return {}
+		const due = new Date(String(nextFollowTime).replace(/-/g, '/'))
+		return due.getTime() < Date.now() ? { color: '#ff4d4f', fontWeight: 600 } : {}
+	}
 
 	const onOpenAdd = () => {
 		formData.value = { source: 'GROUND' }

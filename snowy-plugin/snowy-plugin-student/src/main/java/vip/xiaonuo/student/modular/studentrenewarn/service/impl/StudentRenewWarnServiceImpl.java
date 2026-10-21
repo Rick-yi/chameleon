@@ -43,7 +43,10 @@ import vip.xiaonuo.student.modular.studentrenewarn.service.StudentRenewWarnServi
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 续费预警Service接口实现类
@@ -71,6 +74,15 @@ public class StudentRenewWarnServiceImpl extends ServiceImpl<StudentRenewWarnMap
     private DevConfigApi devConfigApi;
 
     @Resource
+    private vip.xiaonuo.student.modular.student.service.StudentService studentService;
+
+    @Resource
+    private vip.xiaonuo.student.modular.student.mapper.StudentMapper studentMapper;
+
+    @Resource
+    private vip.xiaonuo.course.api.CourseApi courseApi;
+
+    @Resource
     private NotifyLogService notifyLogService;
 
     @Override
@@ -80,6 +92,11 @@ public class StudentRenewWarnServiceImpl extends ServiceImpl<StudentRenewWarnMap
                 .eq(ObjectUtil.isNotEmpty(studentRenewWarnPageParam.getStudentId()), StudentRenewWarn::getStudentId, studentRenewWarnPageParam.getStudentId())
                 .eq(ObjectUtil.isNotEmpty(studentRenewWarnPageParam.getCourseId()), StudentRenewWarn::getCourseId, studentRenewWarnPageParam.getCourseId())
                 .eq(ObjectUtil.isNotEmpty(studentRenewWarnPageParam.getStatus()), StudentRenewWarn::getStatus, studentRenewWarnPageParam.getStatus());
+        // 关键词：按学员姓名/家长手机过滤
+        if (ObjectUtil.isNotEmpty(studentRenewWarnPageParam.getSearchKey())) {
+            queryWrapper.apply("STUDENT_ID IN (SELECT ID FROM STUDENT WHERE NAME LIKE CONCAT('%', {0}, '%') "
+                    + "OR PARENT_PHONE LIKE CONCAT('%', {0}, '%'))", studentRenewWarnPageParam.getSearchKey());
+        }
         if (ObjectUtil.isAllNotEmpty(studentRenewWarnPageParam.getSortField(), studentRenewWarnPageParam.getSortOrder())) {
             CommonSortOrderEnum.validate(studentRenewWarnPageParam.getSortOrder());
             queryWrapper.orderBy(true, studentRenewWarnPageParam.getSortOrder().equals(CommonSortOrderEnum.ASC.getValue()),
@@ -87,7 +104,34 @@ public class StudentRenewWarnServiceImpl extends ServiceImpl<StudentRenewWarnMap
         } else {
             queryWrapper.lambda().orderByDesc(StudentRenewWarn::getCreateTime);
         }
-        return this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        Page<StudentRenewWarn> page = this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        fillNameInfo(page.getRecords());
+        return page;
+    }
+
+    /**
+     * 批量回填学员姓名与课程名称（列表展示用）
+     */
+    private void fillNameInfo(List<StudentRenewWarn> warnList) {
+        if (ObjectUtil.isEmpty(warnList)) {
+            return;
+        }
+        List<String> studentIdList = warnList.stream().map(StudentRenewWarn::getStudentId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        Map<String, String> studentNameMap = new HashMap<>();
+        if (ObjectUtil.isNotEmpty(studentIdList)) {
+            studentMapper.selectBatchIds(studentIdList).forEach(student -> studentNameMap.put(student.getId(), student.getName()));
+        }
+        List<String> courseIdList = warnList.stream().map(StudentRenewWarn::getCourseId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        Map<String, String> courseNameMap = new HashMap<>();
+        if (ObjectUtil.isNotEmpty(courseIdList)) {
+            courseApi.listCourseNameMap(courseIdList).forEach((id, name) -> courseNameMap.put(id, name));
+        }
+        for (StudentRenewWarn warn : warnList) {
+            warn.setStudentName(studentNameMap.get(warn.getStudentId()));
+            warn.setCourseName(courseNameMap.get(warn.getCourseId()));
+        }
     }
 
     @Override

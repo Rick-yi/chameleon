@@ -149,8 +149,10 @@ npm run dev
 | 数据库脚本导入 | ✅ 已实测（760 条语句 0 失败，33 张表，`SYS_USER` 2 行，`SNOWY_SYS_NAME=Chameleon`） |
 | 后端启动 | ✅ 已实测（`Started Application in 47.987 seconds`，`http://localhost:82`，Knife4j `/doc.html` 200） |
 | **登录进系统管理** | ✅ 已实测（`superAdmin` / `Chameleon@2026!` 取得 token；`getLoginUser`、`loginMenu`、`sys/user/page` 均返回真实数据） |
-| 前端开发服务器 `npm run dev` | ⚠️ 未验证（接口层已验证，浏览器端视觉验收待做） |
-| `mvn test` | ⚠️ 未验证。`snowy-web-app/src/test` 为 JUnit 4 空测试，依赖已具备 |
+| 前端开发服务器 `npm run dev` | ✅ 已实测（生产构建 + 静态服务 + Chrome CDP 浏览器验收） |
+| `mvn test` | ✅ 已实测（24 个用例全绿：扣课规则、收入确认、课时分摊、租户能力、资源可见性、点名状态、Excel 导出） |
+| 业务闭环 GUI 验收 | ✅ 已实测（招生/学员/课程/课表/点名/收款/报表/租户等页面，截图见 `gui-test-screenshots/`） |
+| 易用性改造（工作台 / 收款台 / 一键点名 / 结构化课表） | ✅ 已实测（后端冒烟 17/17 通过，页面无控制台错误） |
 
 > 本仓库内置了一份便携 JDK 17（`.jdk/jdk-17`，已被 `.gitignore` 忽略），
 > 用法见 [docs/01-环境准备.md](docs/01-环境准备.md) 第 1.1 节。
@@ -158,6 +160,9 @@ npm run dev
 > 上表的数据库与登录验证使用**外部 MySQL / Redis 实例**，连接信息通过环境变量
 > （`SPRING_DATASOURCE_*` / `SPRING_DATA_REDIS_*`）注入，未写入任何受版本控制的文件。
 > 复现步骤见 [docs/02-启动与验证.md](docs/02-启动与验证.md)。
+>
+> 也可在**本机自建** MySQL 8 + Redis 5（无需外部实例）：按 `docs/08-部署与运维.md`
+> 「本地自建数据库」一节初始化后，直接用仓库默认配置（`localhost:3306` / `localhost:6379`）启动即可。
 
 ## 九、文档索引
 

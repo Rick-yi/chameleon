@@ -3,8 +3,8 @@
 		<a-form ref="searchFormRef" :model="searchFormState">
 			<a-row :gutter="10">
 				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-					<a-form-item label="学员id" name="studentId">
-						<a-input v-model:value="searchFormState.studentId" placeholder="请输入学员id" allow-clear />
+					<a-form-item label="学员" name="searchKey">
+						<a-input v-model:value="searchFormState.searchKey" placeholder="姓名或家长手机" allow-clear />
 					</a-form-item>
 				</a-col>
 				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
@@ -73,8 +73,8 @@
 		{ value: 'IGNORED', label: '已忽略' }
 	]
 	const columns = [
-		{ title: '学员id', dataIndex: 'studentId' },
-		{ title: '课程id', dataIndex: 'courseId' },
+		{ title: '学员', dataIndex: 'studentName' },
+		{ title: '课程', dataIndex: 'courseName' },
 		{ title: '剩余课时', dataIndex: 'remainLessons' },
 		{ title: '预警原因', dataIndex: 'warnReason' },
 		{ title: '状态', dataIndex: 'status' },

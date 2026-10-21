@@ -29,6 +29,7 @@ import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.course.api.CourseApi;
 import vip.xiaonuo.student.modular.student.entity.Student;
+import vip.xiaonuo.student.modular.student.mapper.StudentMapper;
 import vip.xiaonuo.student.modular.student.service.StudentService;
 import vip.xiaonuo.student.modular.studentlessonaccount.service.StudentLessonAccountService;
 import vip.xiaonuo.student.modular.studentorder.entity.StudentOrder;
@@ -41,7 +42,9 @@ import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPageParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPayCallbackParam;
 import vip.xiaonuo.student.modular.studentorder.service.StudentOrderService;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import vip.xiaonuo.student.core.service.StudentDataScopeService;
 
 /**
@@ -64,6 +67,9 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
     private StudentService studentService;
 
     @Resource
+    private StudentMapper studentMapper;
+
+    @Resource
     private StudentLessonAccountService studentLessonAccountService;
 
     @Resource
@@ -74,7 +80,22 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
         QueryWrapper<StudentOrder> queryWrapper = new QueryWrapper<StudentOrder>().checkSqlInjection();
         queryWrapper.lambda()
                 .eq(ObjectUtil.isNotEmpty(studentOrderPageParam.getStudentId()), StudentOrder::getStudentId, studentOrderPageParam.getStudentId())
-                .eq(ObjectUtil.isNotEmpty(studentOrderPageParam.getStatus()), StudentOrder::getStatus, studentOrderPageParam.getStatus());
+                .eq(ObjectUtil.isNotEmpty(studentOrderPageParam.getStatus()), StudentOrder::getStatus, studentOrderPageParam.getStatus())
+                .eq(ObjectUtil.isNotEmpty(studentOrderPageParam.getCampusId()), StudentOrder::getCampusId, studentOrderPageParam.getCampusId());
+        // 下单时间区间
+        if (ObjectUtil.isNotEmpty(studentOrderPageParam.getStartTime())) {
+            queryWrapper.lambda().ge(StudentOrder::getCreateTime,
+                    cn.hutool.core.date.DateUtil.parse(studentOrderPageParam.getStartTime()));
+        }
+        if (ObjectUtil.isNotEmpty(studentOrderPageParam.getEndTime())) {
+            queryWrapper.lambda().le(StudentOrder::getCreateTime,
+                    cn.hutool.core.date.DateUtil.parse(studentOrderPageParam.getEndTime()));
+        }
+        // 关键词：按学员姓名/家长手机过滤（子查询，参数化绑定防注入）
+        if (ObjectUtil.isNotEmpty(studentOrderPageParam.getSearchKey())) {
+            queryWrapper.apply("STUDENT_ID IN (SELECT ID FROM STUDENT WHERE NAME LIKE CONCAT('%', {0}, '%') "
+                    + "OR PARENT_PHONE LIKE CONCAT('%', {0}, '%'))", studentOrderPageParam.getSearchKey());
+        }
         // 数据范围：仅可见校区的订单
         List<String> visibleCampusIds = studentDataScopeService.visibleCampusIds();
         if (visibleCampusIds != null) {
@@ -91,7 +112,32 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
         } else {
             queryWrapper.lambda().orderByDesc(StudentOrder::getCreateTime);
         }
-        return this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        Page<StudentOrder> page = this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        fillStudentInfo(page.getRecords());
+        return page;
+    }
+
+    /**
+     * 批量回填学员姓名与家长手机（列表展示用）
+     */
+    private void fillStudentInfo(List<StudentOrder> orderList) {
+        if (ObjectUtil.isEmpty(orderList)) {
+            return;
+        }
+        List<String> studentIdList = orderList.stream().map(StudentOrder::getStudentId)
+                .filter(cn.hutool.core.util.StrUtil::isNotBlank).distinct().collect(java.util.stream.Collectors.toList());
+        if (ObjectUtil.isEmpty(studentIdList)) {
+            return;
+        }
+        Map<String, Student> studentMap = new HashMap<>();
+        studentMapper.selectBatchIds(studentIdList).forEach(student -> studentMap.put(student.getId(), student));
+        for (StudentOrder order : orderList) {
+            Student student = studentMap.get(order.getStudentId());
+            if (ObjectUtil.isNotEmpty(student)) {
+                order.setStudentName(student.getName());
+                order.setParentPhone(student.getParentPhone());
+            }
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)

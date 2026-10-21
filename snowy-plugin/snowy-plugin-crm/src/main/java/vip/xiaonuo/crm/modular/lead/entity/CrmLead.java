@@ -12,6 +12,7 @@
  */
 package vip.xiaonuo.crm.modular.lead.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
@@ -34,6 +35,11 @@ public class CrmLead extends CommonEntity {
     /** id */
     @Schema(description = "id")
     private String id;
+
+    /** 跟进人姓名（列表查询时填充，非数据库字段） */
+    @Schema(description = "跟进人姓名")
+    @TableField(exist = false)
+    private String followUserName;
 
     /** 租户id */
     @Schema(description = "租户id")

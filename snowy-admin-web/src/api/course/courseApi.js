@@ -64,6 +64,10 @@ export default {
 	classDelete(data) {
 		return request('class/delete', data)
 	},
+	// 校区可选项
+	campusOptions() {
+		return request('class/campusOptions', null, 'get')
+	},
 	// 班级学员
 	classStudentPage(data) {
 		return request('classStudent/page', data, 'get')

@@ -26,6 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 import vip.xiaonuo.common.enums.CommonSortOrderEnum;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
+import vip.xiaonuo.student.modular.student.entity.Student;
+import vip.xiaonuo.student.modular.student.mapper.StudentMapper;
+import vip.xiaonuo.student.modular.student.service.StudentService;
 import vip.xiaonuo.student.modular.studentlessonaccount.entity.StudentLessonAccount;
 import vip.xiaonuo.student.modular.studentlessonaccount.enums.LessonAccountStatusEnum;
 import vip.xiaonuo.student.modular.studentlessonaccount.mapper.StudentLessonAccountMapper;
@@ -50,7 +53,10 @@ import vip.xiaonuo.student.modular.studentrefund.service.StudentRefundService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import vip.xiaonuo.student.core.service.StudentDataScopeService;
 
 /**
@@ -73,6 +79,12 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
     private StudentOrderService studentOrderService;
 
     @Resource
+    private StudentService studentService;
+
+    @Resource
+    private StudentMapper studentMapper;
+
+    @Resource
     private StudentOrderMapper studentOrderMapper;
 
     @Resource
@@ -93,6 +105,11 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
         queryWrapper.lambda()
                 .eq(ObjectUtil.isNotEmpty(studentRefundPageParam.getStudentId()), StudentRefund::getStudentId, studentRefundPageParam.getStudentId())
                 .eq(ObjectUtil.isNotEmpty(studentRefundPageParam.getStatus()), StudentRefund::getStatus, studentRefundPageParam.getStatus());
+        // 关键词：按学员姓名/家长手机过滤
+        if (ObjectUtil.isNotEmpty(studentRefundPageParam.getSearchKey())) {
+            queryWrapper.apply("STUDENT_ID IN (SELECT ID FROM STUDENT WHERE NAME LIKE CONCAT('%', {0}, '%') "
+                    + "OR PARENT_PHONE LIKE CONCAT('%', {0}, '%'))", studentRefundPageParam.getSearchKey());
+        }
         // 数据范围：仅可见校区的退费单
         List<String> visibleOrderIds = studentDataScopeService.visibleOrderIdList();
         if (visibleOrderIds != null) {
@@ -109,7 +126,31 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
         } else {
             queryWrapper.lambda().orderByDesc(StudentRefund::getCreateTime);
         }
-        return this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        Page<StudentRefund> page = this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        fillStudentInfo(page.getRecords());
+        return page;
+    }
+
+    /**
+     * 批量回填学员姓名（列表展示用）
+     */
+    private void fillStudentInfo(List<StudentRefund> refundList) {
+        if (ObjectUtil.isEmpty(refundList)) {
+            return;
+        }
+        List<String> studentIdList = refundList.stream().map(StudentRefund::getStudentId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (ObjectUtil.isEmpty(studentIdList)) {
+            return;
+        }
+        Map<String, Student> studentMap = new HashMap<>();
+        studentMapper.selectBatchIds(studentIdList).forEach(student -> studentMap.put(student.getId(), student));
+        for (StudentRefund refund : refundList) {
+            Student student = studentMap.get(refund.getStudentId());
+            if (ObjectUtil.isNotEmpty(student)) {
+                refund.setStudentName(student.getName());
+            }
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)

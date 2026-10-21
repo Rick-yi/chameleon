@@ -79,4 +79,16 @@ public class CourseScheduleViewDTO {
     /** 状态 */
     @Schema(description = "状态")
     private String status;
+
+    /** 班级在读学员数 */
+    @Schema(description = "班级在读学员数")
+    private Integer studentCount;
+
+    /** 已点名人数 */
+    @Schema(description = "已点名人数")
+    private Integer attendCount;
+
+    /** 点名状态：NONE 未点名 / PARTIAL 部分点名 / DONE 已完成 */
+    @Schema(description = "点名状态")
+    private String attendStatus;
 }

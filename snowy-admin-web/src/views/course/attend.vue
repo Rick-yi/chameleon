@@ -1,15 +1,43 @@
 <template>
-	<xn-panel>
-		<div style="padding: 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid #f0f0f0">
-			<a-select v-model:value="classId" placeholder="选择班级" :options="classOptions" style="width: 220px" @change="loadSchedules" />
-			<a-date-picker v-model:value="date" value-format="YYYY-MM-DD" style="width: 160px" @change="loadSchedules" />
-			<a-select v-model:value="scheduleId" placeholder="选择上课节次" :options="scheduleOptions" style="width: 300px" @change="loadAttendPage" />
+	<div>
+		<!-- 今日/所选日期的课节：点一下直接进入点名 -->
+		<a-card :bordered="false" title="课节列表" style="margin-bottom: 16px">
+			<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px">
+				<a-date-picker v-model:value="date" value-format="YYYY-MM-DD" style="width: 160px" @change="loadSchedules" />
+				<a-select v-model:value="classId" placeholder="全部班级" :options="classOptions" style="width: 220px" allow-clear @change="loadSchedules" />
+				<a-button type="primary" @click="loadSchedules">
+					<template #icon><reload-outlined /></template>
+					刷新
+				</a-button>
+				<span style="color: rgba(0,0,0,.45); font-size: 12px">点击课节即可点名消课</span>
+			</div>
+			<a-empty v-if="!scheduleList.length" description="该日期没有排课" />
+			<a-row v-else :gutter="12">
+				<a-col v-for="item in scheduleList" :key="item.id" :xs="24" :sm="12" :xl="8">
+					<div class="attend-slot" :class="{ done: item.attendStatus === 'DONE' }" @click="selectSchedule(item)">
+						<div class="attend-slot-title">{{ item.className || '未命名班级' }}</div>
+						<div class="attend-slot-sub">
+							{{ item.startTime }} - {{ item.endTime }} · {{ item.classroom || '未定教室' }}
+							{{ item.teacherName ? ' · ' + item.teacherName : '' }}
+						</div>
+						<div class="attend-slot-tag">
+							<a-tag :color="attendColor(item.attendStatus)">{{ attendText(item.attendStatus) }}</a-tag>
+							<span v-if="item.studentCount" style="font-size: 12px; color: rgba(0,0,0,.45)">应到 {{ item.studentCount }} 人</span>
+						</div>
+					</div>
+				</a-col>
+			</a-row>
+		</a-card>
+
+		<a-card :bordered="false">
+		<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid #f0f0f0; padding-bottom: 12px">
+			<a-select v-model:value="scheduleId" placeholder="选择上课节次" :options="scheduleOptions" style="width: 320px" @change="loadAttendPage" />
 			<div style="margin-left: auto">
 				<span v-if="scheduleId" style="color: rgba(0,0,0,.45); font-size: 12px">点击状态按钮标记出勤，到课/缺勤将按课程规则扣课时</span>
 			</div>
 		</div>
-		<div style="padding: 16px">
-			<a-empty v-if="!scheduleId" description="请先选择班级、日期与节次" />
+		<div style="padding: 16px 0">
+			<a-empty v-if="!scheduleId" description="请先选择上面的上课节次" />
 			<template v-else>
 				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px">
 					<span style="font-weight: 500">应到 {{ students.length }} 人</span>
@@ -45,19 +73,30 @@
 				</a-table>
 			</template>
 		</div>
-	</xn-panel>
+		</a-card>
+	</div>
 </template>
 
 <script setup name="courseAttend">
+	import { useRoute } from 'vue-router'
 	import courseApi from '@/api/course/courseApi'
 	import studentApi from '@/api/student/studentApi'
+	const route = useRoute()
 	const classId = ref()
 	const date = ref(new Date().toISOString().slice(0, 10))
 	const scheduleId = ref()
 	const classOptions = ref([])
 	const scheduleOptions = ref([])
+	const scheduleList = ref([])
 	const students = ref([])
 	const studentMap = ref({})
+	const attendText = (status) => ({ NONE: '待点名', PARTIAL: '部分点名', DONE: '已点名' }[status] || '待点名')
+	const attendColor = (status) => ({ NONE: 'orange', PARTIAL: 'gold', DONE: 'green' }[status] || 'default')
+	const selectSchedule = (item) => {
+		scheduleId.value = item.id
+		classId.value = item.classId
+		loadAttendPage()
+	}
 	const columns = [
 		{ title: '学员', dataIndex: 'studentId' },
 		{ title: '点名状态', dataIndex: 'status' },
@@ -69,15 +108,24 @@
 		})
 	}
 	const loadSchedules = () => {
-		scheduleId.value = undefined
-		if (!classId.value || !date.value) return
+		const dayStart = `${date.value} 00:00:00`
+		const dayEnd = `${date.value} 23:59:59`
 		courseApi
-			.schedulePage({ current: 1, size: 50, classId: classId.value, startDate: `${date.value} 00:00:00`, endDate: `${date.value} 00:00:00` })
+			.scheduleWeek({ classId: classId.value, startDate: dayStart, endDate: dayEnd })
 			.then((data) => {
-				scheduleOptions.value = (data.records || []).map((item) => ({
+				scheduleList.value = data || []
+				scheduleOptions.value = scheduleList.value.map((item) => ({
 					value: item.id,
-					label: `${item.scheduleDate.slice(0, 10)} ${item.startTime.slice(0, 5)}-${item.endTime.slice(0, 5)} ${item.classroom || ''}`
+					label: `${item.className || '未命名班级'} ${item.startTime}-${item.endTime} ${item.classroom || ''}`
 				}))
+				// 支持从工作台/课表直达：自动选中目标课节
+				const targetId = route.query.scheduleId
+				if (targetId) {
+					const target = scheduleList.value.find((item) => item.id === targetId)
+					if (target) {
+						selectSchedule(target)
+					}
+				}
 			})
 	}
 	const loadStudents = () => {
@@ -119,4 +167,38 @@
 	}
 	loadClasses()
 	loadStudents()
+	loadSchedules()
 </script>
+
+<style lang="less" scoped>
+	.attend-slot {
+		border: 1px solid #f0f0f0;
+		border-radius: 8px;
+		padding: 10px 12px;
+		margin-bottom: 12px;
+		cursor: pointer;
+		transition: all 0.2s;
+		&:hover {
+			border-color: #1677ff;
+			box-shadow: 0 2px 8px rgba(22, 119, 255, 0.12);
+		}
+		&.done {
+			background: #f6ffed;
+			border-color: #b7eb8f;
+		}
+	}
+	.attend-slot-title {
+		font-size: 14px;
+		font-weight: 600;
+	}
+	.attend-slot-sub {
+		font-size: 12px;
+		color: rgba(0, 0, 0, 0.45);
+		margin: 4px 0 6px;
+	}
+	.attend-slot-tag {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+</style>

@@ -20,6 +20,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vip.xiaonuo.common.enums.CommonSortOrderEnum;
@@ -33,8 +34,13 @@ import vip.xiaonuo.crm.modular.lead.param.CrmLeadEditParam;
 import vip.xiaonuo.crm.modular.lead.param.CrmLeadIdParam;
 import vip.xiaonuo.crm.modular.lead.param.CrmLeadPageParam;
 import vip.xiaonuo.crm.modular.lead.service.CrmLeadService;
+import vip.xiaonuo.sys.api.SysUserApi;
 
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 招生线索Service接口实现类
@@ -44,6 +50,9 @@ import java.util.List;
  **/
 @Service
 public class CrmLeadServiceImpl extends ServiceImpl<CrmLeadMapper, CrmLead> implements CrmLeadService {
+
+    @Resource
+    private SysUserApi sysUserApi;
 
     @Override
     public Page<CrmLead> page(CrmLeadPageParam crmLeadPageParam) {
@@ -58,6 +67,18 @@ public class CrmLeadServiceImpl extends ServiceImpl<CrmLeadMapper, CrmLead> impl
         if (ObjectUtil.isNotEmpty(crmLeadPageParam.getSource())) {
             queryWrapper.lambda().eq(CrmLead::getSource, crmLeadPageParam.getSource());
         }
+        // 待跟进筛选：下次跟进时间早于指定时间
+        if (StrUtil.isNotBlank(crmLeadPageParam.getNextFollowBefore())) {
+            queryWrapper.lambda().le(CrmLead::getNextFollowTime,
+                    cn.hutool.core.date.DateUtil.parse(crmLeadPageParam.getNextFollowBefore()));
+        }
+        if (StrUtil.isNotBlank(crmLeadPageParam.getExcludeStatus())) {
+            List<String> excludeStatusList = Arrays.stream(crmLeadPageParam.getExcludeStatus().split(","))
+                    .map(String::trim).filter(StrUtil::isNotBlank).collect(Collectors.toList());
+            if (ObjectUtil.isNotEmpty(excludeStatusList)) {
+                queryWrapper.lambda().notIn(CrmLead::getStatus, excludeStatusList);
+            }
+        }
         if (ObjectUtil.isAllNotEmpty(crmLeadPageParam.getSortField(), crmLeadPageParam.getSortOrder())) {
             CommonSortOrderEnum.validate(crmLeadPageParam.getSortOrder());
             queryWrapper.orderBy(true, crmLeadPageParam.getSortOrder().equals(CommonSortOrderEnum.ASC.getValue()),
@@ -65,7 +86,29 @@ public class CrmLeadServiceImpl extends ServiceImpl<CrmLeadMapper, CrmLead> impl
         } else {
             queryWrapper.lambda().orderByDesc(CrmLead::getCreateTime);
         }
-        return this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        Page<CrmLead> page = this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        fillFollowUserName(page.getRecords());
+        return page;
+    }
+
+    /**
+     * 批量回填跟进人姓名（列表展示用，避免暴露用户id）
+     */
+    private void fillFollowUserName(List<CrmLead> leadList) {
+        if (ObjectUtil.isEmpty(leadList)) {
+            return;
+        }
+        List<String> userIdList = leadList.stream().map(CrmLead::getFollowUserId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (ObjectUtil.isEmpty(userIdList)) {
+            return;
+        }
+        Map<String, String> userNameMap = new HashMap<>();
+        sysUserApi.getUserListByIdListWithoutException(userIdList)
+                .forEach(user -> userNameMap.put(user.getStr("id"), user.getStr("name")));
+        for (CrmLead lead : leadList) {
+            lead.setFollowUserName(userNameMap.get(lead.getFollowUserId()));
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)

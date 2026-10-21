@@ -53,4 +53,12 @@ public class CrmLeadPageParam {
     /** 来源 */
     @Schema(description = "来源")
     private String source;
+
+    /** 下次跟进时间早于该时间（待跟进筛选，格式 yyyy-MM-dd HH:mm:ss） */
+    @Schema(description = "下次跟进时间早于该时间")
+    private String nextFollowBefore;
+
+    /** 排除的线索状态（逗号分隔，如 ENROLLED,LOST） */
+    @Schema(description = "排除的线索状态")
+    private String excludeStatus;
 }

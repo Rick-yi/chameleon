@@ -53,4 +53,8 @@ public class StudentRenewWarnPageParam {
     /** 状态 */
     @Schema(description = "状态")
     private String status;
+
+    /** 学员姓名/家长手机关键词 */
+    @Schema(description = "学员姓名/家长手机关键词")
+    private String searchKey;
 }

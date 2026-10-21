@@ -65,6 +65,14 @@ public interface CourseApi {
     String getCourseName(String courseId);
 
     /**
+     * 批量获取课程名称映射（id → name），用于列表展示
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    java.util.Map<String, String> listCourseNameMap(java.util.List<String> courseIdList);
+
+    /**
      * 获取校区下全部排课id（报表按校区过滤课消用）
      *
      * @author 会飞的猪

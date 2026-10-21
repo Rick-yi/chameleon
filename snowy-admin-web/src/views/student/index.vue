@@ -50,6 +50,8 @@
 					<a-space>
 						<a @click="goDetail(record)">详情</a>
 						<a-divider type="vertical" />
+						<a @click="onOpenSignup(record)">报名</a>
+						<a-divider type="vertical" />
 						<a @click="onOpenEdit(record)">编辑</a>
 						<a-divider type="vertical" />
 						<a-popconfirm title="确定要删除吗？" @confirm="onDelete(record)">
@@ -60,6 +62,18 @@
 			</template>
 		</s-table>
 	</xn-panel>
+
+	<a-modal v-model:open="signupOpen" :title="`报名购课 · ${signupFormData.studentName || ''}`" :width="480" :destroy-on-close="true" @ok="onSubmitSignup">
+		<a-form ref="signupFormRef" :model="signupFormData" layout="vertical">
+			<a-form-item label="课包" name="coursePackageId" :rules="[{ required: true, message: '请选择课包' }]">
+				<a-select v-model:value="signupFormData.coursePackageId" placeholder="请选择课包" :options="packageOptions" show-search option-filter-prop="label" />
+			</a-form-item>
+			<a-form-item label="支付渠道" name="payChannel">
+				<a-radio-group v-model:value="signupFormData.payChannel" :options="[{ value: 'WECHAT', label: '微信' }, { value: 'OFFLINE', label: '线下' }]" />
+			</a-form-item>
+			<div style="color: rgba(0,0,0,.45); font-size: 12px">下单后可在「收款台」完成收款登记，课时随即入账</div>
+		</a-form>
+	</a-modal>
 
 	<a-modal v-model:open="open" :title="formData.id ? '编辑学员' : '新增学员'" :width="600" :destroy-on-close="true" @ok="onSubmit">
 		<a-form ref="formRef" :model="formData" layout="vertical">
@@ -105,14 +119,21 @@
 </template>
 
 <script setup name="studentIndex">
-	import { useRouter } from 'vue-router'
+	import { useRoute, useRouter } from 'vue-router'
 	import studentApi from '@/api/student/studentApi'
+	import courseApi from '@/api/course/courseApi'
+	import { message } from 'ant-design-vue'
 	const router = useRouter()
+	const route = useRoute()
 	const searchFormState = ref({})
 	const tableRef = ref()
 	const formRef = ref()
 	const formData = ref({})
 	const open = ref(false)
+	const signupOpen = ref(false)
+	const signupFormRef = ref()
+	const signupFormData = ref({})
+	const packageOptions = ref([])
 	const statusOptions = [
 		{ value: 'STUDYING', label: '在读' },
 		{ value: 'STOP', label: '停课' },
@@ -148,6 +169,33 @@
 	const statusColor = (status) => {
 		return status === 'STUDYING' ? 'green' : status === 'STOP' ? 'orange' : 'red'
 	}
+	const loadPackages = () => {
+		courseApi.packagePage({ current: 1, size: 100 }).then((data) => {
+			packageOptions.value = (data.records || []).map((item) => ({
+				value: item.id,
+				label: `${item.name}（${item.lessons}课时 ${item.price}元）`
+			}))
+		})
+	}
+	const onOpenSignup = (record) => {
+		signupFormData.value = { studentId: record.id, studentName: record.name, coursePackageId: undefined, payChannel: 'WECHAT' }
+		signupOpen.value = true
+	}
+	const onSubmitSignup = () => {
+		signupFormRef.value.validate().then(() => {
+			studentApi
+				.orderAdd({
+					studentId: signupFormData.value.studentId,
+					coursePackageId: signupFormData.value.coursePackageId,
+					payChannel: signupFormData.value.payChannel
+				})
+				.then(() => {
+					signupOpen.value = false
+					message.success('下单成功，请到收款台完成收款')
+					router.push({ path: '/student/order', query: { status: 'UNPAID' } })
+				})
+		})
+	}
 	const onOpenAdd = () => {
 		formData.value = { status: 'STUDYING', gender: '男' }
 		open.value = true
@@ -172,4 +220,5 @@
 	const goDetail = (record) => {
 		router.push({ path: '/student/detail', query: { id: record.id } })
 	}
+	loadPackages()
 </script>

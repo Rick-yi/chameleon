@@ -30,9 +30,15 @@
 							style="background: #e6f4ff; border: 1px solid #91caff; border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; cursor: pointer"
 							@click="onOpenChange(s)"
 						>
-							<div style="font-size: 13px; font-weight: 500; color: #1677ff">{{ s.className || className(s.classId) }}</div>
+							<div style="display: flex; align-items: center; gap: 4px">
+								<span style="font-size: 13px; font-weight: 500; color: #1677ff">{{ s.className || className(s.classId) }}</span>
+								<a-tag :color="attendColor(s.attendStatus)" style="margin-left: auto; font-size: 11px; line-height: 16px; padding: 0 4px">
+									{{ attendText(s.attendStatus) }}
+								</a-tag>
+							</div>
 							<div style="font-size: 11px; color: rgba(0,0,0,.65)">{{ s.classroom || '未设教室' }}</div>
 							<div v-if="s.teacherName" style="font-size: 11px; color: rgba(0,0,0,.45)">{{ s.teacherName }}</div>
+							<a-button type="link" size="small" style="padding: 0; font-size: 12px" @click.stop="goAttend(s)">点名 ›</a-button>
 						</div>
 					</div>
 				</template>
@@ -168,7 +174,14 @@
 </template>
 
 <script setup name="courseSchedule">
+	import { useRouter } from 'vue-router'
 	import courseApi from '@/api/course/courseApi'
+	const router = useRouter()
+	const attendText = (status) => ({ NONE: '待点名', PARTIAL: '部分点名', DONE: '已点名' }[status] || '待点名')
+	const attendColor = (status) => ({ NONE: 'orange', PARTIAL: 'gold', DONE: 'green' }[status] || 'default')
+	const goAttend = (record) => {
+		router.push({ path: '/course/attend', query: { classId: record.classId, scheduleId: record.id } })
+	}
 
 	const searchFormState = ref({})
 	const classOptions = ref([])

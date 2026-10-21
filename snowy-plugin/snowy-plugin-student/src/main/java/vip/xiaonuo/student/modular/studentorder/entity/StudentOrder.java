@@ -12,6 +12,7 @@
  */
 package vip.xiaonuo.student.modular.studentorder.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
@@ -34,6 +35,16 @@ public class StudentOrder extends CommonEntity {
     /** id */
     @Schema(description = "id")
     private String id;
+
+    /** 学员姓名（列表查询时填充，非数据库字段） */
+    @Schema(description = "学员姓名")
+    @TableField(exist = false)
+    private String studentName;
+
+    /** 家长手机（列表查询时填充，非数据库字段） */
+    @Schema(description = "家长手机")
+    @TableField(exist = false)
+    private String parentPhone;
 
     /** 租户id */
     @Schema(description = "租户id")

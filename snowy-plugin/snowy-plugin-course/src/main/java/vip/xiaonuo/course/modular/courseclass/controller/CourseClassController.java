@@ -31,7 +31,11 @@ import vip.xiaonuo.course.modular.courseclass.param.CourseClassIdParam;
 import vip.xiaonuo.course.modular.courseclass.param.CourseClassPageParam;
 import vip.xiaonuo.course.modular.courseclass.service.CourseClassService;
 
+import cn.hutool.core.util.ObjectUtil;
+
 import javax.validation.Valid;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -48,6 +52,9 @@ public class CourseClassController {
     @Resource
     private CourseClassService courseClassService;
 
+    @Resource
+    private vip.xiaonuo.sys.api.SysOrgApi sysOrgApi;
+
     /**
      * 获取班级分页
      *
@@ -58,6 +65,42 @@ public class CourseClassController {
     @GetMapping("/course/class/page")
     public CommonResult<Page<CourseClass>> page(CourseClassPageParam courseClassPageParam) {
         return CommonResult.data(courseClassService.page(courseClassPageParam));
+    }
+
+    /**
+     * 获取校区可选项（班级表单用，避免手填校区id）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     */
+    @Operation(summary = "获取校区可选项")
+    @GetMapping("/course/class/campusOptions")
+    public CommonResult<List<java.util.Map<String, Object>>> campusOptions() {
+        List<java.util.Map<String, Object>> optionList = new ArrayList<>();
+        List<cn.hutool.json.JSONObject> orgList = sysOrgApi.orgTreeSelector("0", "");
+        for (cn.hutool.json.JSONObject org : orgList) {
+            collectCampus(org, optionList);
+        }
+        return CommonResult.data(optionList);
+    }
+
+    /**
+     * 递归收集机构（校区）下拉项
+     */
+    private void collectCampus(cn.hutool.json.JSONObject org, List<java.util.Map<String, Object>> optionList) {
+        String category = org.getStr("category");
+        if ("DEPT".equals(category) || "CAMPUS".equals(category)) {
+            java.util.Map<String, Object> option = new HashMap<>();
+            option.put("value", org.getStr("id"));
+            option.put("label", org.getStr("name"));
+            optionList.add(option);
+        }
+        List<cn.hutool.json.JSONObject> children = org.getBeanList("children", cn.hutool.json.JSONObject.class);
+        if (ObjectUtil.isNotEmpty(children)) {
+            for (cn.hutool.json.JSONObject child : children) {
+                collectCampus(child, optionList);
+            }
+        }
     }
 
     /**
