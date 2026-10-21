@@ -12,6 +12,7 @@
  */
 package vip.xiaonuo.course.modular.courseschedulechange.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
@@ -48,4 +49,39 @@ public class CourseScheduleChange extends CommonEntity {
     /** 调课原因 */
     @Schema(description = "调课原因")
     private String changeReason;
+
+    /** 原课节日期（列表填充，非数据库字段） */
+    @Schema(description = "原课节日期")
+    @TableField(exist = false)
+    private String fromDate;
+
+    /** 原课节时间段（列表填充，非数据库字段） */
+    @Schema(description = "原课节时间段")
+    @TableField(exist = false)
+    private String fromTime;
+
+    /** 原课节班级（列表填充，非数据库字段） */
+    @Schema(description = "原课节班级")
+    @TableField(exist = false)
+    private String fromClassName;
+
+    /** 新课节日期（列表填充，非数据库字段） */
+    @Schema(description = "新课节日期")
+    @TableField(exist = false)
+    private String toDate;
+
+    /** 新课节时间段（列表填充，非数据库字段） */
+    @Schema(description = "新课节时间段")
+    @TableField(exist = false)
+    private String toTime;
+
+    /** 新课节班级（列表填充，非数据库字段） */
+    @Schema(description = "新课节班级")
+    @TableField(exist = false)
+    private String toClassName;
+
+    /** 调课人姓名（列表填充，非数据库字段） */
+    @Schema(description = "调课人姓名")
+    @TableField(exist = false)
+    private String changeUserName;
 }

@@ -10,6 +10,10 @@
 					<template #icon><profile-outlined /></template>
 					课表模板
 				</a-button>
+				<a-button @click="openChangeDrawer">
+					<template #icon><history-outlined /></template>
+					调课记录
+				</a-button>
 				<a-button @click="onOpenGenerate">
 					<template #icon><thunderbolt-outlined /></template>
 					批量生成
@@ -254,6 +258,42 @@
 		</a-form>
 	</a-modal>
 
+	<!-- 调课记录 -->
+	<a-drawer v-model:open="changeDrawerOpen" title="调课记录" :width="760" destroy-on-close>
+		<a-table
+			:columns="changeColumns"
+			:data-source="changeList"
+			:row-key="(r) => r.id"
+			:loading="changeLoading"
+			size="small"
+			:pagination="false"
+			scroll="{ y: 460 }"
+		>
+			<template #bodyCell="{ column, record }">
+				<template v-if="column.dataIndex === 'change'">
+					<div class="change-from">
+						{{ record.fromDate || '-' }} {{ record.fromTime || '' }}
+						<span v-if="record.fromClassName" style="color: rgba(0,0,0,.45)">（{{ record.fromClassName }}）</span>
+					</div>
+					<div class="change-to">
+						→ {{ record.toDate || '-' }} {{ record.toTime || '' }}
+						<span v-if="record.toClassName" style="color: rgba(0,0,0,.45)">（{{ record.toClassName }}）</span>
+					</div>
+				</template>
+				<template v-if="column.dataIndex === 'changeReason'">
+					{{ record.changeReason || '-' }}
+				</template>
+				<template v-if="column.dataIndex === 'changeUserName'">
+					{{ record.changeUserName || '-' }}
+				</template>
+				<template v-if="column.dataIndex === 'createTime'">
+					{{ (record.createTime || '').slice(0, 16).replace('T', ' ') }}
+				</template>
+			</template>
+		</a-table>
+		<a-empty v-if="!changeLoading && !changeList.length" description="暂无调课记录" />
+	</a-drawer>
+
 	<!-- 调课 -->
 	<a-modal v-model:open="changeOpen" title="调课" :width="560" :destroy-on-close="true" @ok="onSubmitChange">
 		<a-form ref="changeFormRef" :model="changeFormData" layout="vertical">
@@ -307,7 +347,7 @@
 <script setup name="courseSchedule">
 	import { useRoute, useRouter } from 'vue-router'
 	import { message } from 'ant-design-vue'
-	import { FileTextOutlined, ProfileOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
+	import { FileTextOutlined, HistoryOutlined, ProfileOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
 	import courseApi from '@/api/course/courseApi'
 	import downloadUtil from '@/utils/downloadUtil'
 	const router = useRouter()
@@ -342,6 +382,25 @@
 	const changeOpen = ref(false)
 	const changeFormRef = ref()
 	const changeFormData = ref({})
+	const changeDrawerOpen = ref(false)
+	const changeLoading = ref(false)
+	const changeList = ref([])
+	const changeColumns = [
+		{ title: '调课', dataIndex: 'change', width: 260 },
+		{ title: '原因', dataIndex: 'changeReason' },
+		{ title: '操作人', dataIndex: 'changeUserName', width: 100 },
+		{ title: '操作时间', dataIndex: 'createTime', width: 160 }
+	]
+	const openChangeDrawer = () => {
+		changeDrawerOpen.value = true
+		changeLoading.value = true
+		courseApi
+			.scheduleChangePage({ current: 1, size: 50 })
+			.then((data) => {
+				changeList.value = data?.records || []
+			})
+			.finally(() => (changeLoading.value = false))
+	}
 	const templateOpen = ref(false)
 	const templateEditorRef = ref()
 	const templateFormData = ref({ classId: undefined, weekTemplate: [] })

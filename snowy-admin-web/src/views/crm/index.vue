@@ -186,9 +186,23 @@
 			<a-form-item label="家长姓名" name="parentName">
 				<a-input v-model:value="convertFormData.parentName" allow-clear />
 			</a-form-item>
-			<div style="color: rgba(0,0,0,.45); font-size: 12px">转入后自动创建学员档案，并将线索状态置为"已报名"</div>
+			<a-form-item label="报名课包">
+				<a-select
+					v-model:value="convertFormData.coursePackageId"
+					placeholder="可选：选后立即开报名单并登记收款"
+					:options="packageOptions"
+					allow-clear
+					show-search
+					option-filter-prop="label"
+				/>
+			</a-form-item>
+			<div style="color: rgba(0,0,0,.45); font-size: 12px">
+				转入后自动创建学员档案并将线索置为「已报名」；选了课包会直接开单并弹出收款登记
+			</div>
 		</a-form>
 	</a-modal>
+
+	<pay-modal ref="payModalRef" :order="payOrder" @success="tableRef.refresh()" />
 </template>
 
 <script setup name="crmLead">
@@ -214,6 +228,10 @@
 	const convertOpen = ref(false)
 	const convertFormRef = ref()
 	const convertFormData = ref({})
+	const packageOptions = ref([])
+	const packageRaw = ref([])
+	const payModalRef = ref()
+	const payOrder = ref({})
 	const statusOptions = [
 		{ value: 'NEW', label: '新线索' },
 		{ value: 'FOLLOWED', label: '已跟进' },
@@ -345,18 +363,52 @@
 	}
 	const onOpenConvert = (record) => {
 		currentLead.value = record
-		convertFormData.value = { name: record.name, parentPhone: record.parentPhone }
+		convertFormData.value = { name: record.name, parentPhone: record.parentPhone, coursePackageId: undefined }
 		convertOpen.value = true
+	}
+	const loadPackages = () => {
+		courseApi.packagePage({ current: 1, size: 100 }).then((data) => {
+			packageRaw.value = data.records || []
+			packageOptions.value = packageRaw.value.map((item) => ({
+				value: item.id,
+				label: `${item.name}（${item.lessons}课时 ${item.price}元）`
+			}))
+		})
 	}
 	const onSubmitConvert = () => {
 		convertFormRef.value.validate().then(() => {
-			studentApi.studentAdd({ ...convertFormData.value, gender: '男', status: 'STUDYING' }).then(() => {
-				crmApi.leadEdit({ ...currentLead.value, status: 'ENROLLED' }).then(() => {
-					convertOpen.value = false
-					tableRef.value.refresh()
-				})
+			const { coursePackageId, ...studentInfo } = convertFormData.value
+			studentApi.studentAdd({ ...studentInfo, gender: '男', status: 'STUDYING' }).then((res) => {
+				const studentId = res?.data
+				const afterLead = () =>
+					crmApi.leadEdit({ ...currentLead.value, status: 'ENROLLED' }).then(() => {
+						convertOpen.value = false
+						tableRef.value.refresh()
+					})
+				if (!coursePackageId) {
+					afterLead()
+					return
+				}
+				// 转学员 → 直接开报名单 → 弹出收款登记（一步完成）
+				studentApi
+					.orderAdd({ studentId, coursePackageId, payChannel: 'OFFLINE' })
+					.then((orderRes) => {
+						const pkg = packageRaw.value.find((p) => p.id === coursePackageId)
+						afterLead()
+						payOrder.value = {
+							id: orderRes?.data,
+							studentName: studentInfo.name,
+							packageName: pkg?.name || '',
+							amount: pkg?.price || 0
+						}
+						payModalRef.value.open(payOrder.value)
+					})
+					.catch(() => {
+						afterLead()
+					})
 			})
 		})
 	}
 	loadCourses()
+	loadPackages()
 </script>

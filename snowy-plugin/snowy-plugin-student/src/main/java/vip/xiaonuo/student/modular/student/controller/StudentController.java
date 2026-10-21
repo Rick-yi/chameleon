@@ -70,8 +70,7 @@ public class StudentController {
     @CommonLog("添加学员")
     @PostMapping("/student/add")
     public CommonResult<String> add(@RequestBody @Valid StudentAddParam studentAddParam) {
-        studentService.add(studentAddParam);
-        return CommonResult.ok();
+        return CommonResult.data(studentService.add(studentAddParam));
     }
 
     /**

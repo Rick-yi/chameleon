@@ -88,7 +88,7 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
 
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public void add(StudentAddParam studentAddParam) {
+    public String add(StudentAddParam studentAddParam) {
         Student student = BeanUtil.toBean(studentAddParam, Student.class);
         if (ObjectUtil.isEmpty(student.getStatus())) {
             student.setStatus(StudentStatusEnum.STUDYING.getValue());
@@ -99,6 +99,7 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
             throw new CommonException("当前套餐最多可添加 {} 名学员，已达上限", studentLimit);
         }
         this.save(student);
+        return student.getId();
     }
 
     @Transactional(rollbackFor = Exception.class)

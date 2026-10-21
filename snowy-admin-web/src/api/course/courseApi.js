@@ -106,6 +106,10 @@ export default {
 	scheduleExport(data) {
 		return request('schedule/export', data, 'get', { responseType: 'blob' })
 	},
+	// 调课记录
+	scheduleChangePage(data) {
+		return request('scheduleChange/page', data, 'get')
+	},
 	// 点名
 	attendPage(data) {
 		return request('attend/page', data, 'get')

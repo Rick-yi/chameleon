@@ -33,7 +33,8 @@ public interface StudentService {
     Page<Student> page(StudentPageParam studentPageParam);
 
     /** 添加学员 */
-    void add(StudentAddParam studentAddParam);
+    /** 新增学员，返回学员id */
+    String add(StudentAddParam studentAddParam);
 
     /** 编辑学员 */
     void edit(StudentEditParam studentEditParam);

@@ -61,26 +61,7 @@
 		</div>
 	</div>
 
-	<a-modal v-model:open="payOpen" title="线下收款登记" :width="480" :destroy-on-close="true" @ok="onSubmitPay">
-		<a-form ref="payFormRef" :model="payFormData" layout="vertical">
-			<a-alert type="info" show-icon message="请核对实收金额，确认后课时立即入账" style="margin-bottom: 16px" />
-			<a-form-item label="订单">
-				<a-input :value="`${payFormData.studentName || ''} · ${payFormData.packageName || ''}`" disabled />
-			</a-form-item>
-			<a-form-item label="应收金额">
-				<a-input :value="`¥${payFormData.amount || 0}`" disabled />
-			</a-form-item>
-			<a-form-item label="收款渠道" name="payChannel">
-				<a-select v-model:value="payFormData.payChannel" :options="payChannelOptions" />
-			</a-form-item>
-			<a-form-item label="实收金额" name="paidAmount" :rules="[{ required: true, message: '请输入实收金额' }]">
-				<a-input-number v-model:value="payFormData.paidAmount" :min="0" :precision="2" style="width: 100%" />
-			</a-form-item>
-			<a-form-item label="备注" name="remark">
-				<a-input v-model:value="payFormData.remark" placeholder="如：收款人、转账流水号" allow-clear />
-			</a-form-item>
-		</a-form>
-	</a-modal>
+	<pay-modal ref="payModalRef" :order="payOrder" @success="tableRef.refresh()" />
 
 	<a-modal v-model:open="signupOpen" :title="`报名购课 · ${signupFormData.studentName || ''}`" :width="480" :destroy-on-close="true" @ok="onSubmitSignup">
 		<a-form ref="signupFormRef" :model="signupFormData" layout="vertical">
@@ -154,13 +135,8 @@
 	const signupFormData = ref({})
 	const packageOptions = ref([])
 	const packageRaw = ref([])
-	const payOpen = ref(false)
-	const payFormRef = ref()
-	const payFormData = ref({})
-	const payChannelOptions = [
-		{ value: 'OFFLINE', label: '线下转账' },
-		{ value: 'CASH', label: '现金' }
-	]
+	const payModalRef = ref()
+	const payOrder = ref({})
 	const statusOptions = [
 		{ value: 'STUDYING', label: '在读' },
 		{ value: 'STOP', label: '停课' },
@@ -241,24 +217,8 @@
 		return item ? item.price : 0
 	}
 	const openPayModal = (order) => {
-		payFormData.value = { ...order, payChannel: 'OFFLINE', paidAmount: order.amount, remark: '' }
-		payOpen.value = true
-	}
-	const onSubmitPay = () => {
-		payFormRef.value.validate().then(() => {
-			studentApi
-				.orderOfflinePay({
-					orderId: payFormData.value.id,
-					paidAmount: payFormData.value.paidAmount,
-					payChannel: payFormData.value.payChannel,
-					remark: payFormData.value.remark
-				})
-				.then(() => {
-					payOpen.value = false
-					message.success('收款已登记，课时已入账')
-					tableRef.value.refresh()
-				})
-		})
+		payOrder.value = order
+		payModalRef.value.open(order)
 	}
 	const onOpenAdd = () => {
 		formData.value = { status: 'STUDYING', gender: '男' }
