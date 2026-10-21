@@ -3,42 +3,42 @@
 		<a-spin :spinning="loading">
 			<a-row :gutter="16">
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="report-kpi">
+					<a-card :bordered="false" class="report-kpi kpi-link" @click="drillFinance('payment')">
 						<a-statistic title="本月收款" :value="summary.paidAmount" :precision="2" prefix="¥" />
 					</a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="report-kpi">
+					<a-card :bordered="false" class="report-kpi kpi-link" @click="drillFinance('refund')">
 						<a-statistic title="本月退费" :value="summary.refundAmount" :precision="2" prefix="¥" :value-style="{ color: '#fa541c' }" />
 					</a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="report-kpi">
+					<a-card :bordered="false" class="report-kpi kpi-link" @click="drillFinance('payment')">
 						<a-statistic title="净营收" :value="summary.netAmount" :precision="2" prefix="¥" :value-style="{ color: '#52c41a' }" />
 					</a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="report-kpi">
+					<a-card :bordered="false" class="report-kpi kpi-link" @click="drillAcademic()">
 						<a-statistic title="课消课时" :value="summary.attendLessons" :precision="2" suffix="课时" />
 					</a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="report-kpi">
+					<a-card :bordered="false" class="report-kpi kpi-link" @click="drillAcademic()">
 						<a-statistic title="课消金额" :value="summary.recognizedAmount" :precision="2" prefix="¥" />
 					</a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="report-kpi">
+					<a-card :bordered="false" class="report-kpi kpi-link" @click="drillStudent('STUDYING')">
 						<a-statistic title="本月新增学员" :value="summary.newStudentCount" suffix="人" />
 					</a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="report-kpi">
+					<a-card :bordered="false" class="report-kpi kpi-link" @click="drillStudent('STUDYING')">
 						<a-statistic title="在读学员" :value="summary.studyingStudentCount" suffix="人" />
 					</a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="report-kpi">
+					<a-card :bordered="false" class="report-kpi kpi-link" @click="drillRenewWarn()">
 						<a-statistic title="待续费预警" :value="summary.renewWarnCount" suffix="条" :value-style="{ color: '#faad14' }" />
 					</a-card>
 				</a-col>
@@ -80,7 +80,7 @@
 					<a-card title="续费预警" :bordered="false">
 						<a-list :data-source="renewWarnList" size="small" :locale="{ emptyText: '暂无待处理预警' }">
 							<template #renderItem="{ item }">
-								<a-list-item>
+								<a-list-item class="kpi-link" @click="goStudentDetail(item)">
 									<a-list-item-meta :title="item.studentName || item.studentId" :description="item.content" />
 								</a-list-item>
 							</template>
@@ -91,7 +91,7 @@
 					<a-card title="待收款订单" :bordered="false">
 						<a-list :data-source="unpaidOrderList" size="small" :locale="{ emptyText: '暂无待收款订单' }">
 							<template #renderItem="{ item }">
-								<a-list-item>
+								<a-list-item class="kpi-link" @click="goStudentDetail(item)">
 									<a-list-item-meta :title="item.studentName || item.studentId" :description="item.content" />
 								</a-list-item>
 							</template>
@@ -105,9 +105,11 @@
 
 <script setup name="reportDashboard">
 	import { nextTick, onMounted, ref } from 'vue'
+	import { useRouter } from 'vue-router'
 	import { Bar, Line, Pie } from '@antv/g2plot'
 	import reportApi from '@/api/report/reportApi'
 
+	const router = useRouter()
 	const loading = ref(false)
 	const summary = ref({
 		paidAmount: 0,
@@ -237,6 +239,25 @@
 		}
 	}
 
+	// 指标下钻
+	const drillFinance = (tab) => {
+		router.push({ path: '/report/finance', query: { tab, range: 'month' } })
+	}
+	const drillAcademic = () => {
+		router.push({ path: '/report/academic' })
+	}
+	const drillStudent = (status) => {
+		router.push({ path: '/student', query: { status } })
+	}
+	const drillRenewWarn = () => {
+		router.push({ path: '/student/renewWarn' })
+	}
+	const goStudentDetail = (item) => {
+		if (item?.studentId) {
+			router.push({ path: '/student/detail', query: { id: item.studentId } })
+		}
+	}
+
 	const loadData = () => {
 		loading.value = true
 		reportApi
@@ -263,6 +284,13 @@
 <style scoped>
 	.report-kpi {
 		margin-bottom: 8px;
+	}
+	.kpi-link {
+		cursor: pointer;
+		transition: box-shadow 0.2s;
+	}
+	.kpi-link:hover {
+		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
 	}
 	.report-chart {
 		width: 100%;

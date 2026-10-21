@@ -40,6 +40,7 @@ import vip.xiaonuo.student.api.dto.FinanceTrendDTO;
 import vip.xiaonuo.student.api.dto.ReportOptionDTO;
 import vip.xiaonuo.student.api.param.FinanceQueryParam;
 import vip.xiaonuo.student.core.service.StudentDataScopeService;
+import vip.xiaonuo.student.core.util.LessonRevenueUtil;
 import vip.xiaonuo.student.modular.student.entity.Student;
 import vip.xiaonuo.student.modular.student.enums.StudentStatusEnum;
 import vip.xiaonuo.student.modular.student.mapper.StudentMapper;
@@ -736,13 +737,8 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
             if (unitPrice == null) {
                 unitPrice = fallbackPriceMap.get(flow.getStudentId() + "|" + flow.getCourseId());
             }
-            if (unitPrice != null) {
-                if (isAttend) {
-                    dto.setRecognizedAmount(dto.getRecognizedAmount().add(lessons.multiply(unitPrice)));
-                } else if (isRestore) {
-                    dto.setRecognizedAmount(dto.getRecognizedAmount().subtract(lessons.multiply(unitPrice)));
-                }
-            }
+            dto.setRecognizedAmount(dto.getRecognizedAmount().add(
+                    LessonRevenueUtil.recognizedAmount(lessons, unitPrice, flow.getFlowType())));
             if (order != null) {
                 orderIdSetMap.computeIfAbsent(key, k -> new java.util.LinkedHashSet<>()).add(order.getId());
             }
@@ -770,12 +766,8 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
      * @date 2026/10/21 10:00
      **/
     private BigDecimal orderUnitPrice(StudentOrder order) {
-        BigDecimal packageLessons = nvl(order.getPackageLessons());
-        if (packageLessons.compareTo(BigDecimal.ZERO) <= 0) {
-            return null;
-        }
         BigDecimal paid = order.getPaidAmount() == null ? nvl(order.getAmount()) : order.getPaidAmount();
-        return paid.divide(packageLessons, 6, RoundingMode.HALF_UP);
+        return LessonRevenueUtil.unitPrice(paid, nvl(order.getPackageLessons()));
     }
 
     @Override

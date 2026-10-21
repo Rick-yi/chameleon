@@ -41,7 +41,7 @@
 		<a-spin :spinning="loading">
 			<a-row :gutter="16" style="margin-top: 16px">
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="到课人次" :value="attendance.attendCount" suffix="人次" /></a-card>
+					<a-card :bordered="false" class="kpi-link" @click="router.push('/course/attend')"><a-statistic title="到课人次" :value="attendance.attendCount" suffix="人次" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
 					<a-card :bordered="false"><a-statistic title="请假人次" :value="attendance.leaveCount" suffix="人次" :value-style="{ color: '#faad14' }" /></a-card>
@@ -50,7 +50,7 @@
 					<a-card :bordered="false"><a-statistic title="缺勤人次" :value="attendance.absentCount" suffix="人次" :value-style="{ color: '#fa541c' }" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="应到人次" :value="attendance.expectedCount" suffix="人次" /></a-card>
+					<a-card :bordered="false" class="kpi-link" @click="router.push('/course/class')"><a-statistic title="应到人次" :value="attendance.expectedCount" suffix="人次" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
 					<a-card :bordered="false"><a-statistic title="到课率" :value="attendance.attendRate" :precision="2" suffix="%" /></a-card>
@@ -295,5 +295,12 @@
 <style scoped>
 	.report-filter {
 		margin-bottom: 8px;
+	}
+	.kpi-link {
+		cursor: pointer;
+		transition: box-shadow 0.2s;
+	}
+	.kpi-link:hover {
+		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
 	}
 </style>

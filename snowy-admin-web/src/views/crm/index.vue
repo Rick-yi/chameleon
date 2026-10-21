@@ -184,10 +184,12 @@
 </template>
 
 <script setup name="crmLead">
+	import { useRoute } from 'vue-router'
 	import crmApi from '@/api/crm/crmApi'
 	import courseApi from '@/api/course/courseApi'
 	import studentApi from '@/api/student/studentApi'
 	const searchFormState = ref({})
+	const route = useRoute()
 	const tableRef = ref()
 	const formRef = ref()
 	const formData = ref({})
@@ -241,6 +243,16 @@
 	const loadData = (parameter) => {
 		return crmApi.leadPage(Object.assign(parameter, searchFormState.value)).then((data) => data)
 	}
+	// 支持从报表带参下钻（状态 / 来源）
+	const applyDrillParams = () => {
+		if (route.query.status) {
+			searchFormState.value.status = route.query.status
+		}
+		if (route.query.source) {
+			searchFormState.value.source = route.query.source
+		}
+	}
+	applyDrillParams()
 	const reset = () => {
 		searchFormState.value = {}
 		tableRef.value.refresh(true)

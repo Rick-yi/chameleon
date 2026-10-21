@@ -39,19 +39,19 @@
 		<a-spin :spinning="loading">
 			<a-row :gutter="16" style="margin-top: 16px">
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="收款" :value="summary.paidAmount" :precision="2" prefix="¥" /></a-card>
+					<a-card :bordered="false" class="kpi-link" @click="activeTab = 'payment'"><a-statistic title="收款" :value="summary.paidAmount" :precision="2" prefix="¥" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="退费" :value="summary.refundAmount" :precision="2" prefix="¥" :value-style="{ color: '#fa541c' }" /></a-card>
+					<a-card :bordered="false" class="kpi-link" @click="activeTab = 'refund'"><a-statistic title="退费" :value="summary.refundAmount" :precision="2" prefix="¥" :value-style="{ color: '#fa541c' }" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
 					<a-card :bordered="false"><a-statistic title="净营收" :value="summary.netAmount" :precision="2" prefix="¥" :value-style="{ color: '#52c41a' }" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="课消金额" :value="summary.recognizedAmount" :precision="2" prefix="¥" /></a-card>
+					<a-card :bordered="false" class="kpi-link" @click="router.push('/report/academic')"><a-statistic title="课消金额" :value="summary.recognizedAmount" :precision="2" prefix="¥" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="订单数" :value="summary.orderCount" suffix="笔" /></a-card>
+					<a-card :bordered="false" class="kpi-link" @click="activeTab = 'payment'"><a-statistic title="订单数" :value="summary.orderCount" suffix="笔" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
 					<a-card :bordered="false"><a-statistic title="客单价" :value="summary.avgOrderAmount" :precision="2" prefix="¥" /></a-card>
@@ -173,6 +173,7 @@
 
 <script setup name="reportFinance">
 	import { h, nextTick, onMounted, reactive, ref } from 'vue'
+	import { useRoute, useRouter } from 'vue-router'
 	import { Line, Pie } from '@antv/g2plot'
 	import { message } from 'ant-design-vue'
 	import dayjs from 'dayjs'
@@ -181,6 +182,8 @@
 	import courseApi from '@/api/course/courseApi'
 	import downloadUtil from '@/utils/downloadUtil'
 
+	const router = useRouter()
+	const route = useRoute()
 	const loading = ref(false)
 	const detailLoading = ref(false)
 	const activeTab = ref('payment')
@@ -516,9 +519,20 @@
 		})
 	}
 
+	// 支持从其他页面带参下钻（tab=payment/refund、range=month）
+	const applyDrillParams = () => {
+		if (route.query.tab) {
+			activeTab.value = route.query.tab
+		}
+		if (route.query.range === 'month') {
+			dateRange.value = [dayjs().startOf('month').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')]
+		}
+	}
+
 	onMounted(() => {
 		loadCourses()
 		loadCampusOptions()
+		applyDrillParams()
 		loadAll()
 	})
 </script>
@@ -526,6 +540,13 @@
 <style scoped>
 	.report-filter {
 		margin-bottom: 8px;
+	}
+	.kpi-link {
+		cursor: pointer;
+		transition: box-shadow 0.2s;
+	}
+	.kpi-link:hover {
+		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
 	}
 	.report-chart {
 		width: 100%;

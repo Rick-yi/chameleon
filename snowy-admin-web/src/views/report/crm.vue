@@ -31,10 +31,10 @@
 		<a-spin :spinning="loading">
 			<a-row :gutter="16" style="margin-top: 16px">
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="线索量" :value="leadCount" suffix="条" /></a-card>
+					<a-card :bordered="false" class="kpi-link" @click="router.push({ path: '/crm', query: { status: 'NEW' } })"><a-statistic title="线索量" :value="leadCount" suffix="条" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="已报名" :value="enrolledCount" suffix="人" :value-style="{ color: '#52c41a' }" /></a-card>
+					<a-card :bordered="false" class="kpi-link" @click="router.push({ path: '/crm', query: { status: 'ENROLLED' } })"><a-statistic title="已报名" :value="enrolledCount" suffix="人" :value-style="{ color: '#52c41a' }" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
 					<a-card :bordered="false"><a-statistic title="报名转化率" :value="enrollRate" :precision="2" suffix="%" /></a-card>
@@ -226,6 +226,13 @@
 <style scoped>
 	.report-filter {
 		margin-bottom: 8px;
+	}
+	.kpi-link {
+		cursor: pointer;
+		transition: box-shadow 0.2s;
+	}
+	.kpi-link:hover {
+		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
 	}
 	.report-chart {
 		width: 100%;

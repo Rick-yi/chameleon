@@ -130,6 +130,13 @@
 	const loadData = (parameter) => {
 		return studentApi.studentPage(Object.assign(parameter, searchFormState.value)).then((data) => data)
 	}
+	// 支持从报表带参下钻（状态）
+	const applyDrillParams = () => {
+		if (route.query.status) {
+			searchFormState.value.status = route.query.status
+		}
+	}
+	applyDrillParams()
 	const reset = () => {
 		searchFormState.value = {}
 		tableRef.value.refresh(true)
