@@ -311,7 +311,7 @@
 	}
 	const goStudent = (record) => {
 		if (record.studentId) {
-			router.push({ path: '/student/detail', query: { id: record.studentId } })
+			router.push({ path: '/student', query: { id: record.studentId } })
 		}
 	}
 

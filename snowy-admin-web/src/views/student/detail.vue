@@ -66,6 +66,28 @@
 						</template>
 					</a-table>
 				</a-tab-pane>
+				<a-tab-pane key="attend" tab="出勤记录">
+					<a-table :columns="attendColumns" :data-source="attends" :row-key="(r) => r.id" :pagination="false" bordered size="middle">
+						<template #bodyCell="{ column, record }">
+							<template v-if="column.dataIndex === 'attendStatus'">
+								<a-tag :color="attendStatusColor(record.attendStatus)">{{ attendStatusText(record.attendStatus) }}</a-tag>
+							</template>
+							<template v-if="column.dataIndex === 'lessonsDeducted'">
+								{{ record.lessonsDeducted ?? 0 }}
+							</template>
+							<template v-if="column.dataIndex === 'remark'">
+								{{ record.remark || '-' }}
+							</template>
+						</template>
+					</a-table>
+					<a-alert
+						v-if="attends.length"
+						type="info"
+						show-icon
+						style="margin-top: 12px"
+						message="请假、缺勤是否扣课时由课包/课程规则决定；未消课的记录会写明原因"
+					/>
+				</a-tab-pane>
 				<a-tab-pane key="refund" tab="退费单">
 					<a-table :columns="refundColumns" :data-source="refunds" :row-key="(r) => r.id" :pagination="false" bordered size="middle">
 						<template #bodyCell="{ column, record }">
@@ -166,13 +188,18 @@
 	import studentApi from '@/api/student/studentApi'
 	import courseApi from '@/api/course/courseApi'
 	import { message } from 'ant-design-vue'
+	// 既可作为独立页面（取路由参数），也可嵌入抽屉（外部传入 studentId）
+	const props = defineProps({
+		studentId: { type: String, default: '' }
+	})
 	const route = useRoute()
-	const studentId = route.query.id
+	const currentStudentId = computed(() => props.studentId || route.query.id || '')
 	const loading = ref(false)
 	const student = ref({})
 	const accounts = ref([])
 	const flows = ref([])
 	const orders = ref([])
+	const attends = ref([])
 	const refunds = ref([])
 	const activeTab = ref('account')
 	const courseMap = ref({})
@@ -227,6 +254,16 @@
 		{ title: '状态', dataIndex: 'status', width: 100 },
 		{ title: '操作', dataIndex: 'action', align: 'center' }
 	]
+	const attendColumns = [
+		{ title: '上课日期', dataIndex: 'scheduleDate', width: 120 },
+		{ title: '时间段', dataIndex: 'timeText', width: 130 },
+		{ title: '班级', dataIndex: 'className' },
+		{ title: '出勤状态', dataIndex: 'attendStatus', width: 100 },
+		{ title: '扣减课时', dataIndex: 'lessonsDeducted', width: 100 },
+		{ title: '说明', dataIndex: 'remark' }
+	]
+	const attendStatusText = (status) => ({ ATTEND: '到课', LEAVE: '请假', ABSENT: '缺勤' }[status] || status || '-')
+	const attendStatusColor = (status) => ({ ATTEND: 'green', LEAVE: 'orange', ABSENT: 'red' }[status] || 'default')
 	const refundColumns = [
 		{ title: '退费单号', dataIndex: 'id' },
 		{ title: '可退课时', dataIndex: 'refundLessons' },
@@ -247,18 +284,20 @@
 	const loadAll = () => {
 		loading.value = true
 		Promise.all([
-			studentApi.studentDetail({ id: studentId }),
-			studentApi.lessonAccountPage({ current: 1, size: 50, studentId }),
-			studentApi.lessonFlowPage({ current: 1, size: 50, studentId }),
-			studentApi.orderPage({ current: 1, size: 50, studentId }),
-			studentApi.refundPage({ current: 1, size: 50, studentId }),
+			studentApi.studentDetail({ id: currentStudentId.value }),
+			studentApi.lessonAccountPage({ current: 1, size: 50, studentId: currentStudentId.value }),
+			studentApi.lessonFlowPage({ current: 1, size: 50, studentId: currentStudentId.value }),
+			studentApi.orderPage({ current: 1, size: 50, studentId: currentStudentId.value }),
+			studentApi.refundPage({ current: 1, size: 50, studentId: currentStudentId.value }),
 			courseApi.coursePage({ current: 1, size: 100 }),
-			courseApi.packagePage({ current: 1, size: 100 })
-		]).then(([stu, acc, flow, order, refund, course, pkg]) => {
+			courseApi.packagePage({ current: 1, size: 100 }),
+			courseApi.studentAttendPage({ current: 1, size: 50, studentId: currentStudentId.value })
+		]).then(([stu, acc, flow, order, refund, course, pkg, attend]) => {
 			student.value = stu
 			accounts.value = acc.records || []
 			flows.value = (flow.records || []).map((f) => ({ ...f, flowType: flowTypeText(f.flowType) }))
 			orders.value = order.records || []
+			attends.value = (attend?.records || []).map((a) => ({ ...a }))
 			refunds.value = refund.records || []
 			const cmap = {}
 			for (const c of course.records || []) cmap[c.id] = c.name
@@ -371,5 +410,5 @@
 	const onCancelRefund = (record) => {
 		studentApi.refundCancel({ id: record.id }).then(() => loadAll())
 	}
-	loadAll()
+	watch(currentStudentId, () => loadAll(), { immediate: true })
 </script>

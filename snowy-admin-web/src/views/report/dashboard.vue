@@ -269,7 +269,7 @@
 	}
 	const goStudentDetail = (item) => {
 		if (item?.studentId) {
-			router.push({ path: '/student/detail', query: { id: item.studentId } })
+			router.push({ path: '/student', query: { id: item.studentId } })
 		}
 	}
 

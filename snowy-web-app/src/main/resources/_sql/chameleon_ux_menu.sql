@@ -14,7 +14,6 @@ INSERT IGNORE INTO `SYS_RESOURCE` (`ID`, `PARENT_ID`, `TITLE`, `NAME`, `CODE`, `
 ('menu_order_001',     '0', '收款台', 'studentOrder',   'order',     'MENU', 'mod_edu_001', 'MENU', '/student/order', 'student/order',  'wallet-outlined',    NULL, 'YES', 'YES', 'YES', 3,  'NOT_DELETE', NOW(), '1');
 
 -- 2. 教务运营模块排序：工作台(0) → 招生线索(1) → 学员管理(2) → 收款台(3) → 其后顺延
-UPDATE `SYS_RESOURCE` SET `SORT_CODE` = 4  WHERE `ID` = 'menu_detail_001';
 UPDATE `SYS_RESOURCE` SET `SORT_CODE` = 5  WHERE `ID` = 'menu_course_001';
 UPDATE `SYS_RESOURCE` SET `SORT_CODE` = 6  WHERE `ID` = 'menu_pkg_001';
 UPDATE `SYS_RESOURCE` SET `SORT_CODE` = 7  WHERE `ID` = 'menu_class_001';
@@ -40,6 +39,10 @@ WHERE r.`CODE` = 'superAdmin'
 DELETE FROM `SYS_RELATION` WHERE `TARGET_ID` = 'menu_finance_001' AND `CATEGORY` = 'SYS_ROLE_HAS_RESOURCE';
 DELETE FROM `SYS_RESOURCE` WHERE `ID` = 'menu_finance_001';
 
--- 5. 兼容历史数据：关系行补租户（未授权角色仍需手动在「角色授权」中勾选）
+-- 5. 学员详情改为「学员管理」内的抽屉：移除独立菜单（前端 config/route.js 保留旧链接重定向）
+DELETE FROM `SYS_RELATION` WHERE `TARGET_ID` = 'menu_detail_001';
+DELETE FROM `SYS_RESOURCE` WHERE `ID` = 'menu_detail_001';
+
+-- 6. 兼容历史数据：关系行补租户（未授权角色仍需手动在「角色授权」中勾选）
 UPDATE `SYS_RELATION` SET `TENANT_ID` = (SELECT `ID` FROM `T_TENANT` ORDER BY `CREATE_TIME` LIMIT 1)
 WHERE `ID` LIKE 'rel_ux_%' AND (`TENANT_ID` IS NULL OR `TENANT_ID` = '');

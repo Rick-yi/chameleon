@@ -35,6 +35,10 @@ import vip.xiaonuo.course.modular.courseclass.service.CourseClassService;
 import vip.xiaonuo.course.modular.courseclassattend.entity.CourseClassAttend;
 import vip.xiaonuo.course.modular.courseclassattend.enums.CourseAttendStatusEnum;
 import vip.xiaonuo.course.modular.courseclassattend.mapper.CourseClassAttendMapper;
+import vip.xiaonuo.course.modular.courseclass.entity.CourseClass;
+import vip.xiaonuo.course.modular.courseclass.mapper.CourseClassMapper;
+import vip.xiaonuo.course.modular.courseschedule.entity.CourseSchedule;
+import vip.xiaonuo.course.modular.courseschedule.mapper.CourseScheduleMapper;
 import vip.xiaonuo.course.modular.courseclassattend.param.CourseClassAttendConfirmParam;
 import vip.xiaonuo.course.modular.courseclassattend.param.CourseClassAttendIdParam;
 import vip.xiaonuo.course.modular.courseclassattend.param.CourseClassAttendItemParam;
@@ -60,6 +64,10 @@ import vip.xiaonuo.student.api.pojo.LessonDeductParam;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
@@ -97,6 +105,12 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
     private StudentLessonApi studentLessonApi;
 
     @Resource
+    private CourseScheduleMapper courseScheduleMapper;
+
+    @Resource
+    private CourseClassMapper courseClassMapper;
+
+    @Resource
     private StudentApi studentApi;
 
     @Resource
@@ -109,9 +123,57 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
     public Page<CourseClassAttend> page(CourseClassAttendPageParam courseClassAttendPageParam) {
         QueryWrapper<CourseClassAttend> queryWrapper = new QueryWrapper<CourseClassAttend>().checkSqlInjection();
         queryWrapper.lambda()
-                .eq(CourseClassAttend::getScheduleId, courseClassAttendPageParam.getScheduleId())
-                .orderByAsc(CourseClassAttend::getCreateTime);
-        return this.page(CommonPageRequest.defaultPage(), queryWrapper);
+                .eq(ObjectUtil.isNotEmpty(courseClassAttendPageParam.getScheduleId()), CourseClassAttend::getScheduleId, courseClassAttendPageParam.getScheduleId())
+                .eq(ObjectUtil.isNotEmpty(courseClassAttendPageParam.getStudentId()), CourseClassAttend::getStudentId, courseClassAttendPageParam.getStudentId())
+                .orderByDesc(CourseClassAttend::getCreateTime);
+        Page<CourseClassAttend> page = this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        fillScheduleInfo(page.getRecords());
+        return page;
+    }
+
+    /**
+     * 填充出勤记录对应的上课日期、时间段与班级
+     */
+    private void fillScheduleInfo(List<CourseClassAttend> attendList) {
+        if (ObjectUtil.isEmpty(attendList)) {
+            return;
+        }
+        List<String> scheduleIdList = attendList.stream().map(CourseClassAttend::getScheduleId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (ObjectUtil.isEmpty(scheduleIdList)) {
+            return;
+        }
+        Map<String, CourseSchedule> scheduleMap = new HashMap<>();
+        courseScheduleMapper.selectBatchIds(scheduleIdList).forEach(s -> scheduleMap.put(s.getId(), s));
+        Map<String, String> classNameMap = new HashMap<>();
+        List<String> classIdList = scheduleMap.values().stream().map(CourseSchedule::getClassId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (ObjectUtil.isNotEmpty(classIdList)) {
+            courseClassMapper.selectBatchIds(classIdList).forEach(c -> classNameMap.put(c.getId(), c.getName()));
+        }
+        for (CourseClassAttend attend : attendList) {
+            CourseSchedule schedule = scheduleMap.get(attend.getScheduleId());
+            if (ObjectUtil.isEmpty(schedule)) {
+                continue;
+            }
+            attend.setScheduleDate(schedule.getScheduleDate() == null ? null : DateUtil.formatDate(schedule.getScheduleDate()));
+            attend.setTimeText(timeText(schedule));
+            attend.setClassName(classNameMap.get(schedule.getClassId()));
+        }
+    }
+
+    /**
+     * 课节时间段文案
+     */
+    private String timeText(CourseSchedule schedule) {
+        if (schedule.getStartTime() == null) {
+            return null;
+        }
+        String start = String.valueOf(schedule.getStartTime());
+        String end = schedule.getEndTime() == null ? "" : String.valueOf(schedule.getEndTime());
+        if (start.length() > 5) start = start.substring(0, 5);
+        if (end.length() > 5) end = end.substring(0, 5);
+        return StrUtil.isBlank(end) ? start : start + "-" + end;
     }
 
     @Transactional(rollbackFor = Exception.class)

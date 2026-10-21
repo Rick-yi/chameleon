@@ -12,6 +12,7 @@
  */
 package vip.xiaonuo.course.modular.courseclassattend.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
@@ -59,6 +60,21 @@ public class CourseClassAttend extends CommonEntity {
     /** 点名操作人 */
     @Schema(description = "点名操作人")
     private String attendUser;
+
+    /** 上课日期（列表填充，非数据库字段） */
+    @Schema(description = "上课日期")
+    @TableField(exist = false)
+    private String scheduleDate;
+
+    /** 上课时间段（列表填充，非数据库字段） */
+    @Schema(description = "上课时间段")
+    @TableField(exist = false)
+    private String timeText;
+
+    /** 班级名称（列表填充，非数据库字段） */
+    @Schema(description = "班级名称")
+    @TableField(exist = false)
+    private String className;
 
     /** 备注（未消课时记录原因） */
     @Schema(description = "备注")

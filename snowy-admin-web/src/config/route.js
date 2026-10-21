@@ -39,6 +39,18 @@ const routes = {
 				type: 'menu',
 				hidden: true
 			}
+		},
+		{
+			// 学员详情改为「学员管理」内的抽屉，旧链接统一重定向过去
+			id: '002',
+			name: 'studentDetailRedirect',
+			path: '/student/detail',
+			redirect: (to) => ({ path: '/student', query: to.query }),
+			meta: {
+				title: '学员详情',
+				type: 'menu',
+				hidden: true
+			}
 		}
 	]
 }

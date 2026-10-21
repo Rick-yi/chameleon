@@ -45,7 +45,7 @@
 				</template>
 				<template v-if="column.dataIndex === 'action'">
 					<a-space>
-						<a @click="goDetail(record)">详情</a>
+						<a @click="openDetail(record)">详情</a>
 						<a-divider type="vertical" />
 						<a @click="onOpenSignup(record)">报名</a>
 						<a-divider type="vertical" />
@@ -62,6 +62,11 @@
 	</div>
 
 	<pay-modal ref="payModalRef" :order="payOrder" @success="tableRef.refresh()" />
+
+	<!-- 学员详情：抽屉内展示，保留列表上下文，避免独立页面来回切换 -->
+	<a-drawer v-model:open="detailOpen" :width="880" :title="detailStudentName || '学员详情'" destroy-on-close>
+		<student-detail v-if="detailOpen" :student-id="detailStudentId" />
+	</a-drawer>
 
 	<a-modal v-model:open="signupOpen" :title="`报名购课 · ${signupFormData.studentName || ''}`" :width="480" :destroy-on-close="true" @ok="onSubmitSignup">
 		<a-form ref="signupFormRef" :model="signupFormData" layout="vertical">
@@ -120,6 +125,7 @@
 
 <script setup name="studentIndex">
 	import { useRoute, useRouter } from 'vue-router'
+	import StudentDetail from './detail.vue'
 	import studentApi from '@/api/student/studentApi'
 	import courseApi from '@/api/course/courseApi'
 	import { message } from 'ant-design-vue'
@@ -241,8 +247,19 @@
 	const onDelete = (record) => {
 		studentApi.studentDelete([{ id: record.id }]).then(() => tableRef.value.refresh())
 	}
-	const goDetail = (record) => {
-		router.push({ path: '/student/detail', query: { id: record.id } })
+	// 详情抽屉
+	const detailOpen = ref(false)
+	const detailStudentId = ref('')
+	const detailStudentName = ref('')
+	const openDetail = (record) => {
+		detailStudentId.value = record.id
+		detailStudentName.value = record.name
+		detailOpen.value = true
+	}
+	// 支持从其它页面带 ?id= 直接打开详情抽屉
+	if (route.query.id) {
+		detailStudentId.value = String(route.query.id)
+		detailOpen.value = true
 	}
 	loadPackages()
 </script>

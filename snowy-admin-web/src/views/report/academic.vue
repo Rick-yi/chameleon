@@ -284,7 +284,7 @@
 
 	// 下钻：学员 → 学员详情
 	const goStudent = (record) => {
-		router.push({ path: '/student/detail', query: { id: record.studentId } })
+		router.push({ path: '/student', query: { id: record.studentId } })
 	}
 
 	onMounted(() => {

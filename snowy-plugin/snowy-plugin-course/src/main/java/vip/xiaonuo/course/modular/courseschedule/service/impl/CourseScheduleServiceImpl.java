@@ -326,13 +326,22 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         to.setTeacherId(courseScheduleChangeParam.getTeacherId());
         to.setStatus(CourseScheduleStatusEnum.NORMAL.getValue());
         this.save(to);
+        // 已点名的课节调课：把出勤记录迁移到新课节（课时不重复扣，出勤跟着课节走）
+        List<CourseClassAttend> attendList = courseClassAttendMapper.selectList(
+                new LambdaQueryWrapper<CourseClassAttend>().eq(CourseClassAttend::getScheduleId, from.getId()));
+        for (CourseClassAttend attend : attendList) {
+            attend.setScheduleId(to.getId());
+        }
+        for (CourseClassAttend attend : attendList) {
+            courseClassAttendMapper.updateById(attend);
+        }
         // 调课记录
         CourseScheduleChange change = new CourseScheduleChange();
         change.setFromScheduleId(from.getId());
         change.setToScheduleId(to.getId());
         change.setChangeReason(courseScheduleChangeParam.getChangeReason());
         courseScheduleChangeService.add(change);
-        // 调课通知落库
+        // 调课通知落库（含已点名学员：点名与扣课保持原样）
         List<CourseClassStudent> studentList = courseClassStudentService.listByClassId(from.getClassId());
         for (CourseClassStudent classStudent : studentList) {
             studentNotifyApi.log("SCHEDULE_CHANGE", "PARENT", classStudent.getStudentId(), classStudent.getStudentId(),

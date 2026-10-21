@@ -40,9 +40,19 @@
 		<div style="padding: 16px 0">
 			<div v-if="!scheduleId" class="ent-empty">请先选择上面的上课节次</div>
 			<template v-else>
-				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px">
-					<span style="font-weight: 500">应到 {{ students.length }} 人</span>
-					<a-button type="primary" @click="onConfirm">确认点名并扣课</a-button>
+				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap">
+					<span style="font-weight: 500">
+						应到 {{ students.length }} 人
+						<span style="font-weight: 400; color: rgba(0,0,0,.45); font-size: 12px; margin-left: 8px">
+							到课 {{ countByStatus('ATTEND') }} · 请假 {{ countByStatus('LEAVE') }} · 缺勤 {{ countByStatus('ABSENT') }}
+						</span>
+					</span>
+					<a-space>
+						<a-button @click="markAll('ATTEND')">全部到课</a-button>
+						<a-button @click="markAll('LEAVE')">整班请假</a-button>
+						<a-button @click="markAll('ABSENT')">整班缺勤</a-button>
+						<a-button type="primary" @click="onConfirm">确认点名并扣课</a-button>
+					</a-space>
 				</div>
 				<a-table
 					:columns="columns"
@@ -184,6 +194,16 @@
 			const cls = classRecords.value.find((item) => item.id === classId.value)
 			return loadBalance(list.map((item) => item.studentId), cls?.courseId)
 		})
+	}
+	// 统计各状态人数
+	const countByStatus = (status) => students.value.filter((s) => s.attendStatus === status && !s.attendId).length
+	// 快捷标记：只影响还没点名的学员
+	const markAll = (status) => {
+		for (const item of students.value) {
+			if (!item.attendId) {
+				item.attendStatus = status
+			}
+		}
 	}
 	const onConfirm = () => {
 		const attendList = students.value

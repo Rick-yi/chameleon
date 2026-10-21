@@ -114,6 +114,10 @@ export default {
 	attendPage(data) {
 		return request('attend/page', data, 'get')
 	},
+	// 学员出勤记录（请假 / 缺勤 / 到课）
+	studentAttendPage(data) {
+		return request('attend/page', data, 'get')
+	},
 	attendConfirm(data) {
 		return request('attend/confirm', data)
 	},

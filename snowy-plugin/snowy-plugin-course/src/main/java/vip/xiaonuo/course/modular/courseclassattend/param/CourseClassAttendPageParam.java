@@ -34,6 +34,10 @@ public class CourseClassAttendPageParam {
     @Schema(description = "每页条数")
     private Integer size;
 
+    /** 学员id（按学员查出勤记录） */
+    @Schema(description = "学员id")
+    private String studentId;
+
     /** 排课id */
     @Schema(description = "排课id", requiredMode = Schema.RequiredMode.REQUIRED)
     private String scheduleId;
