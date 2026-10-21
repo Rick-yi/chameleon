@@ -51,6 +51,18 @@ export default {
 			responseType: 'blob'
 		})
 	},
+	dailyStat(data) {
+		return financeRequest('dailyStat', data, 'get')
+	},
+	rebuildDailyStat(data) {
+		return financeRequest('dailyStat/rebuild', data, 'post')
+	},
+	reconcile(data) {
+		return financeRequest('reconcile', data, 'get')
+	},
+	clearCache() {
+		return financeRequest('cache/clear', null, 'post')
+	},
 	// 教务
 	academicAttendance(data) {
 		return academicRequest('attendance', data, 'get')
@@ -67,6 +79,11 @@ export default {
 	academicRiskStudents(data) {
 		return academicRequest('riskStudents', data, 'get')
 	},
+	academicExport(data) {
+		return academicRequest('export', data, 'get', {
+			responseType: 'blob'
+		})
+	},
 	// 招生
 	crmFunnel(data) {
 		return crmRequest('funnel', data, 'get')
@@ -79,5 +96,10 @@ export default {
 	},
 	crmTrial(data) {
 		return crmRequest('trial', data, 'get')
+	},
+	crmExport(data) {
+		return crmRequest('export', data, 'get', {
+			responseType: 'blob'
+		})
 	}
 }

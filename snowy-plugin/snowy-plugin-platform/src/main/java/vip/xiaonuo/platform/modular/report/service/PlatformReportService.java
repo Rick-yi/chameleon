@@ -12,12 +12,14 @@
  */
 package vip.xiaonuo.platform.modular.report.service;
 
+import jakarta.servlet.http.HttpServletResponse;
 import vip.xiaonuo.platform.modular.report.dto.PlatformExpiringTenantDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformOverviewDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformPackageDistributionDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformTenantRankDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformTenantTrendDTO;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -42,4 +44,15 @@ public interface PlatformReportService {
 
     /** 租户活跃度排行 */
     List<PlatformTenantRankDTO> tenantRank(Integer limit);
+
+    /**
+     * 导出平台报表
+     *
+     * @param type     导出类型：OVERVIEW/TREND/PACKAGE/EXPIRING/RANK
+     * @param response 响应
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    void export(String type, HttpServletResponse response) throws IOException;
 }

@@ -12,11 +12,14 @@
  */
 package vip.xiaonuo.crm.modular.report.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vip.xiaonuo.common.pojo.CommonResult;
 import vip.xiaonuo.crm.api.dto.CrmFollowRankDTO;
@@ -26,6 +29,7 @@ import vip.xiaonuo.crm.api.dto.CrmTrialReportDTO;
 import vip.xiaonuo.crm.api.param.CrmReportQueryParam;
 import vip.xiaonuo.crm.modular.report.service.CrmReportService;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -49,6 +53,7 @@ public class CrmReportController {
      * @date 2026/10/20 10:00
      */
     @Operation(summary = "线索漏斗")
+    @SaCheckPermission("/crm/report/funnel")
     @GetMapping("/crm/report/funnel")
     public CommonResult<List<CrmFunnelStageDTO>> funnel(CrmReportQueryParam param) {
         return CommonResult.data(crmReportService.funnel(param));
@@ -61,6 +66,7 @@ public class CrmReportController {
      * @date 2026/10/20 10:00
      */
     @Operation(summary = "来源渠道")
+    @SaCheckPermission("/crm/report/source")
     @GetMapping("/crm/report/source")
     public CommonResult<List<CrmSourceDTO>> source(CrmReportQueryParam param) {
         return CommonResult.data(crmReportService.source(param));
@@ -73,6 +79,7 @@ public class CrmReportController {
      * @date 2026/10/20 10:00
      */
     @Operation(summary = "跟进排行")
+    @SaCheckPermission("/crm/report/followRank")
     @GetMapping("/crm/report/followRank")
     public CommonResult<List<CrmFollowRankDTO>> followRank(CrmReportQueryParam param) {
         return CommonResult.data(crmReportService.followRank(param));
@@ -85,8 +92,24 @@ public class CrmReportController {
      * @date 2026/10/20 10:00
      */
     @Operation(summary = "试听转化")
+    @SaCheckPermission("/crm/report/trial")
     @GetMapping("/crm/report/trial")
     public CommonResult<CrmTrialReportDTO> trial(CrmReportQueryParam param) {
         return CommonResult.data(crmReportService.trial(param));
+    }
+
+    /**
+     * 导出招生报表
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     */
+    @Operation(summary = "导出招生报表")
+    @SaCheckPermission("/crm/report/export")
+    @GetMapping("/crm/report/export")
+    public void export(CrmReportQueryParam param,
+                       @RequestParam(required = false, defaultValue = "FUNNEL") String type,
+                       HttpServletResponse response) throws IOException {
+        crmReportService.export(param, type, response);
     }
 }

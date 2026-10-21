@@ -12,6 +12,7 @@
  */
 package vip.xiaonuo.course.modular.report.service;
 
+import jakarta.servlet.http.HttpServletResponse;
 import vip.xiaonuo.course.api.dto.AcademicAttendanceDTO;
 import vip.xiaonuo.course.api.dto.AcademicClassFillDTO;
 import vip.xiaonuo.course.api.dto.AcademicTeacherWorkloadDTO;
@@ -19,6 +20,7 @@ import vip.xiaonuo.student.api.dto.AcademicLessonProgressDTO;
 import vip.xiaonuo.student.api.dto.AcademicRiskStudentDTO;
 import vip.xiaonuo.student.api.param.AcademicReportQueryParam;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -43,4 +45,16 @@ public interface AcademicReportService {
 
     /** 风险学员 */
     List<AcademicRiskStudentDTO> riskStudents(AcademicReportQueryParam param);
+
+    /**
+     * 导出教务报表
+     *
+     * @param param    查询参数
+     * @param type     导出类型：ATTENDANCE/CLASS_FILL/TEACHER/LESSON_PROGRESS/RISK_STUDENT
+     * @param response 响应
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    void export(AcademicReportQueryParam param, String type, HttpServletResponse response) throws IOException;
 }

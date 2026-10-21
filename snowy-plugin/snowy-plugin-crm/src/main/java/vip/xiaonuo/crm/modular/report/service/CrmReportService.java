@@ -12,12 +12,14 @@
  */
 package vip.xiaonuo.crm.modular.report.service;
 
+import jakarta.servlet.http.HttpServletResponse;
 import vip.xiaonuo.crm.api.dto.CrmFollowRankDTO;
 import vip.xiaonuo.crm.api.dto.CrmFunnelStageDTO;
 import vip.xiaonuo.crm.api.dto.CrmSourceDTO;
 import vip.xiaonuo.crm.api.dto.CrmTrialReportDTO;
 import vip.xiaonuo.crm.api.param.CrmReportQueryParam;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -39,4 +41,16 @@ public interface CrmReportService {
 
     /** 试听转化 */
     CrmTrialReportDTO trial(CrmReportQueryParam param);
+
+    /**
+     * 导出招生报表
+     *
+     * @param param    查询参数
+     * @param type     导出类型：FUNNEL/SOURCE/FOLLOW_RANK/TRIAL
+     * @param response 响应
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    void export(CrmReportQueryParam param, String type, HttpServletResponse response) throws IOException;
 }

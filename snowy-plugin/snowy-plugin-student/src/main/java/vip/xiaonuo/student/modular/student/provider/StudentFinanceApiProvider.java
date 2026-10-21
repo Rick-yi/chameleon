@@ -31,6 +31,7 @@ import vip.xiaonuo.student.api.dto.FinanceCampusRankDTO;
 import vip.xiaonuo.student.api.dto.FinanceChannelDTO;
 import vip.xiaonuo.student.api.dto.FinanceCourseRankDTO;
 import vip.xiaonuo.student.api.dto.FinancePaymentDTO;
+import vip.xiaonuo.student.api.dto.FinanceReconcileDTO;
 import vip.xiaonuo.student.api.dto.FinanceRefundDTO;
 import vip.xiaonuo.student.api.dto.FinanceStatDTO;
 import vip.xiaonuo.student.api.dto.FinanceSummaryDTO;
@@ -40,6 +41,8 @@ import vip.xiaonuo.student.api.param.FinanceQueryParam;
 import vip.xiaonuo.student.modular.student.entity.Student;
 import vip.xiaonuo.student.modular.student.enums.StudentStatusEnum;
 import vip.xiaonuo.student.modular.student.mapper.StudentMapper;
+import vip.xiaonuo.student.modular.studentlessonaccount.entity.StudentLessonAccount;
+import vip.xiaonuo.student.modular.studentlessonaccount.mapper.StudentLessonAccountMapper;
 import vip.xiaonuo.student.modular.studentlessonflow.entity.StudentLessonFlow;
 import vip.xiaonuo.student.modular.studentlessonflow.enums.LessonFlowTypeEnum;
 import vip.xiaonuo.student.modular.studentlessonflow.mapper.StudentLessonFlowMapper;
@@ -96,6 +99,9 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
 
     @Resource
     private StudentRenewWarnMapper studentRenewWarnMapper;
+
+    @Resource
+    private StudentLessonAccountMapper studentLessonAccountMapper;
 
     @Resource
     private CourseApi courseApi;
@@ -635,6 +641,58 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
                         StrUtil.blankToDefault(campusNameMap.get(campusId), campusId)))
                 .sorted((a, b) -> a.getLabel().compareTo(b.getLabel()))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public FinanceReconcileDTO reconcile(FinanceQueryParam financeQueryParam) {
+        Date start = parseStart(financeQueryParam.getStartTime());
+        Date end = parseEnd(financeQueryParam.getEndTime());
+        if (start == null) {
+            start = DateUtil.beginOfMonth(new Date());
+        }
+        if (end == null) {
+            end = new Date();
+        }
+        FinanceQueryParam param = copyParam(financeQueryParam);
+        param.setStartTime(DateUtil.formatDateTime(start));
+        param.setEndTime(DateUtil.formatDateTime(end));
+
+        BigDecimal orderPaid = studentOrderMapper.selectList(paidOrderWrapper(param, start, end)).stream()
+                .map(this::orderPaidAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal refundDetail = studentRefundMapper.selectList(refundWrapper(param, start, end)).stream()
+                .map(item -> nvl(item.getRefundAmount())).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal flowLessons = netAttendLessons(studentLessonFlowMapper.selectList(
+                new LambdaQueryWrapper<StudentLessonFlow>()
+                        .in(StudentLessonFlow::getFlowType, LessonFlowTypeEnum.ATTEND.getValue(),
+                                LessonFlowTypeEnum.RESTORE.getValue())));
+        BigDecimal accountUsed = studentLessonAccountMapper.selectList(new LambdaQueryWrapper<StudentLessonAccount>())
+                .stream().map(item -> nvl(item.getUsedLessons())).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        FinanceSummaryDTO summary = summary(param);
+
+        FinanceReconcileDTO result = new FinanceReconcileDTO();
+        result.setOrderPaidAmount(orderPaid);
+        result.setSummaryPaidAmount(summary.getPaidAmount());
+        result.setPaidDiff(orderPaid.subtract(summary.getPaidAmount()));
+        result.setRefundDetailAmount(refundDetail);
+        result.setSummaryRefundAmount(summary.getRefundAmount());
+        result.setRefundDiff(refundDetail.subtract(summary.getRefundAmount()));
+        result.setFlowAttendLessons(flowLessons);
+        result.setAccountUsedLessons(accountUsed);
+        result.setLessonDiff(flowLessons.subtract(accountUsed));
+
+        if (result.getPaidDiff().compareTo(BigDecimal.ZERO) != 0) {
+            result.getMessages().add("收款口径差异：" + result.getPaidDiff().toPlainString() + " 元");
+        }
+        if (result.getRefundDiff().compareTo(BigDecimal.ZERO) != 0) {
+            result.getMessages().add("退费口径差异：" + result.getRefundDiff().toPlainString() + " 元");
+        }
+        if (result.getLessonDiff().compareTo(BigDecimal.ZERO) != 0) {
+            result.getMessages().add("课消课时差异（全量流水净消耗 " + result.getFlowAttendLessons().toPlainString()
+                    + " 与账户已用 " + result.getAccountUsedLessons().toPlainString() + "）");
+        }
+        result.setConsistent(result.getMessages().isEmpty());
+        return result;
     }
 
     @Override

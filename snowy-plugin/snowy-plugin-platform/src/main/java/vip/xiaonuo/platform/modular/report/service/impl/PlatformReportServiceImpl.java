@@ -13,10 +13,16 @@
 package vip.xiaonuo.platform.modular.report.service.impl;
 
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import vip.xiaonuo.common.exception.CommonException;
+import vip.xiaonuo.common.util.CommonDownloadUtil;
+import vip.xiaonuo.common.util.CommonExcelUtil;
 import vip.xiaonuo.platform.modular.report.dto.PlatformExpiringTenantDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformOverviewDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformPackageDistributionDTO;
@@ -26,6 +32,8 @@ import vip.xiaonuo.platform.modular.report.service.PlatformReportService;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.io.File;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -216,6 +224,96 @@ public class PlatformReportServiceImpl implements PlatformReportService {
         List<PlatformTenantRankDTO> resultList = new ArrayList<>(rankMap.values());
         resultList.sort((a, b) -> b.getPaidAmount().compareTo(a.getPaidAmount()));
         return resultList.stream().limit(size).collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    public void export(String type, HttpServletResponse response) throws IOException {
+        String exportType = StrUtil.blankToDefault(type, "OVERVIEW").toUpperCase();
+        String sheetName;
+        List<List<String>> headList = new ArrayList<>();
+        List<List<String>> rowList = new ArrayList<>();
+        switch (exportType) {
+            case "OVERVIEW" -> {
+                sheetName = "平台概览";
+                headList.add(List.of("指标"));
+                headList.add(List.of("数值"));
+                PlatformOverviewDTO dto = overview();
+                rowList.add(List.of("租户总数", String.valueOf(dto.getTenantTotal())));
+                rowList.add(List.of("本月新增租户", String.valueOf(dto.getNewTenantCount())));
+                rowList.add(List.of("活跃租户(30天)", String.valueOf(dto.getActiveTenantCount())));
+                rowList.add(List.of("30天内到期租户", String.valueOf(dto.getExpiringTenantCount())));
+                rowList.add(List.of("学员总数", String.valueOf(dto.getStudentTotal())));
+                rowList.add(List.of("订单总数", String.valueOf(dto.getOrderCount())));
+                rowList.add(List.of("收款总额", money(dto.getPaidAmount())));
+                rowList.add(List.of("预估ARR", money(dto.getEstimatedArr())));
+                rowList.add(List.of("套餐数", String.valueOf(dto.getPackageCount())));
+            }
+            case "TREND" -> {
+                sheetName = "租户增长趋势";
+                headList.add(List.of("月份"));
+                headList.add(List.of("当月新增"));
+                headList.add(List.of("累计租户"));
+                for (PlatformTenantTrendDTO dto : tenantTrend(12)) {
+                    rowList.add(List.of(dto.getPeriod(), String.valueOf(dto.getNewCount()), String.valueOf(dto.getTotalCount())));
+                }
+            }
+            case "PACKAGE" -> {
+                sheetName = "套餐分布";
+                headList.add(List.of("套餐"));
+                headList.add(List.of("租户数"));
+                headList.add(List.of("占比(%)"));
+                for (PlatformPackageDistributionDTO dto : packageDistribution()) {
+                    rowList.add(List.of(text(dto.getPackageName()), String.valueOf(dto.getTenantCount()),
+                            money(dto.getRatio())));
+                }
+            }
+            case "EXPIRING" -> {
+                sheetName = "到期租户";
+                headList.add(List.of("机构编码"));
+                headList.add(List.of("机构名称"));
+                headList.add(List.of("套餐"));
+                headList.add(List.of("到期时间"));
+                headList.add(List.of("剩余天数"));
+                headList.add(List.of("状态"));
+                for (PlatformExpiringTenantDTO dto : expiring(30)) {
+                    rowList.add(List.of(text(dto.getCode()), text(dto.getName()), text(dto.getPackageName()),
+                            dto.getExpireTime() == null ? "" : DateUtil.formatDateTime(dto.getExpireTime()),
+                            dto.getDaysLeft() == null ? "" : String.valueOf(dto.getDaysLeft()), text(dto.getStatus())));
+                }
+            }
+            case "RANK" -> {
+                sheetName = "租户活跃度排行";
+                headList.add(List.of("机构名称"));
+                headList.add(List.of("学员数"));
+                headList.add(List.of("订单数"));
+                headList.add(List.of("收款金额"));
+                headList.add(List.of("最近支付时间"));
+                for (PlatformTenantRankDTO dto : tenantRank(20)) {
+                    rowList.add(List.of(text(dto.getTenantName()), String.valueOf(dto.getStudentCount()),
+                            String.valueOf(dto.getOrderCount()), money(dto.getPaidAmount()),
+                            dto.getLastPayTime() == null ? "" : DateUtil.formatDateTime(dto.getLastPayTime())));
+                }
+            }
+            default -> throw new CommonException("不支持的导出类型：{}", exportType);
+        }
+        if (rowList.isEmpty()) {
+            throw new CommonException("无数据可导出");
+        }
+        File file = FileUtil.file(FileUtil.getTmpDir(), "平台报表_" + DateUtil.format(new Date(), "yyyyMMddHHmmss") + ".xlsx");
+        try {
+            CommonExcelUtil.write(file, sheetName, headList, rowList);
+            CommonDownloadUtil.download(file, response);
+        } finally {
+            FileUtil.del(file);
+        }
+    }
+
+    private String text(String value) {
+        return value == null ? "" : value;
+    }
+
+    private String money(BigDecimal value) {
+        return (value == null ? BigDecimal.ZERO : value).setScale(2, RoundingMode.HALF_UP).toPlainString();
     }
 
     private Long queryLong(String sql, Object... args) {

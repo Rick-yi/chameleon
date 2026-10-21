@@ -334,14 +334,49 @@ public class TenantInitService {
                             sysRelationService.saveRelationBatchWithAppend(roleId, targetIdList,
                                     SysRelationCategoryEnum.SYS_ROLE_HAS_RESOURCE.getValue(), extJsonList);
                         }
+                        copyTemplateApiPermissions(templateRole.getId(), roleId, newTenantId);
                         return;
                     }
+                    copyTemplateApiPermissions(templateRole.getId(), roleId, newTenantId);
                 }
             } finally {
                 TenantContext.setTenantId(newTenantId);
             }
         }
         grantFallbackMenus(roleId);
+    }
+
+    /**
+     * 复制模板租户超管的接口权限
+     * <p>
+     * 报表等接口通过 @SaCheckPermission 授权，模板租户超管已授权的接口同步给新租户；
+     * 平台专用接口（/platform/** 等）不复制，避免业务租户获得平台运维能力。
+     * </p>
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private void copyTemplateApiPermissions(String templateRoleId, String roleId, String newTenantId) {
+        List<SysRelation> permissionList = sysRelationService.list(new LambdaQueryWrapper<SysRelation>()
+                .eq(SysRelation::getObjectId, templateRoleId)
+                .eq(SysRelation::getCategory, SysRelationCategoryEnum.SYS_ROLE_HAS_PERMISSION.getValue()));
+        if (ObjectUtil.isEmpty(permissionList)) {
+            return;
+        }
+        List<String> apiUrlList = new ArrayList<>();
+        List<String> extJsonList = new ArrayList<>();
+        for (SysRelation relation : permissionList) {
+            if (SysResourceVisibilityUtil.isPlatformOnlyPath(relation.getTargetId())) {
+                continue;
+            }
+            apiUrlList.add(relation.getTargetId());
+            extJsonList.add(relation.getExtJson());
+        }
+        TenantContext.setTenantId(newTenantId);
+        if (ObjectUtil.isNotEmpty(apiUrlList)) {
+            sysRelationService.saveRelationBatchWithAppend(roleId, apiUrlList,
+                    SysRelationCategoryEnum.SYS_ROLE_HAS_PERMISSION.getValue(), extJsonList);
+        }
     }
 
     /**

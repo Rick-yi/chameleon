@@ -14,12 +14,14 @@ package vip.xiaonuo.finance.modular.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.servlet.http.HttpServletResponse;
+import vip.xiaonuo.finance.modular.stat.entity.FinDailyStat;
 import vip.xiaonuo.student.api.dto.DashboardOverviewDTO;
 import vip.xiaonuo.student.api.dto.FinanceAttendTrendDTO;
 import vip.xiaonuo.student.api.dto.FinanceCampusRankDTO;
 import vip.xiaonuo.student.api.dto.FinanceChannelDTO;
 import vip.xiaonuo.student.api.dto.FinanceCourseRankDTO;
 import vip.xiaonuo.student.api.dto.FinancePaymentDTO;
+import vip.xiaonuo.student.api.dto.FinanceReconcileDTO;
 import vip.xiaonuo.student.api.dto.FinanceRefundDTO;
 import vip.xiaonuo.student.api.dto.FinanceStatDTO;
 import vip.xiaonuo.student.api.dto.FinanceSummaryDTO;
@@ -73,4 +75,16 @@ public interface FinanceService {
 
     /** 导出报表（PAYMENT/REFUND/COURSE_SUMMARY） */
     void export(FinanceQueryParam financeQueryParam, String type, HttpServletResponse response) throws IOException;
+
+    /** 日汇总数据（按日） */
+    List<FinDailyStat> dailyStat(String startDate, String endDate);
+
+    /** 重算某日日汇总 */
+    void rebuildDailyStat(String statDate);
+
+    /** 报表对账（报表数字与业务明细比对） */
+    FinanceReconcileDTO reconcile(FinanceQueryParam financeQueryParam);
+
+    /** 清理当前租户的报表缓存 */
+    void clearCache();
 }

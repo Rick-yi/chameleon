@@ -1,0 +1,57 @@
+-- ============================================================
+-- chameleon C1 升级脚本（一次性执行，执行前请备份）
+-- 内容：
+--   1. 课程扣课规则可配置（请假/缺勤是否扣课）
+--   2. 同一学员同课包只允许一张待支付订单（生成列 + 唯一索引）
+--   3. 财务日汇总表 FIN_DAILY_STAT
+-- 执行方式：mysql -uroot -p chameleon < chameleon_c1_migration.sql
+-- 说明：应用启动时 P0SchemaMigration 也会做同样的幂等检查。
+-- ============================================================
+
+-- 1. 课程扣课规则
+ALTER TABLE `COURSE` ADD COLUMN `LEAVE_DEDUCT` tinyint NULL DEFAULT 0 COMMENT '请假是否扣课时(1扣0不扣)' AFTER `LESSONS_PER_CLASS`;
+ALTER TABLE `COURSE` ADD COLUMN `ABSENT_DEDUCT` tinyint NULL DEFAULT 1 COMMENT '缺勤是否扣课时(1扣0不扣)' AFTER `LEAVE_DEDUCT`;
+UPDATE `COURSE` SET `LEAVE_DEDUCT` = 0 WHERE `LEAVE_DEDUCT` IS NULL;
+UPDATE `COURSE` SET `ABSENT_DEDUCT` = 1 WHERE `ABSENT_DEDUCT` IS NULL;
+
+-- 2. 待支付订单唯一约束（先清理重复待支付订单，保留最早的一单）
+UPDATE `STUDENT_ORDER` o1
+JOIN `STUDENT_ORDER` o2
+  ON o1.`TENANT_ID` = o2.`TENANT_ID`
+ AND o1.`STUDENT_ID` = o2.`STUDENT_ID`
+ AND o1.`COURSE_PACKAGE_ID` = o2.`COURSE_PACKAGE_ID`
+ AND o1.`STATUS` = 'UNPAID'
+ AND o2.`STATUS` = 'UNPAID'
+ AND (o1.`CREATE_TIME` > o2.`CREATE_TIME` OR (o1.`CREATE_TIME` = o2.`CREATE_TIME` AND o1.`ID` > o2.`ID`))
+SET o1.`STATUS` = 'CANCELED';
+
+ALTER TABLE `STUDENT_ORDER` ADD COLUMN `UNPAID_FLAG` tinyint
+    GENERATED ALWAYS AS (CASE WHEN `STATUS` = 'UNPAID' THEN 1 ELSE NULL END) STORED
+    COMMENT '待支付标记(同一学员同课包只允许一张待支付订单)';
+ALTER TABLE `STUDENT_ORDER` ADD UNIQUE INDEX `UK_ORDER_UNPAID`
+    (`TENANT_ID`, `STUDENT_ID`, `COURSE_PACKAGE_ID`, `UNPAID_FLAG`);
+
+-- 3. 财务日汇总表
+CREATE TABLE IF NOT EXISTS `FIN_DAILY_STAT` (
+  `ID` varchar(20) NOT NULL COMMENT '主键',
+  `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '租户id',
+  `STAT_DATE` datetime NULL DEFAULT NULL COMMENT '统计日期',
+  `CAMPUS_ID` varchar(20) NULL DEFAULT NULL COMMENT '校区id',
+  `COURSE_ID` varchar(20) NULL DEFAULT NULL COMMENT '课程id',
+  `PAID_AMOUNT` decimal(12,2) NULL DEFAULT 0.00 COMMENT '收款金额',
+  `REFUND_AMOUNT` decimal(12,2) NULL DEFAULT 0.00 COMMENT '退费金额',
+  `NET_AMOUNT` decimal(12,2) NULL DEFAULT 0.00 COMMENT '净营收',
+  `ORDER_COUNT` bigint NULL DEFAULT 0 COMMENT '订单数',
+  `PAYING_STUDENT_COUNT` bigint NULL DEFAULT 0 COMMENT '付费学员数',
+  `ATTEND_LESSONS` decimal(10,2) NULL DEFAULT 0.00 COMMENT '点名消课课时',
+  `RESTORE_LESSONS` decimal(10,2) NULL DEFAULT 0.00 COMMENT '回补课时',
+  `NET_LESSONS` decimal(10,2) NULL DEFAULT 0.00 COMMENT '净课消课时',
+  `NEW_STUDENT_COUNT` bigint NULL DEFAULT 0 COMMENT '新增学员数',
+  `DELETE_FLAG` varchar(255) NULL DEFAULT 'NOT_DELETE' COMMENT '删除标志',
+  `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+  `CREATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '创建人',
+  `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '更新时间',
+  `UPDATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '更新人',
+  PRIMARY KEY (`ID`) USING BTREE,
+  INDEX `IDX_FIN_STAT_TENANT_DATE` (`TENANT_ID`, `STAT_DATE`)
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '财务日汇总' ROW_FORMAT = Dynamic;

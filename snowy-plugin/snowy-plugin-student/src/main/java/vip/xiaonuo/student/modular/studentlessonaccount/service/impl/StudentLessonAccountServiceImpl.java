@@ -12,7 +12,9 @@
  */
 package vip.xiaonuo.student.modular.studentlessonaccount.service.impl;
 
+import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -32,11 +34,13 @@ import vip.xiaonuo.student.modular.studentlessonaccount.entity.StudentLessonAcco
 import vip.xiaonuo.student.modular.studentlessonaccount.enums.LessonAccountStatusEnum;
 import vip.xiaonuo.student.modular.studentlessonaccount.mapper.StudentLessonAccountMapper;
 import vip.xiaonuo.student.modular.studentlessonaccount.param.StudentLessonAccountPageParam;
+import vip.xiaonuo.student.modular.studentlessonaccount.param.StudentLessonAdjustParam;
 import vip.xiaonuo.student.modular.studentlessonaccount.service.StudentLessonAccountService;
 import vip.xiaonuo.student.modular.studentlessonflow.entity.StudentLessonFlow;
 import vip.xiaonuo.student.modular.studentlessonflow.enums.LessonFlowTypeEnum;
 import vip.xiaonuo.student.modular.studentlessonflow.service.StudentLessonFlowService;
 import vip.xiaonuo.student.modular.studentorder.entity.StudentOrder;
+import vip.xiaonuo.student.modular.studentorder.service.StudentLessonAllocationService;
 import vip.xiaonuo.student.modular.studentrenewarn.service.StudentRenewWarnService;
 
 import java.math.BigDecimal;
@@ -71,7 +75,7 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
     private CourseApi courseApi;
 
     @Resource
-    private vip.xiaonuo.student.modular.studentorder.service.StudentLessonAllocationService studentLessonAllocationService;
+    private StudentLessonAllocationService studentLessonAllocationService;
 
     @Override
     public Page<StudentLessonAccount> page(StudentLessonAccountPageParam studentLessonAccountPageParam) {
@@ -174,7 +178,10 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
             if (!deducted) {
                 throw new CommonException("学员【{}】课时不足或账户状态异常，扣课失败", student.getName());
             }
-            // 消课流水
+            // 按订单分摊消耗，供退费按订单核算（同时得到本次消课归属的订单）
+            List<StudentLessonAllocationService.OrderAllocation> allocationList =
+                    studentLessonAllocationService.allocate(param.getStudentId(), param.getCourseId(), param.getLessons());
+            // 消课流水（关联分摊到的订单，便于按订单确认收入）
             StudentLessonFlow flow = new StudentLessonFlow();
             flow.setStudentId(param.getStudentId());
             flow.setCourseId(param.getCourseId());
@@ -182,9 +189,10 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
             flow.setFlowType(LessonFlowTypeEnum.ATTEND.getValue());
             flow.setLessons(param.getLessons().negate());
             flow.setRemark("点名" + param.getAttendStatus());
+            if (ObjectUtil.isNotEmpty(allocationList)) {
+                flow.setRefOrderId(allocationList.get(0).orderId());
+            }
             studentLessonFlowService.add(flow);
-            // 按订单分摊消耗，供退费按订单核算
-            studentLessonAllocationService.allocate(param.getStudentId(), param.getCourseId(), param.getLessons());
         }
     }
 
@@ -219,6 +227,69 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
         studentLessonFlowService.add(flow);
         // 回补订单消耗
         studentLessonAllocationService.restore(studentId, deductFlow.getCourseId(), restoreLessons);
+    }
+
+    /**
+     * 人工调整课时
+     * <p>
+     * 正数（赠送/补录）：总课时与剩余课时同时增加；
+     * 负数（收回）：总课时与剩余课时同时减少，余额不足时直接拒绝。
+     * 调整流水统一走「人工调整」类型，保留原因与操作人。
+     * </p>
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public void adjust(StudentLessonAdjustParam param) {
+        if (param.getLessons().compareTo(BigDecimal.ZERO) == 0) {
+            throw new CommonException("调整课时数不能为0");
+        }
+        if (StrUtil.isBlank(param.getReason())) {
+            throw new CommonException("请填写调整原因");
+        }
+        StudentLessonAccount account = this.getAccount(param.getStudentId(), param.getCourseId());
+        BigDecimal absLessons = param.getLessons().abs();
+        boolean increase = param.getLessons().compareTo(BigDecimal.ZERO) > 0;
+        if (!increase && account.getRemainLessons().compareTo(absLessons) < 0) {
+            throw new CommonException("剩余课时不足：当前剩余{}，本次收回{}", account.getRemainLessons(), absLessons);
+        }
+        LambdaUpdateWrapper<StudentLessonAccount> wrapper = new LambdaUpdateWrapper<StudentLessonAccount>()
+                .eq(StudentLessonAccount::getId, account.getId());
+        if (increase) {
+            wrapper.setSql("TOTAL_LESSONS = TOTAL_LESSONS + " + absLessons.toPlainString())
+                    .setSql("REMAIN_LESSONS = REMAIN_LESSONS + " + absLessons.toPlainString());
+        } else {
+            wrapper.ge(StudentLessonAccount::getRemainLessons, absLessons)
+                    .setSql("TOTAL_LESSONS = TOTAL_LESSONS - " + absLessons.toPlainString())
+                    .setSql("REMAIN_LESSONS = REMAIN_LESSONS - " + absLessons.toPlainString());
+        }
+        if (!this.update(wrapper)) {
+            throw new CommonException("课时调整失败，请重试");
+        }
+        // 调整流水（正=入账，负=扣减）
+        StudentLessonFlow flow = new StudentLessonFlow();
+        flow.setStudentId(param.getStudentId());
+        flow.setCourseId(param.getCourseId());
+        flow.setFlowType(LessonFlowTypeEnum.ADJUST.getValue());
+        flow.setLessons(param.getLessons());
+        flow.setRemark("人工调整：" + param.getReason() + "（操作人：" + currentOperator() + "）");
+        studentLessonFlowService.add(flow);
+    }
+
+    /**
+     * 当前操作人
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private String currentOperator() {
+        try {
+            return StpUtil.getLoginIdAsString();
+        } catch (Exception e) {
+            return "system";
+        }
     }
 
     /**

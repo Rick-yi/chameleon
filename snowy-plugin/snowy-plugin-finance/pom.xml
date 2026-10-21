@@ -20,5 +20,17 @@
             <groupId>vip.xiaonuo</groupId>
             <artifactId>snowy-plugin-student-api</artifactId>
         </dependency>
+
+        <!-- 平台租户接口，日汇总任务按租户遍历 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-platform-api</artifactId>
+        </dependency>
+
+        <!-- 引入登录鉴权接口，报表接口使用 @SaCheckPermission 做接口权限控制 -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-auth-api</artifactId>
+        </dependency>
     </dependencies>
 </project>

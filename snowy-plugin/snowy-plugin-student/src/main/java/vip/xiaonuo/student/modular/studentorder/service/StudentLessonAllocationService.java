@@ -51,10 +51,11 @@ public class StudentLessonAllocationService {
      * @author 会飞的猪
      * @date 2026/10/20 10:00
      **/
-    public void allocate(String studentId, String courseId, BigDecimal lessons) {
+    public List<OrderAllocation> allocate(String studentId, String courseId, BigDecimal lessons) {
         BigDecimal remaining = nvl(lessons);
+        List<OrderAllocation> allocationList = new java.util.ArrayList<>();
         if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
-            return;
+            return allocationList;
         }
         for (int round = 0; round < MAX_ROUNDS && remaining.compareTo(BigDecimal.ZERO) > 0; round++) {
             List<StudentOrder> orderList = listAllocatableOrders(studentId, courseId);
@@ -78,6 +79,7 @@ public class StudentLessonAllocationService {
                 if (updated > 0) {
                     remaining = remaining.subtract(take);
                     progress = true;
+                    allocationList.add(new OrderAllocation(order.getId(), take));
                     if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
                         break;
                     }
@@ -90,6 +92,7 @@ public class StudentLessonAllocationService {
         if (remaining.compareTo(BigDecimal.ZERO) > 0) {
             throw new CommonException("订单课时分摊失败：订单剩余课时不足");
         }
+        return allocationList;
     }
 
     /**
@@ -195,5 +198,16 @@ public class StudentLessonAllocationService {
      * @date 2026/10/20 10:00
      **/
     public record RefundCalc(BigDecimal refundLessons, BigDecimal giftLessons) {
+    }
+
+    /**
+     * 课时分摊明细
+     *
+     * @param orderId 分摊到的订单
+     * @param lessons 分摊课时
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    public record OrderAllocation(String orderId, BigDecimal lessons) {
     }
 }

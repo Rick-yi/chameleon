@@ -18,6 +18,21 @@
 					<a-space>
 						<a-button type="primary" @click="loadAll">查询</a-button>
 						<a-button @click="reset">重置</a-button>
+						<a-dropdown v-if="hasPerm('reportAcademicExport')">
+							<a-button>
+								导出
+								<down-outlined />
+							</a-button>
+							<template #overlay>
+								<a-menu @click="onExport">
+									<a-menu-item key="ATTENDANCE">出勤汇总</a-menu-item>
+									<a-menu-item key="CLASS_FILL">班级满班率</a-menu-item>
+									<a-menu-item key="TEACHER">教师课时</a-menu-item>
+									<a-menu-item key="LESSON_PROGRESS">学员课消进度</a-menu-item>
+									<a-menu-item key="RISK_STUDENT">风险学员</a-menu-item>
+								</a-menu>
+							</template>
+						</a-dropdown>
 					</a-space>
 				</a-form-item>
 			</a-form>
@@ -55,7 +70,13 @@
 							:pagination="{ pageSize: 10, showSizeChanger: true }"
 							bordered
 							size="middle"
-						/>
+						>
+							<template #bodyCell="{ column, record }">
+								<template v-if="column.dataIndex === 'className'">
+									<a @click="goSchedule(record)">{{ record.className }}</a>
+								</template>
+							</template>
+						</a-table>
 					</a-tab-pane>
 					<a-tab-pane key="teacher" tab="教师课时">
 						<a-table
@@ -75,7 +96,13 @@
 							:pagination="{ pageSize: 10, showSizeChanger: true }"
 							bordered
 							size="middle"
-						/>
+						>
+							<template #bodyCell="{ column, record }">
+								<template v-if="column.dataIndex === 'studentName'">
+									<a @click="goStudent(record)">{{ record.studentName }}</a>
+								</template>
+							</template>
+						</a-table>
 					</a-tab-pane>
 					<a-tab-pane key="risk" tab="风险学员">
 						<a-space style="margin-bottom: 12px">
@@ -89,7 +116,13 @@
 							:pagination="{ pageSize: 10, showSizeChanger: true }"
 							bordered
 							size="middle"
-						/>
+						>
+							<template #bodyCell="{ column, record }">
+								<template v-if="column.dataIndex === 'studentName'">
+									<a @click="goStudent(record)">{{ record.studentName }}</a>
+								</template>
+							</template>
+						</a-table>
 					</a-tab-pane>
 				</a-tabs>
 			</a-card>
@@ -99,9 +132,13 @@
 
 <script setup name="reportAcademic">
 	import { onMounted, reactive, ref } from 'vue'
+	import { useRouter } from 'vue-router'
 	import dayjs from 'dayjs'
 	import reportApi from '@/api/report/reportApi'
 	import courseApi from '@/api/course/courseApi'
+	import downloadUtil from '@/utils/downloadUtil'
+
+	const router = useRouter()
 
 	const loading = ref(false)
 	const activeTab = ref('classFill')
@@ -231,6 +268,22 @@
 	const riskTypeName = (type) => {
 		const item = riskTypeOptions.find((option) => option.value === type)
 		return item ? item.label : type
+	}
+
+	const onExport = ({ key }) => {
+		reportApi.academicExport({ ...buildQuery(), type: key }).then((res) => {
+			downloadUtil.resultDownload(res)
+		})
+	}
+
+	// 下钻：班级 → 排课课表
+	const goSchedule = (record) => {
+		router.push({ path: '/course/schedule', query: { classId: record.classId } })
+	}
+
+	// 下钻：学员 → 学员详情
+	const goStudent = (record) => {
+		router.push({ path: '/student/detail', query: { id: record.studentId } })
 	}
 
 	onMounted(() => {

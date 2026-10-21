@@ -16,6 +16,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import vip.xiaonuo.student.api.pojo.LessonDeductParam;
 import vip.xiaonuo.student.modular.studentlessonaccount.entity.StudentLessonAccount;
 import vip.xiaonuo.student.modular.studentlessonaccount.param.StudentLessonAccountPageParam;
+import vip.xiaonuo.student.modular.studentlessonaccount.param.StudentLessonAdjustParam;
 import vip.xiaonuo.student.modular.studentorder.entity.StudentOrder;
 
 import java.util.List;
@@ -48,4 +49,12 @@ public interface StudentLessonAccountService {
 
     /** 撤销点名回补课时 */
     void restoreLessons(String scheduleId, String studentId);
+
+    /**
+     * 人工调整课时（赠送/收回，必填原因，余额不足拒绝）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    void adjust(StudentLessonAdjustParam param);
 }

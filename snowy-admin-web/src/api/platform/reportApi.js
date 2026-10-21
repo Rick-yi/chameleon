@@ -33,5 +33,10 @@ export default {
 	},
 	tenantRank(data) {
 		return request('tenantRank', data, 'get')
+	},
+	exportReport(data) {
+		return request('export', data, 'get', {
+			responseType: 'blob'
+		})
 	}
 }

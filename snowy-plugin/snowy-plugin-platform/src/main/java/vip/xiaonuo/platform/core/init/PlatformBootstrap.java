@@ -149,6 +149,7 @@ public class PlatformBootstrap implements ApplicationListener<ApplicationStarted
     private void ensureJobs() {
         ensureJob("租户到期扫描", "vip.xiaonuo.platform.core.timer.TenantExpireCheckTimerTaskRunner", "0 0 1 * * ?");
         ensureJob("续费预警扫描", "vip.xiaonuo.student.core.timer.RenewWarnScanTimerTaskRunner", "0 0 2 * * ?");
+        ensureJob("财务日汇总", "vip.xiaonuo.finance.core.timer.FinDailyStatTimerTaskRunner", "0 30 0 * * ?");
     }
 
     /**

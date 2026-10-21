@@ -26,6 +26,9 @@
 									{{ record.status === 'NORMAL' ? '正常' : record.status === 'FROZEN' ? '冻结' : '已清零' }}
 								</a-tag>
 							</template>
+							<template v-if="column.dataIndex === 'action'">
+								<a-button type="link" size="small" @click="onOpenAdjust(record)">调整课时</a-button>
+							</template>
 						</template>
 					</a-table>
 				</a-tab-pane>
@@ -122,6 +125,24 @@
 				</div>
 			</a-form>
 		</a-modal>
+
+		<a-modal v-model:open="adjustOpen" title="人工调整课时" :width="480" :destroy-on-close="true" @ok="onSubmitAdjust">
+			<a-form ref="adjustFormRef" :model="adjustFormData" layout="vertical">
+				<a-alert type="info" show-icon message="正数为补录/赠送课时，负数为收回课时；收回不能超过剩余课时" style="margin-bottom: 16px" />
+				<a-form-item label="课程">
+					<a-input :value="courseMap[adjustFormData.courseId] || adjustFormData.courseId" disabled />
+				</a-form-item>
+				<a-form-item label="当前剩余课时">
+					<a-input :value="adjustFormData.remainLessons" disabled />
+				</a-form-item>
+				<a-form-item label="调整课时数" name="lessons" :rules="[{ required: true, message: '请输入调整课时数' }]">
+					<a-input-number v-model:value="adjustFormData.lessons" :step="0.5" style="width: 100%" />
+				</a-form-item>
+				<a-form-item label="调整原因" name="reason" :rules="[{ required: true, message: '请填写调整原因' }]">
+					<a-input v-model:value="adjustFormData.reason" placeholder="如：赠送 2 课时活动 / 扣错补正" allow-clear />
+				</a-form-item>
+			</a-form>
+		</a-modal>
 	</div>
 </template>
 
@@ -153,6 +174,9 @@
 	const approveOpen = ref(false)
 	const approveFormData = ref({})
 	const currentRefund = ref({})
+	const adjustOpen = ref(false)
+	const adjustFormRef = ref()
+	const adjustFormData = ref({})
 
 	const statusText = computed(() => {
 		return student.value.status === 'STUDYING' ? '在读' : student.value.status === 'STOP' ? '停课' : '已退费'
@@ -167,7 +191,8 @@
 		{ title: '已用', dataIndex: 'usedLessons' },
 		{ title: '剩余', dataIndex: 'remainLessons' },
 		{ title: '课包到期', dataIndex: 'expireTime' },
-		{ title: '状态', dataIndex: 'status' }
+		{ title: '状态', dataIndex: 'status' },
+		{ title: '操作', dataIndex: 'action', align: 'center' }
 	]
 	const flowColumns = [
 		{ title: '时间', dataIndex: 'createTime' },
@@ -249,6 +274,31 @@
 	const onOpenRefund = (record) => {
 		refundFormData.value = { orderId: record.id }
 		refundOpen.value = true
+	}
+	const onOpenAdjust = (record) => {
+		adjustFormData.value = {
+			studentId,
+			courseId: record.courseId,
+			remainLessons: record.remainLessons,
+			lessons: 1,
+			reason: ''
+		}
+		adjustOpen.value = true
+	}
+	const onSubmitAdjust = () => {
+		adjustFormRef.value.validate().then(() => {
+			studentApi
+				.lessonAccountAdjust({
+					studentId: adjustFormData.value.studentId,
+					courseId: adjustFormData.value.courseId,
+					lessons: adjustFormData.value.lessons,
+					reason: adjustFormData.value.reason
+				})
+				.then(() => {
+					adjustOpen.value = false
+					loadAll()
+				})
+		})
 	}
 	const onSubmitRefund = () => {
 		refundFormRef.value.validate().then(() => {

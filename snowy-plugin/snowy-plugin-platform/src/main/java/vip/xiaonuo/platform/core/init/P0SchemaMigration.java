@@ -59,6 +59,32 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
             ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '通知流水' ROW_FORMAT = Dynamic
             """;
 
+    private static final String FIN_DAILY_STAT_DDL = """
+            CREATE TABLE IF NOT EXISTS `FIN_DAILY_STAT` (
+              `ID` varchar(20) NOT NULL COMMENT '主键',
+              `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '租户id',
+              `STAT_DATE` datetime NULL DEFAULT NULL COMMENT '统计日期',
+              `CAMPUS_ID` varchar(20) NULL DEFAULT NULL COMMENT '校区id',
+              `COURSE_ID` varchar(20) NULL DEFAULT NULL COMMENT '课程id',
+              `PAID_AMOUNT` decimal(12,2) NULL DEFAULT 0.00 COMMENT '收款金额',
+              `REFUND_AMOUNT` decimal(12,2) NULL DEFAULT 0.00 COMMENT '退费金额',
+              `NET_AMOUNT` decimal(12,2) NULL DEFAULT 0.00 COMMENT '净营收',
+              `ORDER_COUNT` bigint NULL DEFAULT 0 COMMENT '订单数',
+              `PAYING_STUDENT_COUNT` bigint NULL DEFAULT 0 COMMENT '付费学员数',
+              `ATTEND_LESSONS` decimal(10,2) NULL DEFAULT 0.00 COMMENT '点名消课课时',
+              `RESTORE_LESSONS` decimal(10,2) NULL DEFAULT 0.00 COMMENT '回补课时',
+              `NET_LESSONS` decimal(10,2) NULL DEFAULT 0.00 COMMENT '净课消课时',
+              `NEW_STUDENT_COUNT` bigint NULL DEFAULT 0 COMMENT '新增学员数',
+              `DELETE_FLAG` varchar(255) NULL DEFAULT 'NOT_DELETE' COMMENT '删除标志',
+              `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+              `CREATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '创建人',
+              `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '更新时间',
+              `UPDATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '更新人',
+              PRIMARY KEY (`ID`) USING BTREE,
+              INDEX `IDX_FIN_STAT_TENANT_DATE` (`TENANT_ID`, `STAT_DATE`)
+            ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '财务日汇总' ROW_FORMAT = Dynamic
+            """;
+
     @Resource
     private JdbcTemplate jdbcTemplate;
 
@@ -118,6 +144,41 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
             if (!tableExists("NOTIFY_LOG")) {
                 jdbcTemplate.execute(NOTIFY_LOG_DDL);
                 log.info(">>> P0 结构升级：NOTIFY_LOG 已创建");
+            }
+
+            if (!tableExists("FIN_DAILY_STAT")) {
+                jdbcTemplate.execute(FIN_DAILY_STAT_DDL);
+                log.info(">>> 报表结构升级：FIN_DAILY_STAT 已创建");
+            }
+
+            // 课程扣课规则可配置（请假/缺勤是否扣课）
+            if (!columnExists("COURSE", "LEAVE_DEDUCT")) {
+                jdbcTemplate.execute("ALTER TABLE `COURSE` ADD COLUMN `LEAVE_DEDUCT` tinyint NULL DEFAULT 0 COMMENT '请假是否扣课时' AFTER `LESSONS_PER_CLASS`");
+                log.info(">>> 课务结构升级：COURSE.LEAVE_DEDUCT 已添加");
+            }
+            if (!columnExists("COURSE", "ABSENT_DEDUCT")) {
+                jdbcTemplate.execute("ALTER TABLE `COURSE` ADD COLUMN `ABSENT_DEDUCT` tinyint NULL DEFAULT 1 COMMENT '缺勤是否扣课时' AFTER `LEAVE_DEDUCT`");
+                log.info(">>> 课务结构升级：COURSE.ABSENT_DEDUCT 已添加");
+            }
+
+            // 同一学员同课包只允许一张待支付订单（生成列 + 唯一索引兜底）
+            if (!columnExists("STUDENT_ORDER", "UNPAID_FLAG")) {
+                int duplicated = jdbcTemplate.update(
+                        "UPDATE `STUDENT_ORDER` o1 JOIN `STUDENT_ORDER` o2 "
+                                + "ON o1.`TENANT_ID` = o2.`TENANT_ID` AND o1.`STUDENT_ID` = o2.`STUDENT_ID` "
+                                + "AND o1.`COURSE_PACKAGE_ID` = o2.`COURSE_PACKAGE_ID` "
+                                + "AND o1.`STATUS` = 'UNPAID' AND o2.`STATUS` = 'UNPAID' "
+                                + "AND (o1.`CREATE_TIME` > o2.`CREATE_TIME` "
+                                + "OR (o1.`CREATE_TIME` = o2.`CREATE_TIME` AND o1.`ID` > o2.`ID`)) "
+                                + "SET o1.`STATUS` = 'CANCELED'");
+                if (duplicated > 0) {
+                    log.info(">>> 账务结构升级：已取消 {} 条重复的待支付订单", duplicated);
+                }
+                jdbcTemplate.execute("ALTER TABLE `STUDENT_ORDER` ADD COLUMN `UNPAID_FLAG` tinyint "
+                        + "GENERATED ALWAYS AS (CASE WHEN `STATUS` = 'UNPAID' THEN 1 ELSE NULL END) STORED");
+                jdbcTemplate.execute("ALTER TABLE `STUDENT_ORDER` ADD UNIQUE INDEX `UK_ORDER_UNPAID` "
+                        + "(`TENANT_ID`, `STUDENT_ID`, `COURSE_PACKAGE_ID`, `UNPAID_FLAG`)");
+                log.info(">>> 账务结构升级：STUDENT_ORDER.UK_ORDER_UNPAID 已添加");
             }
 
             int removed = jdbcTemplate.update("DELETE FROM `SYS_RELATION` WHERE `CATEGORY` = 'SYS_ROLE_HAS_RESOURCE' AND `TARGET_ID` IN ('menu_tenant_001','menu_ppkg_001') AND `TENANT_ID` <> '0'");

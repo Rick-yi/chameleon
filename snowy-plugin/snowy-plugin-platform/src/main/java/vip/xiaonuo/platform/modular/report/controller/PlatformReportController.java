@@ -16,6 +16,7 @@ import cn.dev33.satoken.annotation.SaCheckRole;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,6 +29,7 @@ import vip.xiaonuo.platform.modular.report.dto.PlatformTenantRankDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformTenantTrendDTO;
 import vip.xiaonuo.platform.modular.report.service.PlatformReportService;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -109,5 +111,18 @@ public class PlatformReportController {
     public CommonResult<List<PlatformTenantRankDTO>> tenantRank(
             @RequestParam(required = false, defaultValue = "20") Integer limit) {
         return CommonResult.data(platformReportService.tenantRank(limit));
+    }
+
+    /**
+     * 导出平台报表
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     */
+    @Operation(summary = "导出平台报表")
+    @GetMapping("/platform/report/export")
+    public void export(@RequestParam(required = false, defaultValue = "OVERVIEW") String type,
+                       HttpServletResponse response) throws IOException {
+        platformReportService.export(type, response);
     }
 }

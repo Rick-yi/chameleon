@@ -34,6 +34,8 @@ CREATE TABLE `COURSE`  (
   `CLASS_TYPE` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '班型(小班/大班/一对一)',
   `AGE_RANGE` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '适合年龄',
   `LESSONS_PER_CLASS` decimal(10,2) NULL DEFAULT NULL COMMENT '每课扣课时数',
+  `LEAVE_DEDUCT` tinyint NULL DEFAULT 0 COMMENT '请假是否扣课时(1扣0不扣)',
+  `ABSENT_DEDUCT` tinyint NULL DEFAULT 1 COMMENT '缺勤是否扣课时(1扣0不扣)',
   `STATUS` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '状态(启用/停用)',
   `EXT_JSON` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL COMMENT '扩展信息',
   `DELETE_FLAG` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '删除标志',

@@ -18,7 +18,7 @@
 					<a-space>
 						<a-button type="primary" @click="loadAll">查询</a-button>
 						<a-button @click="reset">重置</a-button>
-						<a-dropdown>
+						<a-dropdown v-if="hasPerm('reportExport')">
 							<a-button>
 								导出
 								<down-outlined />
@@ -104,7 +104,7 @@
 				<a-table :columns="rankColumns" :data-source="courseRankList" :pagination="false" bordered size="middle" />
 			</a-card>
 
-			<a-card :bordered="false" style="margin-top: 16px">
+			<a-card :bordered="false" style="margin-top: 16px" v-if="hasPerm('reportDetail')">
 				<a-tabs v-model:activeKey="activeTab">
 					<a-tab-pane key="payment" tab="收款明细">
 						<a-table
@@ -130,14 +130,38 @@
 							@change="onRefundPageChange"
 						/>
 					</a-tab-pane>
+					<a-tab-pane key="daily" tab="日汇总">
+						<a-table
+							:columns="dailyColumns"
+							:data-source="dailyList"
+							:row-key="(r) => r.statDate"
+							:pagination="{ pageSize: 10, showSizeChanger: true }"
+							bordered
+							size="middle"
+						/>
+					</a-tab-pane>
 				</a-tabs>
+			</a-card>
+
+			<a-card title="数据对账" :bordered="false" style="margin-top: 16px">
+				<a-space style="margin-bottom: 12px">
+					<a-button @click="loadReconcile">重新对账</a-button>
+					<a-button @click="rebuildDaily">重算当日汇总</a-button>
+					<a-button @click="clearCache">清理报表缓存</a-button>
+				</a-space>
+				<a-alert
+					:type="reconcile.consistent ? 'success' : 'warning'"
+					show-icon
+					:message="reconcile.consistent ? '报表数字与业务明细一致' : '存在差异，请核对下列说明'"
+					:description="(reconcile.messages || []).join('；') || '收款、退费、课消口径一致'"
+				/>
 			</a-card>
 		</a-spin>
 	</div>
 </template>
 
 <script setup name="reportFinance">
-	import { nextTick, onMounted, reactive, ref } from 'vue'
+	import { h, nextTick, onMounted, reactive, ref } from 'vue'
 	import { Line, Pie } from '@antv/g2plot'
 	import dayjs from 'dayjs'
 	import reportApi from '@/api/report/reportApi'
@@ -177,6 +201,8 @@
 	const attendTrendList = ref([])
 	const paymentList = ref([])
 	const refundList = ref([])
+	const dailyList = ref([])
+	const reconcile = ref({ consistent: true, messages: [] })
 	const paymentPage = reactive({ current: 1, pageSize: 10, total: 0, showSizeChanger: true })
 	const refundPage = reactive({ current: 1, pageSize: 10, total: 0, showSizeChanger: true })
 
@@ -312,9 +338,10 @@
 
 	const loadAll = () => {
 		loading.value = true
-		Promise.all([loadSummary(), loadPayment(), loadRefund()]).finally(() => {
+		Promise.all([loadSummary(), loadPayment(), loadRefund(), loadDaily()]).finally(() => {
 			loading.value = false
 		})
+		loadReconcile()
 	}
 
 	const onExport = ({ key }) => {
@@ -322,6 +349,49 @@
 		reportApi.exportReport(params).then((res) => {
 			downloadUtil.resultDownload(res)
 		})
+	}
+
+	// 对账
+	const loadReconcile = () => {
+		reportApi.reconcile(buildQuery()).then((data) => {
+			reconcile.value = data || { consistent: true, messages: [] }
+		})
+	}
+
+	// 重算当日汇总（用于数据修正后回补）
+	const rebuildDaily = () => {
+		const today = dayjs().format('YYYY-MM-DD')
+		reportApi.rebuildDailyStat({ date: today }).then(() => {
+			loadDaily()
+			loadReconcile()
+		})
+	}
+
+	// 清理报表缓存
+	const clearCache = () => {
+		reportApi.clearCache().then(() => {
+			loadAll()
+			loadReconcile()
+		})
+	}
+
+	const loadDaily = () => {
+		const [start, end] = dateRange.value || []
+		reportApi.dailyStat({ startDate: start, endDate: end }).then((data) => {
+			dailyList.value = data || []
+		})
+	}
+
+	// 下钻：按课程查看明细
+	const drillCourse = (record) => {
+		query.courseId = record.courseId
+		loadAll()
+	}
+
+	// 下钻：按校区查看明细
+	const drillCampus = (record) => {
+		query.campusId = record.campusId
+		loadAll()
 	}
 
 	const reset = () => {
@@ -351,13 +421,15 @@
 		{ title: '退费', dataIndex: 'refundAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
 		{ title: '净营收', dataIndex: 'netAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
 		{ title: '课消课时', dataIndex: 'attendLessons', customRender: ({ text }) => Number(text || 0).toFixed(2) },
-		{ title: '订单数', dataIndex: 'orderCount' }
+		{ title: '订单数', dataIndex: 'orderCount' },
+		{ title: '操作', dataIndex: 'action', align: 'center', customRender: ({ record }) => h('a', { onClick: () => drillCourse(record) }, '查看明细') }
 	]
 	const campusColumns = [
 		{ title: '校区', dataIndex: 'campusName' },
 		{ title: '收款', dataIndex: 'paidAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
 		{ title: '退费', dataIndex: 'refundAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
-		{ title: '净营收', dataIndex: 'netAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` }
+		{ title: '净营收', dataIndex: 'netAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
+		{ title: '操作', dataIndex: 'action', align: 'center', customRender: ({ record }) => h('a', { onClick: () => drillCampus(record) }, '查看明细') }
 	]
 	const paymentColumns = [
 		{ title: '学员', dataIndex: 'studentName' },
@@ -373,6 +445,15 @@
 		{ title: '退费课时', dataIndex: 'refundLessons', customRender: ({ text }) => Number(text || 0).toFixed(2) },
 		{ title: '状态', dataIndex: 'status' },
 		{ title: '审批时间', dataIndex: 'approveTime' }
+	]
+	const dailyColumns = [
+		{ title: '日期', dataIndex: 'statDate' },
+		{ title: '收款', dataIndex: 'paidAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
+		{ title: '退费', dataIndex: 'refundAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
+		{ title: '净营收', dataIndex: 'netAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
+		{ title: '订单数', dataIndex: 'orderCount' },
+		{ title: '净课消课时', dataIndex: 'netLessons', customRender: ({ text }) => Number(text || 0).toFixed(2) },
+		{ title: '新增学员', dataIndex: 'newStudentCount' }
 	]
 
 	const loadCourses = () => {

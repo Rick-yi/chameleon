@@ -15,14 +15,21 @@ package vip.xiaonuo.finance.modular.service.impl;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
-import com.alibaba.excel.EasyExcel;
+import cn.hutool.crypto.digest.DigestUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import vip.xiaonuo.common.cache.CommonCacheOperator;
+import vip.xiaonuo.common.context.TenantContext;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.util.CommonDownloadUtil;
+import vip.xiaonuo.common.util.CommonExcelUtil;
 import vip.xiaonuo.finance.modular.service.FinanceService;
+import vip.xiaonuo.finance.modular.stat.entity.FinDailyStat;
+import vip.xiaonuo.finance.modular.stat.service.FinDailyStatService;
 import vip.xiaonuo.student.api.StudentFinanceApi;
 import vip.xiaonuo.student.api.dto.DashboardOverviewDTO;
 import vip.xiaonuo.student.api.dto.FinanceAttendTrendDTO;
@@ -30,6 +37,7 @@ import vip.xiaonuo.student.api.dto.FinanceCampusRankDTO;
 import vip.xiaonuo.student.api.dto.FinanceChannelDTO;
 import vip.xiaonuo.student.api.dto.FinanceCourseRankDTO;
 import vip.xiaonuo.student.api.dto.FinancePaymentDTO;
+import vip.xiaonuo.student.api.dto.FinanceReconcileDTO;
 import vip.xiaonuo.student.api.dto.FinanceRefundDTO;
 import vip.xiaonuo.student.api.dto.FinanceStatDTO;
 import vip.xiaonuo.student.api.dto.FinanceSummaryDTO;
@@ -42,24 +50,39 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * 财务Service接口实现类
  * <p>
  * 财务不维护独立流水表，直接基于报名订单/退费单/课时流水聚合，
- * 保证报表与业务数据天然一致。
+ * 保证报表与业务数据天然一致；看板类接口带 5 分钟缓存（按租户 + 参数维度）。
  * </p>
  *
  * @author 会飞的猪
  * @date 2026/10/20 10:00
  **/
+@Slf4j
 @Service
 public class FinanceServiceImpl implements FinanceService {
 
+    /** 报表缓存有效期（秒） */
+    private static final long CACHE_TTL_SECONDS = 300L;
+
+    /** 单次导出最大行数（超过建议异步导出） */
+    private static final int MAX_EXPORT_ROWS = 50000;
+
     @Resource
     private StudentFinanceApi studentFinanceApi;
+
+    @Resource
+    private FinDailyStatService finDailyStatService;
+
+    @Resource
+    private CommonCacheOperator cacheOperator;
 
     @Override
     public Page<FinancePaymentDTO> paymentPage(FinanceQueryParam financeQueryParam) {
@@ -78,12 +101,14 @@ public class FinanceServiceImpl implements FinanceService {
 
     @Override
     public FinanceSummaryDTO summary(FinanceQueryParam financeQueryParam) {
-        return studentFinanceApi.summary(financeQueryParam);
+        return cachedObject("summary", FinanceSummaryDTO.class, financeQueryParam,
+                () -> studentFinanceApi.summary(financeQueryParam));
     }
 
     @Override
     public List<FinanceTrendDTO> trend(FinanceQueryParam financeQueryParam) {
-        return studentFinanceApi.trend(financeQueryParam);
+        return cachedList("trend", FinanceTrendDTO.class, financeQueryParam,
+                () -> studentFinanceApi.trend(financeQueryParam));
     }
 
     @Override
@@ -113,7 +138,8 @@ public class FinanceServiceImpl implements FinanceService {
 
     @Override
     public DashboardOverviewDTO dashboard(FinanceQueryParam financeQueryParam) {
-        return studentFinanceApi.dashboard(financeQueryParam);
+        return cachedObject("dashboard", DashboardOverviewDTO.class, financeQueryParam,
+                () -> studentFinanceApi.dashboard(financeQueryParam));
     }
 
     @Override
@@ -174,16 +200,113 @@ public class FinanceServiceImpl implements FinanceService {
         if (rowList.isEmpty()) {
             throw new CommonException("无数据可导出");
         }
+        if (rowList.size() > MAX_EXPORT_ROWS) {
+            throw new CommonException("导出数据量超过 {} 行，请缩小时间范围后再导出", MAX_EXPORT_ROWS);
+        }
         File file = FileUtil.file(FileUtil.getTmpDir(), fileName);
         try {
-            EasyExcel.write(file)
-                    .head(headList)
-                    .sheet(sheetName)
-                    .doWrite(rowList);
+            CommonExcelUtil.write(file, sheetName, headList, rowList);
             CommonDownloadUtil.download(file, response);
         } finally {
             FileUtil.del(file);
         }
+    }
+
+    @Override
+    public List<FinDailyStat> dailyStat(String startDate, String endDate) {
+        String start = StrUtil.blankToDefault(startDate, DateUtil.formatDate(DateUtil.offsetDay(new Date(), -29)));
+        String end = StrUtil.blankToDefault(endDate, DateUtil.formatDate(new Date()));
+        return finDailyStatService.listByDate(start, end);
+    }
+
+    @Override
+    public void rebuildDailyStat(String statDate) {
+        finDailyStatService.aggregate(StrUtil.blankToDefault(statDate, DateUtil.formatDate(new Date())));
+        clearCache();
+    }
+
+    @Override
+    public FinanceReconcileDTO reconcile(FinanceQueryParam financeQueryParam) {
+        FinanceReconcileDTO reconcile = studentFinanceApi.reconcile(financeQueryParam);
+        String startDate = StrUtil.blankToDefault(financeQueryParam.getStartTime(),
+                DateUtil.formatDateTime(DateUtil.beginOfMonth(new Date()))).substring(0, 10);
+        String endDate = StrUtil.blankToDefault(financeQueryParam.getEndTime(),
+                DateUtil.formatDateTime(new Date())).substring(0, 10);
+        BigDecimal dailyPaid = finDailyStatService.sumPaidAmount(startDate, endDate);
+        if (dailyPaid.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal diff = dailyPaid.subtract(reconcile.getOrderPaidAmount());
+            if (diff.compareTo(BigDecimal.ZERO) != 0) {
+                reconcile.getMessages().add("日汇总与实时收款差异：" + diff.toPlainString() + " 元（可重算日汇总后复核）");
+                reconcile.setConsistent(Boolean.FALSE);
+            }
+        }
+        return reconcile;
+    }
+
+    @Override
+    public void clearCache() {
+        String prefix = "report:" + StrUtil.blankToDefault(TenantContext.getTenantId(), "0") + ":";
+        Collection<String> keyList = cacheOperator.getAllKeys().stream()
+                .filter(key -> key.startsWith(prefix))
+                .collect(java.util.stream.Collectors.toList());
+        if (keyList.isEmpty()) {
+            return;
+        }
+        cacheOperator.remove(keyList.toArray(new String[0]));
+    }
+
+    /**
+     * 对象缓存（JSON 字符串存储，按租户 + 参数隔离）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private <T> T cachedObject(String name, Class<T> type, Object param, Supplier<T> supplier) {
+        String key = cacheKey(name, param);
+        Object cached = cacheOperator.get(key);
+        if (cached instanceof String json) {
+            try {
+                return JSONUtil.toBean(json, type);
+            } catch (Exception e) {
+                log.warn(">>> 报表缓存解析失败，重新计算：{}", key);
+            }
+        }
+        T value = supplier.get();
+        cacheOperator.put(key, JSONUtil.toJsonStr(value), CACHE_TTL_SECONDS);
+        return value;
+    }
+
+    /**
+     * 列表缓存（JSON 字符串存储，按租户 + 参数隔离）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private <T> List<T> cachedList(String name, Class<T> elementType, Object param, Supplier<List<T>> supplier) {
+        String key = cacheKey(name, param);
+        Object cached = cacheOperator.get(key);
+        if (cached instanceof String json) {
+            try {
+                return JSONUtil.toList(JSONUtil.parseArray(json), elementType);
+            } catch (Exception e) {
+                log.warn(">>> 报表缓存解析失败，重新计算：{}", key);
+            }
+        }
+        List<T> value = supplier.get();
+        cacheOperator.put(key, JSONUtil.toJsonStr(value), CACHE_TTL_SECONDS);
+        return value;
+    }
+
+    /**
+     * 缓存 key（租户 + 报表名 + 参数指纹）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private String cacheKey(String name, Object param) {
+        String paramJson = param == null ? "" : JSONUtil.toJsonStr(param);
+        String hash = DigestUtil.md5Hex(paramJson).substring(0, 16);
+        return "report:" + StrUtil.blankToDefault(TenantContext.getTenantId(), "0") + ":" + name + ":" + hash;
     }
 
     private String text(String value) {

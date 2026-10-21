@@ -112,7 +112,12 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
         order.setPayChannel(ObjectUtil.isNotEmpty(studentOrderAddParam.getPayChannel())
                 ? studentOrderAddParam.getPayChannel() : "WECHAT");
         order.setStatus(StudentOrderStatusEnum.UNPAID.getValue());
-        this.save(order);
+        try {
+            this.save(order);
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            // 数据库唯一约束兜底：同一学员同课包只允许一张待支付订单
+            throw new CommonException("学员【{}】已有该课包的待支付订单", student.getName());
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -147,7 +152,13 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
      * @date 2026/10/20 10:00
      **/
     private void markPaid(String orderId, String tradeNo, java.math.BigDecimal paidAmount, String payChannel) {
-        StudentOrder order = this.queryEntity(orderId);
+        // 行锁读取订单，避免并发回调同时入账
+        StudentOrder order = this.getOne(new LambdaQueryWrapper<StudentOrder>()
+                .eq(StudentOrder::getId, orderId)
+                .last("FOR UPDATE"));
+        if (ObjectUtil.isEmpty(order)) {
+            throw new CommonException("订单不存在，id值为：{}", orderId);
+        }
         // 幂等：已支付直接返回（防重复回调）
         if (StudentOrderStatusEnum.PAID.getValue().equals(order.getStatus())) {
             return;

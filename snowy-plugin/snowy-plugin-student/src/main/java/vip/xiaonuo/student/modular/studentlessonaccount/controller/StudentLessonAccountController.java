@@ -18,10 +18,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import vip.xiaonuo.common.annotation.CommonLog;
 import vip.xiaonuo.common.pojo.CommonResult;
 import vip.xiaonuo.student.modular.studentlessonaccount.entity.StudentLessonAccount;
 import vip.xiaonuo.student.modular.studentlessonaccount.param.StudentLessonAccountPageParam;
+import vip.xiaonuo.student.modular.studentlessonaccount.param.StudentLessonAdjustParam;
 import vip.xiaonuo.student.modular.studentlessonaccount.service.StudentLessonAccountService;
 
 import javax.validation.Valid;
@@ -50,5 +54,19 @@ public class StudentLessonAccountController {
     @GetMapping("/student/lessonAccount/page")
     public CommonResult<Page<StudentLessonAccount>> page(@Valid StudentLessonAccountPageParam studentLessonAccountPageParam) {
         return CommonResult.data(studentLessonAccountService.page(studentLessonAccountPageParam));
+    }
+
+    /**
+     * 人工调整课时
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     */
+    @Operation(summary = "人工调整课时")
+    @CommonLog("人工调整课时")
+    @PostMapping("/student/lessonAccount/adjust")
+    public CommonResult<String> adjust(@RequestBody @Valid StudentLessonAdjustParam studentLessonAdjustParam) {
+        studentLessonAccountService.adjust(studentLessonAdjustParam);
+        return CommonResult.ok();
     }
 }

@@ -159,7 +159,7 @@ GlobalConfigure.mybatisPlusInterceptor() 追加：
 | 表 | 关键字段 |
 |---|---|
 | `COURSE_CATEGORY` 课程大类 | 名称、父级（如 美术/舞蹈/编程） |
-| `COURSE` 课程 | 名称、大类、适用年龄、班型（一对一/小班/大班）、单价口径 |
+| `COURSE` 课程 | 名称、大类、适用年龄、班型（一对一/小班/大班）、单价口径、每课扣课时数、请假/缺勤是否扣课 |
 | `COURSE_PACKAGE` 课包 | 课程 id、课时数、赠课时数、价格、有效期、状态 |
 | `COURSE_CLASS` 班级 | 课程 id、名称、上课校区、上课时段模板、教师、容量、状态 |
 | `COURSE_CLASS_STUDENT` 班级学员 | 班级 id、学员 id、入班时间、状态（在学/退班） |

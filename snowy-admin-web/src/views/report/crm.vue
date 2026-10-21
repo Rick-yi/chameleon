@@ -9,6 +9,20 @@
 					<a-space>
 						<a-button type="primary" @click="loadAll">查询</a-button>
 						<a-button @click="reset">重置</a-button>
+						<a-dropdown v-if="hasPerm('reportCrmExport')">
+							<a-button>
+								导出
+								<down-outlined />
+							</a-button>
+							<template #overlay>
+								<a-menu @click="onExport">
+									<a-menu-item key="FUNNEL">线索漏斗</a-menu-item>
+									<a-menu-item key="SOURCE">来源渠道</a-menu-item>
+									<a-menu-item key="FOLLOW_RANK">跟进排行</a-menu-item>
+									<a-menu-item key="TRIAL">试听转化</a-menu-item>
+								</a-menu>
+							</template>
+						</a-dropdown>
 					</a-space>
 				</a-form-item>
 			</a-form>
@@ -57,7 +71,13 @@
 					:pagination="false"
 					bordered
 					size="middle"
-				/>
+				>
+					<template #bodyCell="{ column, record }">
+						<template v-if="column.dataIndex === 'sourceName'">
+							<a @click="goLead(record)">{{ record.sourceName }}</a>
+						</template>
+					</template>
+				</a-table>
 			</a-card>
 
 			<a-card title="跟进排行" :bordered="false" style="margin-top: 16px">
@@ -76,9 +96,13 @@
 
 <script setup name="reportCrm">
 	import { computed, nextTick, onMounted, ref } from 'vue'
+	import { useRouter } from 'vue-router'
 	import { Funnel, Pie } from '@antv/g2plot'
 	import dayjs from 'dayjs'
 	import reportApi from '@/api/report/reportApi'
+	import downloadUtil from '@/utils/downloadUtil'
+
+	const router = useRouter()
 
 	const loading = ref(false)
 	const dateRange = ref([dayjs().startOf('month').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')])
@@ -170,6 +194,17 @@
 	const reset = () => {
 		dateRange.value = [dayjs().startOf('month').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')]
 		loadAll()
+	}
+
+	const onExport = ({ key }) => {
+		reportApi.crmExport({ ...buildQuery(), type: key }).then((res) => {
+			downloadUtil.resultDownload(res)
+		})
+	}
+
+	// 下钻：来源 → 招生线索
+	const goLead = (record) => {
+		router.push({ path: '/crm', query: { source: record.source } })
 	}
 
 	const sourceColumns = [

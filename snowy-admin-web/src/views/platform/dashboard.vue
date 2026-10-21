@@ -5,6 +5,21 @@
 				<span>到期范围</span>
 				<a-select v-model:value="expiringDays" :options="dayOptions" style="width: 120px" @change="loadExpiring" />
 				<a-button type="primary" @click="loadAll">刷新</a-button>
+				<a-dropdown v-if="hasPerm('reportPlatformExport')">
+					<a-button>
+						导出
+						<down-outlined />
+					</a-button>
+					<template #overlay>
+						<a-menu @click="onExport">
+							<a-menu-item key="OVERVIEW">平台概览</a-menu-item>
+							<a-menu-item key="TREND">租户增长趋势</a-menu-item>
+							<a-menu-item key="PACKAGE">套餐分布</a-menu-item>
+							<a-menu-item key="EXPIRING">到期租户</a-menu-item>
+							<a-menu-item key="RANK">租户活跃度排行</a-menu-item>
+						</a-menu>
+					</template>
+				</a-dropdown>
 			</a-space>
 		</a-card>
 
@@ -51,7 +66,13 @@
 					:pagination="{ pageSize: 10, showSizeChanger: true }"
 					bordered
 					size="middle"
-				/>
+				>
+					<template #bodyCell="{ column, record }">
+						<template v-if="column.dataIndex === 'name'">
+							<a @click="goTenant(record)">{{ record.name }}</a>
+						</template>
+					</template>
+				</a-table>
 			</a-card>
 
 			<a-card title="租户活跃度排行" :bordered="false" style="margin-top: 16px">
@@ -70,8 +91,12 @@
 
 <script setup name="platformDashboard">
 	import { nextTick, onMounted, ref } from 'vue'
+	import { useRouter } from 'vue-router'
 	import { Line, Pie } from '@antv/g2plot'
 	import platformReportApi from '@/api/platform/reportApi'
+	import downloadUtil from '@/utils/downloadUtil'
+
+	const router = useRouter()
 
 	const loading = ref(false)
 	const expiringDays = ref(30)
@@ -165,6 +190,17 @@
 		platformReportApi.expiring({ days: expiringDays.value }).then((data) => {
 			expiringList.value = data || []
 		})
+	}
+
+	const onExport = ({ key }) => {
+		platformReportApi.exportReport({ type: key }).then((res) => {
+			downloadUtil.resultDownload(res)
+		})
+	}
+
+	// 下钻：到期租户 → 租户管理
+	const goTenant = (record) => {
+		router.push({ path: '/platform/tenant', query: { code: record.code } })
 	}
 
 	const expiringColumns = [

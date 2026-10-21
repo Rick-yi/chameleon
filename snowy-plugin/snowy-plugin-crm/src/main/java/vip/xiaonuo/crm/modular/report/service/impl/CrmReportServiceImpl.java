@@ -13,12 +13,17 @@
 package vip.xiaonuo.crm.modular.report.service.impl;
 
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Service;
+import vip.xiaonuo.common.exception.CommonException;
+import vip.xiaonuo.common.util.CommonDownloadUtil;
+import vip.xiaonuo.common.util.CommonExcelUtil;
 import vip.xiaonuo.crm.api.dto.CrmFollowRankDTO;
 import vip.xiaonuo.crm.api.dto.CrmFunnelStageDTO;
 import vip.xiaonuo.crm.api.dto.CrmSourceDTO;
@@ -38,6 +43,8 @@ import vip.xiaonuo.sys.api.SysUserApi;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -219,14 +226,86 @@ public class CrmReportServiceImpl implements CrmReportService {
         return result;
     }
 
+    @Override
+    public void export(CrmReportQueryParam param, String type, HttpServletResponse response) throws IOException {
+        String exportType = StrUtil.blankToDefault(type, "FUNNEL").toUpperCase();
+        String sheetName;
+        List<List<String>> headList = new ArrayList<>();
+        List<List<String>> rowList = new ArrayList<>();
+        switch (exportType) {
+            case "FUNNEL" -> {
+                sheetName = "线索漏斗";
+                headList.add(List.of("阶段"));
+                headList.add(List.of("数量"));
+                headList.add(List.of("转化率(%)"));
+                for (CrmFunnelStageDTO dto : funnel(param)) {
+                    rowList.add(List.of(text(dto.getStageName()), String.valueOf(dto.getCount()), num(dto.getConversionRate())));
+                }
+            }
+            case "SOURCE" -> {
+                sheetName = "来源渠道";
+                headList.add(List.of("来源"));
+                headList.add(List.of("线索数"));
+                headList.add(List.of("报名数"));
+                headList.add(List.of("转化率(%)"));
+                for (CrmSourceDTO dto : source(param)) {
+                    rowList.add(List.of(text(dto.getSourceName()), String.valueOf(dto.getLeadCount()),
+                            String.valueOf(dto.getEnrolledCount()), num(dto.getConversionRate())));
+                }
+            }
+            case "FOLLOW_RANK" -> {
+                sheetName = "跟进排行";
+                headList.add(List.of("跟进人"));
+                headList.add(List.of("跟进次数"));
+                headList.add(List.of("跟进线索数"));
+                headList.add(List.of("报名数"));
+                for (CrmFollowRankDTO dto : followRank(param)) {
+                    rowList.add(List.of(text(dto.getUserName()), String.valueOf(dto.getFollowCount()),
+                            String.valueOf(dto.getLeadCount()), String.valueOf(dto.getEnrolledCount())));
+                }
+            }
+            case "TRIAL" -> {
+                sheetName = "试听转化";
+                headList.add(List.of("试听总数"));
+                headList.add(List.of("已完成"));
+                headList.add(List.of("有意向"));
+                headList.add(List.of("无意向"));
+                headList.add(List.of("报名数"));
+                headList.add(List.of("转化率(%)"));
+                CrmTrialReportDTO dto = trial(param);
+                rowList.add(List.of(String.valueOf(dto.getTrialCount()), String.valueOf(dto.getDoneCount()),
+                        String.valueOf(dto.getInterestedCount()), String.valueOf(dto.getNotInterestedCount()),
+                        String.valueOf(dto.getEnrolledCount()), num(dto.getConversionRate())));
+            }
+            default -> throw new CommonException("不支持的导出类型：{}", exportType);
+        }
+        if (rowList.isEmpty()) {
+            throw new CommonException("无数据可导出");
+        }
+        File file = FileUtil.file(FileUtil.getTmpDir(), "招生报表_" + DateUtil.format(new Date(), "yyyyMMddHHmmss") + ".xlsx");
+        try {
+            CommonExcelUtil.write(file, sheetName, headList, rowList);
+            CommonDownloadUtil.download(file, response);
+        } finally {
+            FileUtil.del(file);
+        }
+    }
+
+    private String text(String value) {
+        return value == null ? "" : value;
+    }
+
+    private String num(BigDecimal value) {
+        return (value == null ? BigDecimal.ZERO : value).setScale(2, RoundingMode.HALF_UP).toPlainString();
+    }
+
     /**
      * 线索查询条件（按创建时间）
      *
      * @author 会飞的猪
      * @date 2026/10/20 10:00
      **/
-    private LambdaQueryWrapper<CrmLead> leadWrapper(Date start, Date end) {
-        return new LambdaQueryWrapper<CrmLead>()
+    private LambdaQueryWrapper<CrmLead> leadWrapper(Date start, Date end) {        return new LambdaQueryWrapper<CrmLead>()
                 .ge(CrmLead::getCreateTime, start)
                 .le(CrmLead::getCreateTime, end);
     }

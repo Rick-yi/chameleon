@@ -102,6 +102,16 @@
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
+					<a-form-item label="请假是否扣课" name="leaveDeduct">
+						<a-switch v-model:value="formData.leaveDeduct" checked-children="扣课" un-checked-children="不扣" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="缺勤是否扣课" name="absentDeduct">
+						<a-switch v-model:value="formData.absentDeduct" checked-children="扣课" un-checked-children="不扣" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
 					<a-form-item label="状态" name="status">
 						<a-radio-group v-model:value="formData.status" :options="statusOptions" />
 					</a-form-item>
@@ -149,6 +159,12 @@
 		{ title: '班型', dataIndex: 'classType' },
 		{ title: '适合年龄', dataIndex: 'ageRange' },
 		{ title: '每课扣课时', dataIndex: 'lessonsPerClass' },
+		{ title: '请假扣课', dataIndex: 'leaveDeduct', customRender: ({ text }) => (text ? '是' : '否') },
+		{
+			title: '缺勤扣课',
+			dataIndex: 'absentDeduct',
+			customRender: ({ text }) => (text === null || text === undefined || text === false ? '否' : '是')
+		},
 		{ title: '状态', dataIndex: 'status' },
 		{ title: '操作', dataIndex: 'action', align: 'center', fixed: 'right' }
 	]
@@ -173,11 +189,15 @@
 		return item ? item.label : type || '-'
 	}
 	const onOpenAdd = () => {
-		formData.value = { status: 'ENABLE', lessonsPerClass: 1 }
+		formData.value = { status: 'ENABLE', lessonsPerClass: 1, leaveDeduct: false, absentDeduct: true }
 		addOpen.value = true
 	}
 	const onOpenEdit = (record) => {
-		formData.value = { ...record }
+		formData.value = {
+			...record,
+			leaveDeduct: record.leaveDeduct === true,
+			absentDeduct: record.absentDeduct === null || record.absentDeduct === undefined ? true : record.absentDeduct
+		}
 		addOpen.value = true
 	}
 	const onSubmit = () => {

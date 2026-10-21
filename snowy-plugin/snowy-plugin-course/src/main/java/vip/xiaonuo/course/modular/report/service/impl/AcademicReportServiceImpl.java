@@ -13,12 +13,17 @@
 package vip.xiaonuo.course.modular.report.service.impl;
 
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Service;
+import vip.xiaonuo.common.exception.CommonException;
+import vip.xiaonuo.common.util.CommonDownloadUtil;
+import vip.xiaonuo.common.util.CommonExcelUtil;
 import vip.xiaonuo.course.api.dto.AcademicAttendanceDTO;
 import vip.xiaonuo.course.api.dto.AcademicClassFillDTO;
 import vip.xiaonuo.course.api.dto.AcademicTeacherWorkloadDTO;
@@ -45,6 +50,8 @@ import vip.xiaonuo.sys.api.SysUserApi;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -235,6 +242,112 @@ public class AcademicReportServiceImpl implements AcademicReportService {
     @Override
     public List<AcademicRiskStudentDTO> riskStudents(AcademicReportQueryParam param) {
         return studentReportApi.riskStudents(param);
+    }
+
+    @Override
+    public void export(AcademicReportQueryParam param, String type, HttpServletResponse response) throws IOException {
+        String exportType = StrUtil.blankToDefault(type, "ATTENDANCE").toUpperCase();
+        String sheetName;
+        List<List<String>> headList = new ArrayList<>();
+        List<List<String>> rowList = new ArrayList<>();
+        switch (exportType) {
+            case "ATTENDANCE" -> {
+                sheetName = "出勤汇总";
+                headList.add(List.of("到课人次"));
+                headList.add(List.of("请假人次"));
+                headList.add(List.of("缺勤人次"));
+                headList.add(List.of("应到人次"));
+                headList.add(List.of("到课率(%)"));
+                headList.add(List.of("出勤率(%)"));
+                AcademicAttendanceDTO dto = attendance(param);
+                rowList.add(List.of(String.valueOf(dto.getAttendCount()), String.valueOf(dto.getLeaveCount()),
+                        String.valueOf(dto.getAbsentCount()), String.valueOf(dto.getExpectedCount()),
+                        num(dto.getAttendRate()), num(dto.getAttendanceRate())));
+            }
+            case "CLASS_FILL" -> {
+                sheetName = "班级满班率";
+                headList.add(List.of("班级"));
+                headList.add(List.of("课程"));
+                headList.add(List.of("校区"));
+                headList.add(List.of("教师"));
+                headList.add(List.of("容量"));
+                headList.add(List.of("在学人数"));
+                headList.add(List.of("满班率(%)"));
+                for (AcademicClassFillDTO dto : classFill(param)) {
+                    rowList.add(List.of(text(dto.getClassName()), text(dto.getCourseName()), text(dto.getCampusName()),
+                            text(dto.getTeacherName()), String.valueOf(dto.getCapacity()), String.valueOf(dto.getStudyingCount()),
+                            num(dto.getFillRate())));
+                }
+            }
+            case "TEACHER" -> {
+                sheetName = "教师课时";
+                headList.add(List.of("教师"));
+                headList.add(List.of("排课次数"));
+                headList.add(List.of("计划课时"));
+                headList.add(List.of("实际课消课时"));
+                headList.add(List.of("到课人次"));
+                for (AcademicTeacherWorkloadDTO dto : teacherWorkload(param)) {
+                    rowList.add(List.of(text(dto.getTeacherName()), String.valueOf(dto.getScheduleCount()),
+                            num(dto.getPlannedLessons()), num(dto.getActualLessons()), String.valueOf(dto.getAttendCount())));
+                }
+            }
+            case "LESSON_PROGRESS" -> {
+                sheetName = "学员课消进度";
+                headList.add(List.of("学员"));
+                headList.add(List.of("课程"));
+                headList.add(List.of("总课时"));
+                headList.add(List.of("已消课时"));
+                headList.add(List.of("剩余课时"));
+                headList.add(List.of("课消进度(%)"));
+                headList.add(List.of("到期时间"));
+                headList.add(List.of("状态"));
+                for (AcademicLessonProgressDTO dto : lessonProgress(param)) {
+                    rowList.add(List.of(text(dto.getStudentName()), text(dto.getCourseName()), num(dto.getTotalLessons()),
+                            num(dto.getUsedLessons()), num(dto.getRemainLessons()), num(dto.getProgressRate()),
+                            time(dto.getExpireTime()), text(dto.getStatus())));
+                }
+            }
+            case "RISK_STUDENT" -> {
+                sheetName = "风险学员";
+                headList.add(List.of("学员"));
+                headList.add(List.of("风险类型"));
+                headList.add(List.of("课程"));
+                headList.add(List.of("剩余课时"));
+                headList.add(List.of("到期时间"));
+                headList.add(List.of("最近消课"));
+                headList.add(List.of("未消课天数"));
+                headList.add(List.of("说明"));
+                for (AcademicRiskStudentDTO dto : riskStudents(param)) {
+                    rowList.add(List.of(text(dto.getStudentName()), text(dto.getRiskType()), text(dto.getCourseName()),
+                            num(dto.getRemainLessons()), time(dto.getExpireTime()), time(dto.getLastAttendTime()),
+                            dto.getDaysWithoutAttend() == null ? "" : String.valueOf(dto.getDaysWithoutAttend()),
+                            text(dto.getRiskDesc())));
+                }
+            }
+            default -> throw new CommonException("不支持的导出类型：{}", exportType);
+        }
+        if (rowList.isEmpty()) {
+            throw new CommonException("无数据可导出");
+        }
+        File file = FileUtil.file(FileUtil.getTmpDir(), "教务报表_" + DateUtil.format(new Date(), "yyyyMMddHHmmss") + ".xlsx");
+        try {
+            CommonExcelUtil.write(file, sheetName, headList, rowList);
+            CommonDownloadUtil.download(file, response);
+        } finally {
+            FileUtil.del(file);
+        }
+    }
+
+    private String text(String value) {
+        return value == null ? "" : value;
+    }
+
+    private String num(BigDecimal value) {
+        return (value == null ? BigDecimal.ZERO : value).setScale(2, RoundingMode.HALF_UP).toPlainString();
+    }
+
+    private String time(Date value) {
+        return value == null ? "" : DateUtil.formatDateTime(value);
     }
 
     /**

@@ -98,6 +98,9 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
         Course course = courseService.queryEntity(courseClass.getCourseId());
         BigDecimal lessonsPerClass = ObjectUtil.isNotEmpty(course.getLessonsPerClass())
                 ? course.getLessonsPerClass() : BigDecimal.ONE;
+        // 扣课规则（课程配置）：到课必扣；缺勤、请假是否扣课可配置
+        boolean absentDeduct = course.getAbsentDeduct() == null || course.getAbsentDeduct();
+        boolean leaveDeduct = Boolean.TRUE.equals(course.getLeaveDeduct());
         String loginUserId = StpUtil.getLoginIdAsString();
         // 已点名学员（唯一索引幂等，跳过重复）
         List<String> itemStudentIdList = courseClassAttendConfirmParam.getAttendList().stream()
@@ -118,9 +121,11 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
             attend.setAttendStatus(item.getAttendStatus());
             attend.setAttendUser(loginUserId);
             attend.setAttendTime(new Date());
-            // 到课/缺勤扣课时，请假不扣
-            if (CourseAttendStatusEnum.ATTEND.getValue().equals(item.getAttendStatus())
-                    || CourseAttendStatusEnum.ABSENT.getValue().equals(item.getAttendStatus())) {
+            // 按课程配置决定是否扣课（到课必扣，缺勤/请假可配置）
+            boolean shouldDeduct = CourseAttendStatusEnum.ATTEND.getValue().equals(item.getAttendStatus())
+                    || (CourseAttendStatusEnum.ABSENT.getValue().equals(item.getAttendStatus()) && absentDeduct)
+                    || (CourseAttendStatusEnum.LEAVE.getValue().equals(item.getAttendStatus()) && leaveDeduct);
+            if (shouldDeduct) {
                 attend.setLessonsDeducted(lessonsPerClass);
                 LessonDeductParam deductParam = new LessonDeductParam();
                 deductParam.setStudentId(item.getStudentId());

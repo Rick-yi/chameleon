@@ -51,6 +51,10 @@ export default {
 	lessonAccountPage(data) {
 		return request('lessonAccount/page', data, 'get')
 	},
+	// 人工调整课时
+	lessonAccountAdjust(data) {
+		return request('lessonAccount/adjust', data)
+	},
 	// 课时流水
 	lessonFlowPage(data) {
 		return request('lessonFlow/page', data, 'get')

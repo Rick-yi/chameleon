@@ -59,6 +59,14 @@ public class Course extends CommonEntity {
     @Schema(description = "每课扣课时数")
     private BigDecimal lessonsPerClass;
 
+    /** 请假是否扣课时 */
+    @Schema(description = "请假是否扣课时")
+    private Boolean leaveDeduct = Boolean.FALSE;
+
+    /** 缺勤是否扣课时 */
+    @Schema(description = "缺勤是否扣课时")
+    private Boolean absentDeduct = Boolean.TRUE;
+
     /** 状态 */
     @Schema(description = "状态(启用/停用)")
     private String status;
