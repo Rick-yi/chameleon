@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
+import vip.xiaonuo.platform.core.service.TenantCapabilityService;
 import vip.xiaonuo.platform.modular.tenantpackage.entity.TenantPackage;
 import vip.xiaonuo.platform.modular.tenantpackage.mapper.TenantPackageMapper;
 import vip.xiaonuo.platform.modular.tenantpackage.param.TenantPackageAddParam;
@@ -33,6 +34,7 @@ import vip.xiaonuo.platform.modular.tenantpackage.service.TenantPackageService;
 import vip.xiaonuo.platform.modular.tenant.entity.Tenant;
 
 import java.util.List;
+import jakarta.annotation.Resource;
 
 /**
  * 租户套餐Service接口实现类
@@ -42,6 +44,9 @@ import java.util.List;
  **/
 @Service
 public class TenantPackageServiceImpl extends ServiceImpl<TenantPackageMapper, TenantPackage> implements TenantPackageService {
+
+    @Resource
+    private TenantCapabilityService tenantCapabilityService;
 
     @Override
     public Page<TenantPackage> page(TenantPackagePageParam tenantPackagePageParam) {
@@ -77,6 +82,8 @@ public class TenantPackageServiceImpl extends ServiceImpl<TenantPackageMapper, T
             throw new CommonException("存在重复的套餐名称：{}", tenantPackage.getName());
         }
         this.updateById(tenantPackage);
+        // 套餐变更后刷新使用该套餐的租户能力缓存
+        tenantCapabilityService.refreshByPackage(tenantPackage.getId());
     }
 
     @Transactional(rollbackFor = Exception.class)

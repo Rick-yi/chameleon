@@ -36,9 +36,13 @@ public class PlatformOverviewDTO {
     @Schema(description = "本月新增租户")
     private Long newTenantCount = 0L;
 
-    /** 活跃租户（近30天有已支付订单） */
-    @Schema(description = "活跃租户")
+    /** 活跃租户（近30天有登录记录） */
+    @Schema(description = "活跃租户（登录口径）")
     private Long activeTenantCount = 0L;
+
+    /** 订单活跃租户（近30天有已支付订单） */
+    @Schema(description = "订单活跃租户")
+    private Long orderActiveTenantCount = 0L;
 
     /** 30 天内到期租户 */
     @Schema(description = "30 天内到期租户")

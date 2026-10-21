@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vip.xiaonuo.common.enums.CommonSortOrderEnum;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
+import vip.xiaonuo.platform.core.service.TenantCapabilityService;
 import vip.xiaonuo.platform.modular.tenantpackage.entity.TenantPackage;
 import vip.xiaonuo.platform.modular.tenantpackage.service.TenantPackageService;
 import vip.xiaonuo.platform.modular.tenant.entity.Tenant;
@@ -57,6 +58,9 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
 
     @Resource
     private TenantPackageService tenantPackageService;
+
+    @Resource
+    private TenantCapabilityService tenantCapabilityService;
 
     @Resource
     private TenantInitService tenantInitService;
@@ -112,6 +116,8 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
         this.save(tenant);
         // 租户模板数据初始化：校区、管理员、角色、菜单、配置、字典
         tenantInitService.initTenant(tenant, tenantAddParam);
+        // 刷新租户能力缓存（套餐限额与功能开关）
+        tenantCapabilityService.refresh(tenant.getId());
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -138,6 +144,8 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
             throw new CommonException("存在重复的机构名称：{}", tenant.getName());
         }
         this.updateById(tenant);
+        // 刷新租户能力缓存（套餐限额与功能开关）
+        tenantCapabilityService.refresh(tenant.getId());
     }
 
     @Transactional(rollbackFor = Exception.class)

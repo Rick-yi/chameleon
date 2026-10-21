@@ -15,11 +15,14 @@ package vip.xiaonuo.core.filter;
 import cn.dev33.satoken.config.SaTokenConfig;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import jakarta.annotation.Resource;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +32,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import vip.xiaonuo.auth.core.util.StpClientUtil;
 import vip.xiaonuo.common.context.TenantContext;
+import vip.xiaonuo.dev.modular.dict.service.DevDictService;
 import vip.xiaonuo.platform.api.TenantApi;
 
 import java.io.IOException;
@@ -51,11 +55,23 @@ public class TenantContextFilter extends OncePerRequestFilter {
     /** 租户编码请求头名称（仅登录前使用） */
     public static final String TENANT_CODE_HEADER = "X-Tenant-Code";
 
+    /** 字典缓存当前所属租户（底座 easy-trans 字典缓存为全局共享，按租户切换时刷新） */
+    private static final AtomicReference<String> DICT_CACHE_TENANT = new AtomicReference<>();
+
+    /** 字典缓存刷新节流（毫秒） */
+    private static final long DICT_CACHE_REFRESH_INTERVAL = 10_000L;
+
+    /** 上次字典缓存刷新时间戳 */
+    private static final AtomicLong DICT_CACHE_REFRESH_TIME = new AtomicLong();
+
     @Resource
     private SaTokenConfig saTokenConfig;
 
     @Autowired
     private ObjectProvider<TenantApi> tenantApiProvider;
+
+    @Resource
+    private ObjectProvider<DevDictService> devDictServiceProvider;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -79,9 +95,40 @@ public class TenantContextFilter extends OncePerRequestFilter {
                     }
                 }
             }
+            // 底座字典缓存是全局共享的，切换租户时按需刷新，避免读到其他租户的字典
+            refreshDictCacheIfTenantChanged(TenantContext.getTenantId());
             filterChain.doFilter(request, response);
         } finally {
             TenantContext.clear();
+        }
+    }
+
+    /**
+     * 租户切换时刷新字典缓存（带节流，避免高频请求反复刷新）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 11:00
+     **/
+    private void refreshDictCacheIfTenantChanged(String tenantId) {
+        if (StrUtil.isBlank(tenantId) || tenantId.equals(DICT_CACHE_TENANT.get())) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        long lastTime = DICT_CACHE_REFRESH_TIME.get();
+        if (now - lastTime < DICT_CACHE_REFRESH_INTERVAL) {
+            return;
+        }
+        if (!DICT_CACHE_REFRESH_TIME.compareAndSet(lastTime, now)) {
+            return;
+        }
+        DICT_CACHE_TENANT.set(tenantId);
+        try {
+            DevDictService devDictService = devDictServiceProvider.getIfAvailable();
+            if (devDictService != null) {
+                devDictService.refreshTransCache();
+            }
+        } catch (Exception e) {
+            log.error(">>> 刷新租户字典缓存失败，租户id：{}", tenantId, e);
         }
     }
 

@@ -52,4 +52,8 @@ public class PlatformTenantRankDTO {
     /** 最近支付时间 */
     @Schema(description = "最近支付时间")
     private Date lastPayTime;
+
+    /** 最近登录时间 */
+    @Schema(description = "最近登录时间")
+    private Date lastLoginTime;
 }

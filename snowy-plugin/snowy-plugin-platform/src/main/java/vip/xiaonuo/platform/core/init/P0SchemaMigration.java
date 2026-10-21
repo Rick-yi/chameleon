@@ -86,6 +86,23 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
             ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '财务日汇总' ROW_FORMAT = Dynamic
             """;
 
+    private static final String TENANT_LOGIN_DDL = """
+            CREATE TABLE IF NOT EXISTS `T_TENANT_LOGIN` (
+              `ID` varchar(20) NOT NULL COMMENT '主键',
+              `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '租户id',
+              `USER_ID` varchar(20) NULL DEFAULT NULL COMMENT '用户id',
+              `ACCOUNT` varchar(100) NULL DEFAULT NULL COMMENT '账号',
+              `LOGIN_TIME` datetime NULL DEFAULT NULL COMMENT '登录时间',
+              `DELETE_FLAG` varchar(255) NULL DEFAULT 'NOT_DELETE' COMMENT '删除标志',
+              `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+              `CREATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '创建人',
+              `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '更新时间',
+              `UPDATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '更新人',
+              PRIMARY KEY (`ID`) USING BTREE,
+              INDEX `IDX_TENANT_LOGIN_TIME` (`TENANT_ID`, `LOGIN_TIME`)
+            ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '租户登录记录' ROW_FORMAT = Dynamic
+            """;
+
     private static final String FIN_EXPORT_TASK_DDL = """
             CREATE TABLE IF NOT EXISTS `FIN_EXPORT_TASK` (
               `ID` varchar(20) NOT NULL COMMENT '主键',
@@ -189,6 +206,11 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
                 jdbcTemplate.execute("ALTER TABLE `DEV_JOB` ADD COLUMN `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '归属租户id(平台任务为0)' AFTER `SORT_CODE`");
                 jdbcTemplate.update("UPDATE `DEV_JOB` SET `TENANT_ID` = '0' WHERE `TENANT_ID` IS NULL");
                 log.info(">>> 平台结构升级：DEV_JOB.TENANT_ID 已添加");
+            }
+
+            if (!tableExists("T_TENANT_LOGIN")) {
+                jdbcTemplate.execute(TENANT_LOGIN_DDL);
+                log.info(">>> 平台结构升级：T_TENANT_LOGIN 已创建");
             }
 
             if (!tableExists("FIN_EXPORT_TASK")) {

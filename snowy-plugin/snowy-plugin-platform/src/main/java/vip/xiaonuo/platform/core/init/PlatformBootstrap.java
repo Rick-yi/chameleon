@@ -31,6 +31,7 @@ import vip.xiaonuo.dev.modular.job.entity.DevJob;
 import vip.xiaonuo.dev.modular.job.enums.DevJobCategoryEnum;
 import vip.xiaonuo.dev.modular.job.enums.DevJobStatusEnum;
 import vip.xiaonuo.dev.modular.dict.service.DevDictService;
+import vip.xiaonuo.platform.core.service.TenantCapabilityService;
 import vip.xiaonuo.dev.modular.job.service.DevJobService;
 import vip.xiaonuo.platform.modular.tenant.entity.Tenant;
 import vip.xiaonuo.platform.modular.tenant.enums.TenantStatusEnum;
@@ -107,6 +108,9 @@ public class PlatformBootstrap implements ApplicationListener<ApplicationStarted
     @Resource
     private DevDictService devDictService;
 
+    @Resource
+    private TenantCapabilityService tenantCapabilityService;
+
     @Override
     public void onApplicationEvent(ApplicationStartedEvent event) {
         String originalTenantId = TenantContext.getTenantId();
@@ -127,6 +131,7 @@ public class PlatformBootstrap implements ApplicationListener<ApplicationStarted
             removePlatformMenusFromTenants();
             ensureJobs();
             warmUpTenantDictCache();
+            tenantCapabilityService.refreshAll();
             log.info(">>> 平台运营账号已就绪：租户编码 platform，账号 {}（首次登录请修改默认密码）", PLATFORM_ACCOUNT);
         } catch (Exception e) {
             log.error(">>> 平台运营账号初始化失败，请检查 chameleon_platform.sql 与 chameleon_menu.sql 是否已执行", e);

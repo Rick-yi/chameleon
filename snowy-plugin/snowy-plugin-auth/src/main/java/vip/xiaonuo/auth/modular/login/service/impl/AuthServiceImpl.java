@@ -63,6 +63,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 登录Service接口实现类
@@ -70,6 +71,7 @@ import java.util.stream.Collectors;
  * @author xuyuxiang
  * @date 2021/12/23 21:52
  */
+@Slf4j
 @Service
 public class AuthServiceImpl implements AuthService {
 
@@ -818,6 +820,15 @@ public class AuthServiceImpl implements AuthService {
             loginUserApi.refreshUserDataScope(userId, dataScopeList);
             return null;
         }));
+        // 异步记录租户登录（平台活跃租户统计）
+        String loginAccount = saBaseLoginUser.getAccount();
+        CompletableFuture.runAsync(() -> {
+            try {
+                tenantApi.recordLogin(tenantId, userId, loginAccount);
+            } catch (Exception e) {
+                log.error(">>> 记录租户登录失败", e);
+            }
+        });
     }
 
     /**

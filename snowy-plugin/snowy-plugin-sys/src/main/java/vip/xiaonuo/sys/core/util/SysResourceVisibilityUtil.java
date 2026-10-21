@@ -14,9 +14,11 @@ package vip.xiaonuo.sys.core.util;
 
 import cn.hutool.core.util.StrUtil;
 import vip.xiaonuo.common.context.TenantContext;
+import vip.xiaonuo.common.tenant.TenantCapability;
 import vip.xiaonuo.sys.modular.resource.entity.SysMenu;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 平台专用资源可见性
@@ -95,7 +97,52 @@ public class SysResourceVisibilityUtil {
     }
 
     /**
-     * 按当前租户过滤菜单资源
+     * 菜单编码 → 套餐功能键
+     * <p>
+     * 套餐 `funcConfig` 中配置的功能键关闭后，对应菜单在下发时隐藏（机构侧看不到入口）。
+     * </p>
+     */
+    private static final Map<String, String> MENU_FUNC_KEY_MAP = Map.ofEntries(
+            Map.entry("crm", "crm"),
+            Map.entry("student", "student"),
+            Map.entry("renewWarn", "student"),
+            Map.entry("course", "course"),
+            Map.entry("coursePkg", "course"),
+            Map.entry("courseClass", "course"),
+            Map.entry("courseSchedule", "course"),
+            Map.entry("courseAttend", "course"),
+            Map.entry("finance", "finance"),
+            Map.entry("report", "report"),
+            Map.entry("reportDashboard", "report"),
+            Map.entry("reportFinance", "report"),
+            Map.entry("reportAcademic", "report"),
+            Map.entry("reportCrm", "report")
+    );
+
+    /**
+     * 菜单对应的功能是否开启
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 11:00
+     **/
+    public static boolean isFuncEnabled(SysMenu menu) {
+        if (menu == null) {
+            return true;
+        }
+        String menuCode = menu.getCode();
+        if (StrUtil.isBlank(menuCode)) {
+            return true;
+        }
+        String funcKey = MENU_FUNC_KEY_MAP.get(menuCode);
+        if (funcKey == null) {
+            return true;
+        }
+        TenantCapability capability = TenantCapability.getInstance();
+        return capability == null || capability.enabled(funcKey);
+    }
+
+    /**
+     * 按当前租户过滤菜单资源（平台专用资源 + 套餐功能开关）
      *
      * @author 会飞的猪
      * @date 2026/10/20 10:00
@@ -104,7 +151,8 @@ public class SysResourceVisibilityUtil {
         if (isPlatformTenant() || menuList == null) {
             return menuList;
         }
-        return menuList.stream().filter(menu -> !isPlatformOnlyMenu(menu)).toList();
+        return menuList.stream().filter(menu -> !isPlatformOnlyMenu(menu))
+                .filter(SysResourceVisibilityUtil::isFuncEnabled).toList();
     }
 
     /**

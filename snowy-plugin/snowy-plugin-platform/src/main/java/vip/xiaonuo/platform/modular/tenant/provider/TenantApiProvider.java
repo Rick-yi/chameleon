@@ -13,12 +13,17 @@
 package vip.xiaonuo.platform.modular.tenant.provider;
 
 import cn.hutool.core.util.ObjectUtil;
+import java.util.Date;
+import vip.xiaonuo.platform.modular.tenantlogin.mapper.TenantLoginMapper;
+import cn.hutool.core.util.IdUtil;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import vip.xiaonuo.platform.api.TenantApi;
 import vip.xiaonuo.platform.modular.tenant.entity.Tenant;
+import vip.xiaonuo.platform.modular.tenantlogin.entity.TenantLogin;
 import vip.xiaonuo.platform.modular.tenant.enums.TenantStatusEnum;
 import vip.xiaonuo.platform.modular.tenant.service.TenantService;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 租户API接口实现类
@@ -26,11 +31,15 @@ import vip.xiaonuo.platform.modular.tenant.service.TenantService;
  * @author 会飞的猪
  * @date 2026/10/20 10:00
  **/
+@Slf4j
 @Service
 public class TenantApiProvider implements TenantApi {
 
     @Resource
     private TenantService tenantService;
+
+    @Resource
+    private TenantLoginMapper tenantLoginMapper;
 
     @Override
     public String getTenantName(String tenantId) {
@@ -57,6 +66,21 @@ public class TenantApiProvider implements TenantApi {
     @Override
     public boolean isPlatformTenant(String tenantId) {
         return "0".equals(tenantId);
+    }
+
+    @Override
+    public void recordLogin(String tenantId, String userId, String account) {
+        try {
+            TenantLogin tenantLogin = new TenantLogin();
+            tenantLogin.setId(IdUtil.getSnowflakeNextIdStr());
+            tenantLogin.setTenantId(tenantId);
+            tenantLogin.setUserId(userId);
+            tenantLogin.setAccount(account);
+            tenantLogin.setLoginTime(new Date());
+            tenantLoginMapper.insert(tenantLogin);
+        } catch (Exception e) {
+            log.error(">>> 记录租户登录失败，租户id：{}", tenantId, e);
+        }
     }
 
     @Override

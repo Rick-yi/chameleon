@@ -686,6 +686,26 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
         if (ObjectUtil.isNotEmpty(orderIdList)) {
             studentOrderMapper.selectBatchIds(orderIdList).forEach(order -> orderMap.put(order.getId(), order));
         }
+        // 兜底单价：历史消课流水没有订单归属时，按「学员 + 课程」的已支付订单均价估算
+        Map<String, BigDecimal> fallbackPriceMap = new HashMap<>();
+        Map<String, Integer> fallbackCountMap = new HashMap<>();
+        List<String> flowStudentIdList = flowList.stream().map(StudentLessonFlow::getStudentId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (ObjectUtil.isNotEmpty(flowStudentIdList)) {
+            for (StudentOrder order : studentOrderMapper.selectList(new LambdaQueryWrapper<StudentOrder>()
+                    .in(StudentOrder::getStudentId, flowStudentIdList)
+                    .eq(StudentOrder::getStatus, StudentOrderStatusEnum.PAID.getValue()))) {
+                BigDecimal unitPrice = orderUnitPrice(order);
+                if (unitPrice == null) {
+                    continue;
+                }
+                String key = order.getStudentId() + "|" + order.getCourseId();
+                fallbackPriceMap.merge(key, unitPrice, BigDecimal::add);
+                fallbackCountMap.merge(key, 1, Integer::sum);
+            }
+            fallbackPriceMap.replaceAll((key, value) -> value.divide(
+                    BigDecimal.valueOf(fallbackCountMap.getOrDefault(key, 1)), 6, RoundingMode.HALF_UP));
+        }
         Map<String, FinanceConsumeDTO> resultMap = new LinkedHashMap<>();
         Map<String, Set<String>> orderIdSetMap = new HashMap<>();
         Map<String, Set<String>> studentIdSetMap = new HashMap<>();
@@ -694,6 +714,7 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
             BigDecimal lessons = nvl(flow.getLessons()).abs();
             boolean isAttend = LessonFlowTypeEnum.ATTEND.getValue().equals(flow.getFlowType());
             boolean isRestore = LessonFlowTypeEnum.RESTORE.getValue().equals(flow.getFlowType());
+            // 退费销课：退回未消耗课时，不计入消课与收入确认
             boolean isRefund = LessonFlowTypeEnum.REFUND.getValue().equals(flow.getFlowType());
             String courseId = flow.getCourseId();
             String coursePackageId = order == null ? null : order.getCoursePackageId();
@@ -709,11 +730,16 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
             } else if (isRestore) {
                 dto.setAttendLessons(dto.getAttendLessons().subtract(lessons));
             }
+            // 收入确认：消课课时 × 订单购买课时单价；回补冲减；
+            // 退费销课退回的是「未消耗」课时，本就未确认收入，不再冲减
             BigDecimal unitPrice = order == null ? null : orderUnitPrice(order);
+            if (unitPrice == null) {
+                unitPrice = fallbackPriceMap.get(flow.getStudentId() + "|" + flow.getCourseId());
+            }
             if (unitPrice != null) {
                 if (isAttend) {
                     dto.setRecognizedAmount(dto.getRecognizedAmount().add(lessons.multiply(unitPrice)));
-                } else if (isRestore || isRefund) {
+                } else if (isRestore) {
                     dto.setRecognizedAmount(dto.getRecognizedAmount().subtract(lessons.multiply(unitPrice)));
                 }
             }

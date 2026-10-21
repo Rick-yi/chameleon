@@ -35,6 +35,7 @@ import vip.xiaonuo.student.modular.student.param.StudentPageParam;
 import vip.xiaonuo.student.modular.student.service.StudentService;
 
 import java.util.List;
+import vip.xiaonuo.common.tenant.TenantCapability;
 import vip.xiaonuo.student.core.service.StudentDataScopeService;
 import jakarta.annotation.Resource;
 
@@ -49,6 +50,9 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
 
     @Resource
     private StudentDataScopeService studentDataScopeService;
+
+    @Resource
+    private TenantCapability tenantCapability;
 
     @Override
     public Page<Student> page(StudentPageParam studentPageParam) {
@@ -88,6 +92,11 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
         Student student = BeanUtil.toBean(studentAddParam, Student.class);
         if (ObjectUtil.isEmpty(student.getStatus())) {
             student.setStatus(StudentStatusEnum.STUDYING.getValue());
+        }
+        // 套餐限额：学员数上限
+        Integer studentLimit = tenantCapability.studentLimit();
+        if (studentLimit != null && this.count() >= studentLimit) {
+            throw new CommonException("当前套餐最多可添加 {} 名学员，已达上限", studentLimit);
         }
         this.save(student);
     }

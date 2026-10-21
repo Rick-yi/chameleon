@@ -32,7 +32,10 @@
 					<a-card :bordered="false"><a-statistic title="本月新增" :value="overview.newTenantCount" suffix="家" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="活跃租户" :value="overview.activeTenantCount" suffix="家" :value-style="{ color: '#52c41a' }" /></a-card>
+					<a-card :bordered="false"><a-statistic title="活跃租户(30天登录)" :value="overview.activeTenantCount" suffix="家" :value-style="{ color: '#52c41a' }" /></a-card>
+				</a-col>
+				<a-col :xs="24" :sm="12" :md="8" :xl="4">
+					<a-card :bordered="false"><a-statistic title="订单活跃租户" :value="overview.orderActiveTenantCount" suffix="家" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
 					<a-card :bordered="false"><a-statistic title="30 天内到期" :value="overview.expiringTenantCount" suffix="家" :value-style="{ color: '#faad14' }" /></a-card>
@@ -109,6 +112,7 @@
 		tenantTotal: 0,
 		newTenantCount: 0,
 		activeTenantCount: 0,
+		orderActiveTenantCount: 0,
 		expiringTenantCount: 0,
 		studentTotal: 0,
 		orderCount: 0,
@@ -223,7 +227,8 @@
 		{ title: '学员数', dataIndex: 'studentCount' },
 		{ title: '订单数', dataIndex: 'orderCount' },
 		{ title: '收款金额', dataIndex: 'paidAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
-		{ title: '最近支付时间', dataIndex: 'lastPayTime' }
+		{ title: '最近支付时间', dataIndex: 'lastPayTime' },
+		{ title: '最近登录时间', dataIndex: 'lastLoginTime' }
 	]
 
 	onMounted(loadAll)

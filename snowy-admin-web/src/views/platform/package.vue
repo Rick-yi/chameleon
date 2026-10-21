@@ -85,6 +85,25 @@
 					</a-form-item>
 				</a-col>
 				<a-col :span="24">
+					<a-form-item label="功能开关" name="funcConfig">
+						<a-space wrap>
+							<a-tag v-for="item in funcOptions" :key="item.value" :color="funcConfig[item.value] ? 'green' : 'default'" :closable="false">
+								{{ item.label }}
+								<a-switch
+									v-model:checked="funcConfig[item.value]"
+									size="small"
+									:checked-children="开"
+									:unchecked-children="关"
+									style="margin-left: 4px"
+								/>
+							</a-tag>
+						</a-space>
+						<div style="color: rgba(0, 0, 0, 0.45); font-size: 12px; margin-top: 6px">
+							关闭后对应模块的菜单不再下发给该租户
+						</div>
+					</a-form-item>
+				</a-col>
+				<a-col :span="24">
 					<a-form-item label="备注" name="remark">
 						<a-input v-model:value="formData.remark" placeholder="请输入备注" allow-clear />
 					</a-form-item>
@@ -100,6 +119,7 @@
 	const tableRef = ref()
 	const formRef = ref()
 	const formData = ref({})
+	const funcConfig = ref({})
 	const open = ref(false)
 	const columns = [
 		{ title: '套餐名称', dataIndex: 'name' },
@@ -118,19 +138,49 @@
 		searchFormState.value = {}
 		tableRef.value.refresh(true)
 	}
+	const funcOptions = [
+		{ value: 'crm', label: '招生' },
+		{ value: 'student', label: '学员' },
+		{ value: 'course', label: '课务' },
+		{ value: 'finance', label: '财务' },
+		{ value: 'report', label: '报表' }
+	]
+	const defaultFuncConfig = () => {
+		const config = {}
+		funcOptions.forEach((item) => (config[item.value] = true))
+		return config
+	}
+	const parseFuncConfig = (raw) => {
+		const config = defaultFuncConfig()
+		if (!raw) return config
+		try {
+			const parsed = JSON.parse(raw)
+			Object.keys(config).forEach((key) => {
+				if (parsed && parsed[key] === false) {
+					config[key] = false
+				}
+			})
+		} catch (e) {
+			// 解析失败时按全开处理
+		}
+		return config
+	}
 	const onOpenAdd = () => {
 		formData.value = { validityDays: 365, sortCode: 1 }
+		funcConfig.value = defaultFuncConfig()
 		open.value = true
 	}
 	const onOpenEdit = (record) => {
 		formData.value = { ...record }
+		funcConfig.value = parseFuncConfig(record.funcConfig)
 		open.value = true
 	}
 	const onSubmit = () => {
 		formRef.value.validate().then(() => {
 			const edit = !!formData.value.id
 			const api = edit ? tenantApi.packageEdit : tenantApi.packageAdd
-			api(formData.value).then(() => {
+			const payload = { ...formData.value, funcConfig: JSON.stringify(funcConfig.value) }
+			api(payload).then(() => {
 				open.value = false
 				tableRef.value.refresh()
 			})

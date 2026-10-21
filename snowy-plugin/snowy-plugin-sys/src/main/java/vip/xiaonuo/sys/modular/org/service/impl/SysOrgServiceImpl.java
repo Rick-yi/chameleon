@@ -36,6 +36,7 @@ import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.listener.CommonDataChangeEventCenter;
 import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.sys.core.enums.SysDataTypeEnum;
+import vip.xiaonuo.common.tenant.TenantCapability;
 import vip.xiaonuo.sys.modular.org.entity.SysOrg;
 import vip.xiaonuo.sys.modular.org.enums.SysOrgCategoryEnum;
 import vip.xiaonuo.sys.modular.org.enums.SysOrgSourceFromTypeEnum;
@@ -79,6 +80,9 @@ public class SysOrgServiceImpl extends ServiceImpl<SysOrgMapper, SysOrg> impleme
 
     @Resource
     private SysOrgExtService sysOrgExtService;
+
+    @Resource
+    private TenantCapability tenantCapability;
 
     @Resource
     private SysRoleService sysRoleService;
@@ -126,6 +130,17 @@ public class SysOrgServiceImpl extends ServiceImpl<SysOrgMapper, SysOrg> impleme
                 .eq(SysOrg::getCode, sysOrg.getCode())) > 0;
         if(repeatCode) {
             throw new CommonException("存在重复的同级组织，编码为：{}", sysOrg.getCode());
+        }
+        // 套餐限额：校区数上限（DEPT 类机构视为校区）
+        if (SysOrgCategoryEnum.DEPT.getValue().equals(sysOrg.getCategory())) {
+            Integer campusLimit = tenantCapability.campusLimit();
+            if (campusLimit != null) {
+                long campusCount = this.count(new LambdaQueryWrapper<SysOrg>()
+                        .eq(SysOrg::getCategory, SysOrgCategoryEnum.DEPT.getValue()));
+                if (campusCount >= campusLimit) {
+                    throw new CommonException("当前套餐最多可开通 {} 个校区，已达上限", campusLimit);
+                }
+            }
         }
         // 保存组织
         this.save(sysOrg);

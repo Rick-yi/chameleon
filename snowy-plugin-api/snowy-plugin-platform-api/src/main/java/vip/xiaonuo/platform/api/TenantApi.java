@@ -61,4 +61,15 @@ public interface TenantApi {
      * @date 2026/10/20 10:00
      **/
     List<String> listActiveTenantIds();
+
+    /**
+     * 记录租户登录（用于平台活跃租户统计）
+     *
+     * @param tenantId 租户id
+     * @param userId   用户id
+     * @param account  账号
+     * @author 会飞的猪
+     * @date 2026/10/21 11:00
+     **/
+    void recordLogin(String tenantId, String userId, String account);
 }

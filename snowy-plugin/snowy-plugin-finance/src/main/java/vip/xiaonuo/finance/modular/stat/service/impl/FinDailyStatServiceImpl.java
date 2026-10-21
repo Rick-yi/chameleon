@@ -91,7 +91,7 @@ public class FinDailyStatServiceImpl implements FinDailyStatService {
         // 课消金额（权责口径）：消课 × 订单购买课时单价，退费销课与回补为负
         MapWrapper recognizedStat = queryOne(
                 "SELECT COALESCE(SUM(CASE WHEN f.`FLOW_TYPE` = 'ATTEND' THEN ABS(f.`LESSONS`) * (o.`PAID_AMOUNT` / NULLIF(o.`PACKAGE_LESSONS`,0)) "
-                        + "WHEN f.`FLOW_TYPE` IN ('RESTORE','REFUND') THEN -ABS(f.`LESSONS`) * (o.`PAID_AMOUNT` / NULLIF(o.`PACKAGE_LESSONS`,0)) "
+                        + "WHEN f.`FLOW_TYPE` = 'RESTORE' THEN -ABS(f.`LESSONS`) * (o.`PAID_AMOUNT` / NULLIF(o.`PACKAGE_LESSONS`,0)) "
                         + "ELSE 0 END),0) AS `RECOGNIZED_AMOUNT` "
                         + "FROM `STUDENT_LESSON_FLOW` f "
                         + "JOIN `STUDENT_ORDER` o ON o.`ID` = f.`REF_ORDER_ID` AND o.`TENANT_ID` = f.`TENANT_ID` AND o.`DELETE_FLAG` = 'NOT_DELETE' "

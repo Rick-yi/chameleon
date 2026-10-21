@@ -72,7 +72,12 @@ public class PlatformReportServiceImpl implements PlatformReportService {
         overview.setNewTenantCount(queryLong("SELECT COUNT(*) FROM T_TENANT "
                         + "WHERE ID <> ? AND DELETE_FLAG = ? AND CREATE_TIME >= ?",
                 PLATFORM_TENANT_ID, NOT_DELETE, DateUtil.beginOfMonth(new Date())));
-        overview.setActiveTenantCount(queryLong("SELECT COUNT(DISTINCT TENANT_ID) FROM STUDENT_ORDER "
+        // 活跃租户：近 30 天有登录记录
+        overview.setActiveTenantCount(queryLong("SELECT COUNT(DISTINCT TENANT_ID) FROM T_TENANT_LOGIN "
+                        + "WHERE TENANT_ID <> ? AND DELETE_FLAG = ? AND LOGIN_TIME >= ?",
+                PLATFORM_TENANT_ID, NOT_DELETE, DateUtil.offsetDay(new Date(), -30)));
+        // 订单活跃租户：近 30 天有已支付订单
+        overview.setOrderActiveTenantCount(queryLong("SELECT COUNT(DISTINCT TENANT_ID) FROM STUDENT_ORDER "
                         + "WHERE TENANT_ID <> ? AND DELETE_FLAG = ? AND STATUS IN ('PAID','REFUNDED') "
                         + "AND COALESCE(PAY_TIME, CREATE_TIME) >= ?",
                 PLATFORM_TENANT_ID, NOT_DELETE, DateUtil.offsetDay(new Date(), -30)));
@@ -209,6 +214,14 @@ public class PlatformReportServiceImpl implements PlatformReportService {
                 dto.setStudentCount(toLong(row.get("CNT")));
             }
         }
+        // 各租户最近登录时间
+        Map<String, Date> lastLoginMap = new HashMap<>();
+        for (Map<String, Object> row : jdbcTemplate.queryForList(
+                "SELECT TENANT_ID, MAX(LOGIN_TIME) AS LAST_LOGIN_TIME FROM T_TENANT_LOGIN "
+                        + "WHERE DELETE_FLAG = ? AND TENANT_ID <> ? GROUP BY TENANT_ID",
+                NOT_DELETE, PLATFORM_TENANT_ID)) {
+            lastLoginMap.put(String.valueOf(row.get("TENANT_ID")), toDate(row.get("LAST_LOGIN_TIME")));
+        }
         for (Map<String, Object> row : jdbcTemplate.queryForList(
                 "SELECT TENANT_ID, COUNT(*) AS CNT, COALESCE(SUM(PAID_AMOUNT),0) AS AMT, "
                         + "MAX(PAY_TIME) AS LAST_PAY_TIME FROM STUDENT_ORDER "
@@ -219,6 +232,7 @@ public class PlatformReportServiceImpl implements PlatformReportService {
                 dto.setOrderCount(toLong(row.get("CNT")));
                 dto.setPaidAmount(toBigDecimal(row.get("AMT")));
                 dto.setLastPayTime(toDate(row.get("LAST_PAY_TIME")));
+                dto.setLastLoginTime(lastLoginMap.get(dto.getTenantId()));
             }
         }
         List<PlatformTenantRankDTO> resultList = new ArrayList<>(rankMap.values());
@@ -240,7 +254,8 @@ public class PlatformReportServiceImpl implements PlatformReportService {
                 PlatformOverviewDTO dto = overview();
                 rowList.add(List.of("租户总数", String.valueOf(dto.getTenantTotal())));
                 rowList.add(List.of("本月新增租户", String.valueOf(dto.getNewTenantCount())));
-                rowList.add(List.of("活跃租户(30天)", String.valueOf(dto.getActiveTenantCount())));
+                rowList.add(List.of("活跃租户(30天,登录口径)", String.valueOf(dto.getActiveTenantCount())));
+                rowList.add(List.of("订单活跃租户(30天)", String.valueOf(dto.getOrderActiveTenantCount())));
                 rowList.add(List.of("30天内到期租户", String.valueOf(dto.getExpiringTenantCount())));
                 rowList.add(List.of("学员总数", String.valueOf(dto.getStudentTotal())));
                 rowList.add(List.of("订单总数", String.valueOf(dto.getOrderCount())));
