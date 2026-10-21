@@ -19,6 +19,7 @@ import vip.xiaonuo.student.modular.studentorder.param.StudentOrderIdParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderOfflinePayParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPageParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPayCallbackParam;
+import vip.xiaonuo.student.modular.studentorder.param.StudentOrderRenewParam;
 
 import java.util.List;
 
@@ -35,6 +36,9 @@ public interface StudentOrderService {
 
     /** 报名下单（课包快照，防重复下单） */
     String add(StudentOrderAddParam studentOrderAddParam);
+
+    /** 续费：下单 + 收款一次完成，返回订单id */
+    String renew(StudentOrderRenewParam studentOrderRenewParam);
 
     /** 支付回调（v1 对接微信支付后使用；当前仅保留联调入口） */
     void payCallback(StudentOrderPayCallbackParam studentOrderPayCallbackParam);

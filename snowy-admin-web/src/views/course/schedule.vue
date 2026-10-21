@@ -9,7 +9,7 @@
 			<a-select v-model:value="searchFormState.teacherId" placeholder="全部教师" :options="teacherOptions" allow-clear style="width: 160px" show-search option-filter-prop="label" @change="loadWeek" />
 			<a-input v-model:value="searchFormState.classroom" placeholder="教室" allow-clear style="width: 120px" @pressEnter="loadWeek" />
 			<div style="margin-left: auto; display: flex; gap: 8px">
-				<a-button @click="generateOpen = true">⚙ 批量生成</a-button>
+				<a-button @click="onOpenGenerate">⚙ 批量生成</a-button>
 				<a-button type="primary" @click="onOpenAdd">＋ 手动排课</a-button>
 			</div>
 		</div>
@@ -109,6 +109,23 @@
 			<a-form-item label="生成周数" name="weekCount" :rules="[{ required: true, message: '请输入生成周数' }]">
 				<a-input-number v-model:value="generateFormData.weekCount" :min="1" :max="26" style="width: 100%" />
 			</a-form-item>
+			<a-form-item label="固定课表">
+				<div style="width: 100%">
+					<template v-if="currentTemplate.length">
+						<div v-for="(item, index) in currentTemplate" :key="index" style="font-size: 12px; color: rgba(0,0,0,.65); margin-bottom: 2px">
+							周{{ '一二三四五六日'[item.dayOfWeek - 1] }} {{ item.startTime }}-{{ item.endTime }}
+							<span v-if="item.classroom"> · {{ item.classroom }}</span>
+						</div>
+						<div style="font-size: 12px; color: rgba(0,0,0,.45); margin-top: 4px">
+							未填教室/教师的时段自动沿用班级默认设置
+						</div>
+					</template>
+					<a-alert v-else type="warning" show-icon message="该班级还没有固定课表，请先到「班级管理」配置" />
+				</div>
+			</a-form-item>
+			<a-form-item v-if="generateRangeLabel" label="生成区间">
+				<span>{{ generateRangeLabel }}</span>
+			</a-form-item>
 			<a-alert
 				v-if="generateResult"
 				:type="generateResult.conflicts && generateResult.conflicts.length ? 'warning' : 'success'"
@@ -174,9 +191,10 @@
 </template>
 
 <script setup name="courseSchedule">
-	import { useRouter } from 'vue-router'
+	import { useRoute, useRouter } from 'vue-router'
 	import courseApi from '@/api/course/courseApi'
 	const router = useRouter()
+	const route = useRoute()
 	const attendText = (status) => ({ NONE: '待点名', PARTIAL: '部分点名', DONE: '已点名' }[status] || '待点名')
 	const attendColor = (status) => ({ NONE: 'orange', PARTIAL: 'gold', DONE: 'green' }[status] || 'default')
 	const goAttend = (record) => {
@@ -185,6 +203,7 @@
 
 	const searchFormState = ref({})
 	const classOptions = ref([])
+	const classRecords = ref([])
 	const teacherOptions = ref([])
 	const scheduleList = ref([])
 	const scheduleMap = ref({})
@@ -319,9 +338,32 @@
 
 	const loadClasses = () => {
 		courseApi.classPage({ current: 1, size: 200 }).then((data) => {
-			classOptions.value = (data.records || []).map((item) => ({ value: item.id, label: item.name }))
+			classRecords.value = data.records || []
+			classOptions.value = classRecords.value.map((item) => ({ value: item.id, label: item.name }))
 		})
 	}
+	// 当前班级的固定课表（生成弹窗展示）
+	const currentTemplate = computed(() => {
+		const cls = classRecords.value.find((item) => item.id === generateFormData.value.classId)
+		if (!cls || !cls.weekTemplateJson) return []
+		try {
+			const list = typeof cls.weekTemplateJson === 'string' ? JSON.parse(cls.weekTemplateJson) : cls.weekTemplateJson
+			return Array.isArray(list) ? list : []
+		} catch (e) {
+			return []
+		}
+	})
+	// 生成区间（周一 ~ 结束日）
+	const generateRangeLabel = computed(() => {
+		if (!generateFormData.value.startDate || !generateFormData.value.weekCount) return ''
+		const start = new Date(generateFormData.value.startDate.replace(/-/g, '/'))
+		if (isNaN(start.getTime())) return ''
+		const day = (start.getDay() + 6) % 7
+		const monday = new Date(start.getFullYear(), start.getMonth(), start.getDate() - day)
+		const end = new Date(monday)
+		end.setDate(monday.getDate() + generateFormData.value.weekCount * 7 - 1)
+		return `${fmtDate(monday)} ~ ${fmtDate(end)}（共 ${generateFormData.value.weekCount} 周）`
+	})
 	const loadTeachers = () => {
 		courseApi.teacherOptions({}).then((data) => {
 			teacherOptions.value = data || []
@@ -369,6 +411,14 @@
 			})
 		})
 	}
+	const onOpenGenerate = () => {
+		generateFormData.value = {
+			classId: searchFormState.value.classId || generateFormData.value.classId,
+			startDate: generateFormData.value.startDate || fmtDate(monday.value),
+			weekCount: generateFormData.value.weekCount || 4
+		}
+		generateOpen.value = true
+	}
 	const onPreviewGenerate = () => doGenerate(true)
 	const onSubmitGenerate = () => doGenerate(false)
 
@@ -404,6 +454,10 @@
 	const now = new Date()
 	const day = (now.getDay() + 6) % 7
 	monday.value = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day)
+	// 支持从「班级管理」带班级 id 过来（点「去生成排课」）
+	if (route.query.classId) {
+		searchFormState.value.classId = route.query.classId
+	}
 	loadClasses()
 	loadTeachers()
 	buildWeek()

@@ -55,6 +55,8 @@
 					<a-space>
 						<a @click="onOpenStudent(record)">学员</a>
 						<a-divider type="vertical" />
+						<a @click="goSchedule(record)">排课</a>
+						<a-divider type="vertical" />
 						<a @click="onOpenEdit(record)">编辑</a>
 						<a-divider type="vertical" />
 						<a-popconfirm title="确定要删除吗？" @confirm="onDelete(record)">
@@ -168,8 +170,10 @@
 </template>
 
 <script setup name="courseClass">
+	import { useRouter } from 'vue-router'
 	import courseApi from '@/api/course/courseApi'
 	import studentApi from '@/api/student/studentApi'
+	const router = useRouter()
 	const searchFormState = ref({})
 	const tableRef = ref()
 	const formRef = ref()
@@ -288,6 +292,9 @@
 	}
 	const onDelete = (record) => {
 		courseApi.classDelete([{ id: record.id }]).then(() => tableRef.value.refresh())
+	}
+	const goSchedule = (record) => {
+		router.push({ path: '/course/schedule', query: { classId: record.id } })
 	}
 	const onOpenStudent = (record) => {
 		currentClass.value = record

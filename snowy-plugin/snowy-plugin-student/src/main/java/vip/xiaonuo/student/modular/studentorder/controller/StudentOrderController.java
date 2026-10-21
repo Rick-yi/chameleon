@@ -29,6 +29,7 @@ import vip.xiaonuo.student.modular.studentorder.param.StudentOrderIdParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderOfflinePayParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPageParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPayCallbackParam;
+import vip.xiaonuo.student.modular.studentorder.param.StudentOrderRenewParam;
 import vip.xiaonuo.student.modular.studentorder.service.StudentOrderService;
 
 import javax.validation.Valid;
@@ -70,6 +71,19 @@ public class StudentOrderController {
     @PostMapping("/student/order/add")
     public CommonResult<String> add(@RequestBody @Valid StudentOrderAddParam studentOrderAddParam) {
         return CommonResult.data(studentOrderService.add(studentOrderAddParam));
+    }
+
+    /**
+     * 续费（下单 + 收款一次完成）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     */
+    @Operation(summary = "续费：下单并收款")
+    @CommonLog("学员续费")
+    @PostMapping("/student/order/renew")
+    public CommonResult<String> renew(@RequestBody @Valid StudentOrderRenewParam studentOrderRenewParam) {
+        return CommonResult.data(studentOrderService.renew(studentOrderRenewParam));
     }
 
     /**

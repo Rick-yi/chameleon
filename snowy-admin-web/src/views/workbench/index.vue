@@ -166,11 +166,11 @@
 							</div>
 						</template>
 						<template #extra>
-							<a @click="go({ path: '/finance' })">财务 ›</a>
+							<a @click="go({ path: '/student/order' })">收款台 ›</a>
 						</template>
 						<a-empty v-if="!todayPaidList.length" description="今天还没有收款" :image="simpleImage" />
 						<ul v-else class="wb-list">
-							<li v-for="item in todayPaidList" :key="item.id" @click="go({ path: '/finance' })">
+							<li v-for="item in todayPaidList" :key="item.id" @click="go({ path: '/student/order' })">
 								<div class="wb-list-main">
 									<span class="wb-list-title">{{ item.studentName || '学员' }}</span>
 									<span class="wb-list-sub">{{ item.packageName }}</span>

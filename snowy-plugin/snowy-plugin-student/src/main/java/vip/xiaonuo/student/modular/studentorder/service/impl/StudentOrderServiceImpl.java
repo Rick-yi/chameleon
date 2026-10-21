@@ -40,6 +40,7 @@ import vip.xiaonuo.student.modular.studentorder.param.StudentOrderIdParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderOfflinePayParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPageParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPayCallbackParam;
+import vip.xiaonuo.student.modular.studentorder.param.StudentOrderRenewParam;
 import vip.xiaonuo.student.modular.studentorder.service.StudentOrderService;
 
 import java.util.HashMap;
@@ -178,6 +179,26 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
             throw new CommonException("学员【{}】已有该课包的待支付订单", student.getName());
         }
         return order.getId();
+    }
+
+    /**
+     * 续费：下单 + 收款在同一事务内完成
+     * <p>
+     * 避免「已下单未收款」留下半截订单；课时入账后学员的续费预警自动置为已续费。
+     * </p>
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public String renew(StudentOrderRenewParam studentOrderRenewParam) {
+        StudentOrderAddParam addParam = new StudentOrderAddParam();
+        addParam.setStudentId(studentOrderRenewParam.getStudentId());
+        addParam.setCoursePackageId(studentOrderRenewParam.getCoursePackageId());
+        addParam.setPayChannel(studentOrderRenewParam.getPayChannel());
+        String orderId = this.add(addParam);
+        // 线下流水号：续费单号 + 时间戳，保证同一订单只入账一次
+        String tradeNo = "RENEW_" + orderId + "_" + System.currentTimeMillis();
+        this.markPaid(orderId, tradeNo, studentOrderRenewParam.getPaidAmount(), studentOrderRenewParam.getPayChannel());
+        return orderId;
     }
 
     @Transactional(rollbackFor = Exception.class)

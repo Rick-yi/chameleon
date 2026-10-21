@@ -204,8 +204,11 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                 LocalDate date = monday.plusWeeks(week).plusDays(dayOfWeek - 1);
                 LocalTime startTime = LocalTime.parse(template.getStr("startTime"));
                 LocalTime endTime = LocalTime.parse(template.getStr("endTime"));
-                String classroom = template.getStr("classroom");
-                String teacherId = template.getStr("teacherId");
+                // 课表模板未填教室/教师时，回退到班级默认配置
+                String classroom = ObjectUtil.isNotEmpty(template.getStr("classroom"))
+                        ? template.getStr("classroom") : courseClass.getClassroom();
+                String teacherId = ObjectUtil.isNotEmpty(template.getStr("teacherId"))
+                        ? template.getStr("teacherId") : courseClass.getTeacherId();
                 Date scheduleDate = Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
                 plannedCount++;
                 // 幂等：与已有排课完全一致时跳过，不重复生成

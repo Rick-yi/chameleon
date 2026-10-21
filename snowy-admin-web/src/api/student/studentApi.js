@@ -47,6 +47,10 @@ export default {
 	orderCancel(data) {
 		return request('order/cancel', data)
 	},
+	// 续费（下单 + 收款一次完成）
+	orderRenew(data) {
+		return request('order/renew', data)
+	},
 	// 课时账户
 	lessonAccountPage(data) {
 		return request('lessonAccount/page', data, 'get')

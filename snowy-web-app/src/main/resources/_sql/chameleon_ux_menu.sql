@@ -36,6 +36,10 @@ WHERE r.`CODE` = 'superAdmin'
       WHERE s.`OBJECT_ID` = r.`ID` AND s.`TARGET_ID` = m.`ID` AND s.`CATEGORY` = 'SYS_ROLE_HAS_RESOURCE'
   );
 
--- 4. 兼容历史数据：关系行补租户（未授权角色仍需手动在「角色授权」中勾选）
+-- 4. 菜单去重：「财务收款」与「收款台」功能重复，统一收敛到「收款台」，经营报表在「报表中心 · 财务报表」
+DELETE FROM `SYS_RELATION` WHERE `TARGET_ID` = 'menu_finance_001' AND `CATEGORY` = 'SYS_ROLE_HAS_RESOURCE';
+DELETE FROM `SYS_RESOURCE` WHERE `ID` = 'menu_finance_001';
+
+-- 5. 兼容历史数据：关系行补租户（未授权角色仍需手动在「角色授权」中勾选）
 UPDATE `SYS_RELATION` SET `TENANT_ID` = (SELECT `ID` FROM `T_TENANT` ORDER BY `CREATE_TIME` LIMIT 1)
 WHERE `ID` LIKE 'rel_ux_%' AND (`TENANT_ID` IS NULL OR `TENANT_ID` = '');
