@@ -102,6 +102,10 @@ export default {
 	teacherOptions(data) {
 		return request('schedule/teacherOptions', data, 'get')
 	},
+	// 导出课表（Excel：课表清单 + 周视图）
+	scheduleExport(data) {
+		return request('schedule/export', data, 'get', { responseType: 'blob' })
+	},
 	// 点名
 	attendPage(data) {
 		return request('attend/page', data, 'get')

@@ -16,6 +16,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletResponse;
 import cn.hutool.json.JSONObject;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +24,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.io.IOException;
 import vip.xiaonuo.common.annotation.CommonLog;
 import vip.xiaonuo.common.pojo.CommonResult;
 import vip.xiaonuo.course.api.dto.CourseScheduleViewDTO;
@@ -34,6 +37,7 @@ import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleGeneratePar
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleIdParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseSchedulePageParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleWeekParam;
+import vip.xiaonuo.course.modular.courseschedule.service.CourseScheduleExportService;
 import vip.xiaonuo.course.modular.courseschedule.service.CourseScheduleService;
 
 import javax.validation.Valid;
@@ -52,6 +56,9 @@ public class CourseScheduleController {
 
     @Resource
     private CourseScheduleService courseScheduleService;
+
+    @Resource
+    private CourseScheduleExportService courseScheduleExportService;
 
     /**
      * 获取排课分页（周视图）
@@ -117,13 +124,23 @@ public class CourseScheduleController {
     }
 
     /**
+     * 导出课表（Excel：课表清单 + 周视图）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     */
+    @Operation(summary = "导出课表")
+    @GetMapping("/course/schedule/export")
+    public void export(CourseScheduleWeekParam courseScheduleWeekParam, HttpServletResponse response) throws IOException {
+        courseScheduleExportService.export(courseScheduleWeekParam, response);
+    }
+
+    /**
      * 调课
      *
      * @author 会飞的猪
      * @date 2026/10/20 10:00
      */
-    @Operation(summary = "调课")
-    @CommonLog("调课")
     @PostMapping("/course/schedule/change")
     public CommonResult<String> change(@RequestBody @Valid CourseScheduleChangeParam courseScheduleChangeParam) {
         courseScheduleService.change(courseScheduleChangeParam);

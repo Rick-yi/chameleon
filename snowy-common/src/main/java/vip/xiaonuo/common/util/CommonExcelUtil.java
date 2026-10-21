@@ -13,8 +13,10 @@
 package vip.xiaonuo.common.util;
 
 import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.ExcelWriter;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -44,5 +46,57 @@ public class CommonExcelUtil {
                 .head(headList)
                 .sheet(sheetName)
                 .doWrite(rowList);
+    }
+
+    /**
+     * 写出多工作表 Excel（动态表头）
+     *
+     * @param file   目标文件
+     * @param sheets 工作表数据（按顺序写入）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    public static void writeMulti(File file, List<Sheet> sheets) {
+        try (ExcelWriter writer = EasyExcel.write(file).build()) {
+            int index = 0;
+            for (Sheet sheet : sheets) {
+                writer.write(sheet.getRowList(),
+                        EasyExcel.writerSheet(index++, sheet.getSheetName()).head(sheet.getHeadList()).build());
+            }
+        }
+    }
+
+    /**
+     * 工作表数据
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    public static class Sheet {
+        /** 工作表名 */
+        private final String sheetName;
+        /** 表头 */
+        private final List<List<String>> headList;
+        /** 行数据 */
+        private final List<List<String>> rowList;
+
+        public Sheet(String sheetName, List<List<String>> headList, List<List<String>> rowList) {
+            this.sheetName = sheetName;
+            this.headList = headList;
+            this.rowList = rowList == null ? new ArrayList<>() : rowList;
+        }
+
+        public String getSheetName() {
+            return sheetName;
+        }
+
+        public List<List<String>> getHeadList() {
+            return headList;
+        }
+
+        public List<List<String>> getRowList() {
+            return rowList;
+        }
     }
 }

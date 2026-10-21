@@ -108,28 +108,7 @@
 				</a-col>
 				<a-col :span="24">
 					<a-form-item label="每周固定课表">
-						<div style="width: 100%">
-							<div
-								v-for="(item, index) in weekTemplate"
-								:key="index"
-								style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap"
-							>
-								<a-select v-model:value="item.dayOfWeek" style="width: 110px" :options="weekDayOptions" />
-								<a-time-picker v-model:value="item.startTime" format="HH:mm" value-format="HH:mm" style="width: 110px" />
-								<span>至</span>
-								<a-time-picker v-model:value="item.endTime" format="HH:mm" value-format="HH:mm" style="width: 110px" />
-								<a-input v-model:value="item.classroom" placeholder="教室" style="width: 120px" allow-clear />
-								<a-input v-model:value="item.teacherId" placeholder="教师（可选）" style="width: 150px" allow-clear />
-								<a-button type="link" danger size="small" @click="removeTemplate(index)">删除</a-button>
-							</div>
-							<a-button type="dashed" block @click="addTemplate">
-								<template #icon><plus-outlined /></template>
-								添加上课时段
-							</a-button>
-							<div style="color: rgba(0,0,0,.45); font-size: 12px; margin-top: 6px">
-								固定课表用于「批量生成」排课：按周几 + 时段自动展开未来 N 周的排课
-							</div>
-						</div>
+						<week-template-editor ref="templateEditorRef" :model-value="weekTemplate" />
 					</a-form-item>
 				</a-col>
 			</a-row>
@@ -184,15 +163,7 @@
 	const campusOptions = ref([])
 	const teacherOptions = ref([])
 	const weekTemplate = ref([])
-	const weekDayOptions = [
-		{ value: 1, label: '周一' },
-		{ value: 2, label: '周二' },
-		{ value: 3, label: '周三' },
-		{ value: 4, label: '周四' },
-		{ value: 5, label: '周五' },
-		{ value: 6, label: '周六' },
-		{ value: 7, label: '周日' }
-	]
+	const templateEditorRef = ref()
 	const studentOpen = ref(false)
 	const studentTableRef = ref()
 	const currentClass = ref({})
@@ -254,12 +225,6 @@
 			})
 			.catch(() => (teacherOptions.value = []))
 	}
-	const addTemplate = () => {
-		weekTemplate.value.push({ dayOfWeek: 1, startTime: '09:00', endTime: '10:30', classroom: '', teacherId: '' })
-	}
-	const removeTemplate = (index) => {
-		weekTemplate.value.splice(index, 1)
-	}
 	const parseTemplate = (json) => {
 		if (!json) return []
 		try {
@@ -283,7 +248,8 @@
 		formRef.value.validate().then(() => {
 			const edit = !!formData.value.id
 			const api = edit ? courseApi.classEdit : courseApi.classAdd
-			const body = { ...formData.value, weekTemplateJson: JSON.stringify(weekTemplate.value || []) }
+			const weekTemplateValue = templateEditorRef.value ? templateEditorRef.value.getValue() : weekTemplate.value
+			const body = { ...formData.value, weekTemplateJson: JSON.stringify(weekTemplateValue || []) }
 			api(body).then(() => {
 				open.value = false
 				tableRef.value.refresh()
