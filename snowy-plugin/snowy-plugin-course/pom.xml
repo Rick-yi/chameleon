@@ -44,5 +44,17 @@
             <groupId>vip.xiaonuo</groupId>
             <artifactId>snowy-plugin-platform-api</artifactId>
         </dependency>
+
+        <!-- 业务中台接口（自动化规则 SPI） -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-biz-api</artifactId>
+        </dependency>
+
+        <!-- 开发工具接口（站内信通知） -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-dev-api</artifactId>
+        </dependency>
     </dependencies>
 </project>

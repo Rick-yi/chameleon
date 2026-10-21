@@ -201,7 +201,8 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
         boolean leaveDeduct = Boolean.TRUE.equals(course.getLeaveDeduct());
         BigDecimal lessonsPerClass = ObjectUtil.isNotEmpty(course.getLessonsPerClass())
                 ? course.getLessonsPerClass() : BigDecimal.ONE;
-        String loginUserId = StpUtil.getLoginIdAsString();
+        // 自动化任务触发时没有登录态，用系统操作人兜底
+        String loginUserId = StpUtil.isLogin() ? StpUtil.getLoginIdAsString() : "-1";
         // 已点名学员（唯一索引幂等，跳过重复）
         List<String> itemStudentIdList = courseClassAttendConfirmParam.getAttendList().stream()
                 .map(CourseClassAttendItemParam::getStudentId).collect(Collectors.toList());

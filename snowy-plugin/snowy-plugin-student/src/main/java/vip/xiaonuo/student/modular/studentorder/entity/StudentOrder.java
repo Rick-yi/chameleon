@@ -114,6 +114,10 @@ public class StudentOrder extends CommonEntity {
     @Schema(description = "已退课时")
     private BigDecimal refundedLessons;
 
+    /** 最近提醒时间（自动化：未支付订单提醒） */
+    @Schema(description = "最近提醒时间")
+    private java.util.Date lastNotifyTime;
+
     /** 状态 */
     @Schema(description = "状态(待支付/已支付/已退费/已取消)")
     private String status;

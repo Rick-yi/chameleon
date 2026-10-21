@@ -71,6 +71,7 @@ CREATE TABLE `STUDENT_ORDER`  (
   `CONSUMED_LESSONS` decimal(10,2) NULL DEFAULT 0.00 COMMENT '已消耗课时(按订单先进先出分摊，含赠课)',
   `REFUNDED_LESSONS` decimal(10,2) NULL DEFAULT 0.00 COMMENT '已退课时(不含赠课)',
   `STATUS` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '状态(待支付/已支付/已退费/已取消)',
+  `LAST_NOTIFY_TIME` datetime NULL DEFAULT NULL COMMENT '最近提醒时间(自动化：未支付订单提醒)',
   `UNPAID_FLAG` tinyint GENERATED ALWAYS AS (CASE WHEN `STATUS` = 'UNPAID' THEN 1 ELSE NULL END) STORED COMMENT '待支付标记(同一学员同课包只允许一张待支付订单)',
   `DELETE_FLAG` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '删除标志',
   `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',

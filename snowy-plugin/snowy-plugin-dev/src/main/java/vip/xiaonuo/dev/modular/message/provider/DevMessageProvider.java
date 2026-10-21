@@ -55,7 +55,7 @@ public class DevMessageProvider implements DevMessageApi {
 
     @Override
     public void sendMessage(List<String> receiverIdList, String subject, String content) {
-        this.sendMessageWithContent(receiverIdList, subject, null);
+        this.sendMessageWithContent(receiverIdList, subject, content);
     }
 
     @Override

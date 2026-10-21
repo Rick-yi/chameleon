@@ -27,6 +27,12 @@
             <artifactId>snowy-plugin-auth-api</artifactId>
         </dependency>
 
+        <!-- 引入平台运营接口（自动化任务需按租户逐个执行） -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-platform-api</artifactId>
+        </dependency>
+
         <!-- 引入系统接口，用于授权角色等功能 -->
         <dependency>
             <groupId>vip.xiaonuo</groupId>

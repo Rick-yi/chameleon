@@ -21,11 +21,14 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vip.xiaonuo.common.enums.CommonSortOrderEnum;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
+import vip.xiaonuo.biz.api.automation.BizAutomationApi;
+import vip.xiaonuo.crm.core.automation.AutoAssignLeadHandler;
 import vip.xiaonuo.crm.modular.lead.entity.CrmLead;
 import vip.xiaonuo.crm.modular.lead.enums.CrmLeadStatusEnum;
 import vip.xiaonuo.crm.modular.lead.mapper.CrmLeadMapper;
@@ -50,6 +53,7 @@ import java.util.stream.Collectors;
  * @author 会飞的猪
  * @date 2026/10/20 10:00
  **/
+@Slf4j
 @Service
 public class CrmLeadServiceImpl extends ServiceImpl<CrmLeadMapper, CrmLead> implements CrmLeadService {
 
@@ -58,6 +62,14 @@ public class CrmLeadServiceImpl extends ServiceImpl<CrmLeadMapper, CrmLead> impl
 
     @Resource
     private BizEventApi bizEventApi;
+
+    /** 自动化规则API（判断自动化规则是否开启） */
+    @Resource
+    private BizAutomationApi bizAutomationApi;
+
+    /** 线索自动分配执行器 */
+    @Resource
+    private AutoAssignLeadHandler autoAssignLeadHandler;
 
     @Override
     public Page<CrmLead> page(CrmLeadPageParam crmLeadPageParam) {
@@ -124,6 +136,14 @@ public class CrmLeadServiceImpl extends ServiceImpl<CrmLeadMapper, CrmLead> impl
         CrmLead crmLead = BeanUtil.toBean(crmLeadAddParam, CrmLead.class);
         crmLead.setStatus(CrmLeadStatusEnum.NEW.getValue());
         this.save(crmLead);
+        // 自动化规则「线索自动分配」：没有指定跟进人时自动分给在跟线索最少的顾问
+        if (StrUtil.isBlank(crmLead.getFollowUserId()) && bizAutomationApi.isEnabled(AutoAssignLeadHandler.RULE_CODE)) {
+            try {
+                autoAssignLeadHandler.assign(crmLead, bizAutomationApi.getParam(AutoAssignLeadHandler.RULE_CODE, "excludeUserName", ""));
+            } catch (Exception e) {
+                log.warn(">>> 线索自动分配失败：{}", e.getMessage());
+            }
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)

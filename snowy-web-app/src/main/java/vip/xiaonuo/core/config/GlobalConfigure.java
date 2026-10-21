@@ -123,7 +123,8 @@ public class GlobalConfigure implements WebMvcConfigurer {
             "STUDENT", "STUDENT_PARENT_BIND", "STUDENT_ORDER", "STUDENT_LESSON_ACCOUNT",
             "STUDENT_LESSON_FLOW", "STUDENT_REFUND", "STUDENT_RENEW_WARN", "NOTIFY_LOG",
             "FIN_DAILY_STAT",
-            "CRM_LEAD", "CRM_LEAD_FOLLOW", "CRM_TRIAL_APPOINTMENT");
+            "CRM_LEAD", "CRM_LEAD_FOLLOW", "CRM_TRIAL_APPOINTMENT",
+            "BIZ_AUTOMATION_CONFIG", "BIZ_AUTOMATION_LOG");
 
     /**
      * 无需登录的接口地址集合
