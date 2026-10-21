@@ -38,6 +38,14 @@ public interface DevDictService extends IService<DevDict> {
     void refreshTransCache();
 
     /**
+     * 同步刷新字典缓存（切换租户时使用，避免读到其他租户的字典标签）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    void refreshTransCacheSync();
+
+    /**
      * 获取字典分页
      *
      * @author xuyuxiang

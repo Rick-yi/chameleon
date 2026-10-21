@@ -223,7 +223,34 @@ public class DevDictServiceImpl extends ServiceImpl<DevDictMapper, DevDict> impl
     @Override
     public void refreshTransCache() {
         // 异步不阻塞主线程，不会 增加启动用时
-        CompletableFuture.supplyAsync(() -> {
+        CompletableFuture.supplyAsync(() -> refreshTransCacheNow()).exceptionally(e -> {
+            log.error("刷新字典缓存失败", e);
+            throw new CommonException("刷新字典缓存失败");
+        });
+    }
+
+    /**
+     * 同步刷新字典缓存
+     * <p>
+     * 切换租户时使用：先同步刷新再渲染，避免多租户同时在线时读到其他租户的字典标签。
+     * </p>
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    @Override
+    public void refreshTransCacheSync() {
+        refreshTransCacheNow();
+    }
+
+    /**
+     * 构建并写入字典缓存
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private Object refreshTransCacheNow() {
+        {
             // 使用redis能解决共享问题，但是性能没有直接取缓存的好。
             dictionaryTransService.makeUseRedis();
             List<DevDict> devDictList = super.list(new LambdaQueryWrapper<>());
@@ -242,10 +269,7 @@ public class DevDictServiceImpl extends ServiceImpl<DevDictMapper, DevDict> impl
                 }
             }
             return null;
-        }).exceptionally(e -> {
-            log.error("刷新字典缓存失败", e);
-            throw new CommonException("刷新字典缓存失败");
-        });
+        }
     }
 
     @Override

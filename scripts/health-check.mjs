@@ -36,7 +36,7 @@ const call = async (method, path, body, token, headers = {}) => {
 			method,
 			headers: { 'Content-Type': 'application/json', ...(token ? { token } : {}), ...headers },
 			body: body ? JSON.stringify(body) : undefined,
-			signal: AbortSignal.timeout(20000)
+			signal: AbortSignal.timeout(30000)
 		})
 		const text = await res.text()
 		let json = null

@@ -175,7 +175,25 @@
 		{ title: '联系人', dataIndex: 'contactName' },
 		{ title: '联系电话', dataIndex: 'contactPhone' },
 		{ title: '套餐', dataIndex: 'packageId', customRender: ({ record }) => packageName(record.packageId) },
+		{
+			title: '套餐限额',
+			dataIndex: 'studentLimit',
+			customRender: ({ record }) =>
+				record.studentLimit ? `学员 ${record.studentLimit} / 校区 ${record.campusLimit ?? '-'}` : '不限'
+		},
 		{ title: '到期时间', dataIndex: 'expireTime' },
+		{
+			title: '剩余天数',
+			dataIndex: 'expireDays',
+			customRender: ({ record }) => {
+				if (record.expireDays === null || record.expireDays === undefined) return '-'
+				return record.expireDays < 0 ? `已过期 ${Math.abs(record.expireDays)} 天` : `${record.expireDays} 天`
+			}
+		},
+		{ title: '学员数', dataIndex: 'studentCount' },
+		{ title: '订单数', dataIndex: 'orderCount' },
+		{ title: '收款金额', dataIndex: 'paidAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
+		{ title: '最近登录', dataIndex: 'lastLoginTime' },
 		{ title: '状态', dataIndex: 'status' },
 		{ title: '操作', dataIndex: 'action', align: 'center', fixed: 'right' }
 	]

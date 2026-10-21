@@ -113,19 +113,13 @@ public class TenantContextFilter extends OncePerRequestFilter {
         if (StrUtil.isBlank(tenantId) || tenantId.equals(DICT_CACHE_TENANT.get())) {
             return;
         }
-        long now = System.currentTimeMillis();
-        long lastTime = DICT_CACHE_REFRESH_TIME.get();
-        if (now - lastTime < DICT_CACHE_REFRESH_INTERVAL) {
-            return;
-        }
-        if (!DICT_CACHE_REFRESH_TIME.compareAndSet(lastTime, now)) {
-            return;
-        }
         DICT_CACHE_TENANT.set(tenantId);
+        DICT_CACHE_REFRESH_TIME.set(System.currentTimeMillis());
         try {
             DevDictService devDictService = devDictServiceProvider.getIfAvailable();
             if (devDictService != null) {
-                devDictService.refreshTransCache();
+                // 同步刷新：先重建当前租户的字典缓存再渲染，避免多租户同时在线时串标签
+                devDictService.refreshTransCacheSync();
             }
         } catch (Exception e) {
             log.error(">>> 刷新租户字典缓存失败，租户id：{}", tenantId, e);

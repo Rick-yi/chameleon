@@ -23,6 +23,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vip.xiaonuo.common.enums.CommonSortOrderEnum;
@@ -30,6 +31,7 @@ import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.platform.core.service.TenantCapabilityService;
 import vip.xiaonuo.platform.modular.tenantpackage.entity.TenantPackage;
+import vip.xiaonuo.platform.modular.tenantpackage.mapper.TenantPackageMapper;
 import vip.xiaonuo.platform.modular.tenantpackage.service.TenantPackageService;
 import vip.xiaonuo.platform.modular.tenant.entity.Tenant;
 import vip.xiaonuo.platform.modular.tenant.enums.TenantStatusEnum;
@@ -41,7 +43,12 @@ import vip.xiaonuo.platform.modular.tenant.param.TenantPageParam;
 import vip.xiaonuo.platform.modular.tenant.service.TenantInitService;
 import vip.xiaonuo.platform.modular.tenant.service.TenantService;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Date;
+import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * 租户Service接口实现类
@@ -58,6 +65,12 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
 
     @Resource
     private TenantPackageService tenantPackageService;
+
+    @Resource
+    private TenantPackageMapper tenantPackageMapper;
+
+    @Resource
+    private JdbcTemplate jdbcTemplate;
 
     @Resource
     private TenantCapabilityService tenantCapabilityService;
@@ -82,7 +95,87 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
         } else {
             queryWrapper.lambda().orderByDesc(Tenant::getCreateTime);
         }
-        return this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        Page<Tenant> tenantPage = this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        fillDisplayFields(tenantPage.getRecords());
+        return tenantPage;
+    }
+
+    /**
+     * 填充租户列表的展示字段（套餐限额 / 到期倒计时 / 最近登录 / 经营数据）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private void fillDisplayFields(List<Tenant> tenantList) {
+        if (ObjectUtil.isEmpty(tenantList)) {
+            return;
+        }
+        // 套餐信息
+        List<String> packageIdList = tenantList.stream().map(Tenant::getPackageId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        Map<String, TenantPackage> packageMap = new HashMap<>();
+        if (ObjectUtil.isNotEmpty(packageIdList)) {
+            tenantPackageMapper.selectBatchIds(packageIdList)
+                    .forEach(item -> packageMap.put(item.getId(), item));
+        }
+        // 最近登录
+        Map<String, Date> lastLoginMap = new HashMap<>();
+        for (Map<String, Object> row : jdbcTemplate.queryForList(
+                "SELECT TENANT_ID, MAX(LOGIN_TIME) AS LAST_LOGIN_TIME FROM T_TENANT_LOGIN "
+                        + "WHERE DELETE_FLAG = 'NOT_DELETE' GROUP BY TENANT_ID")) {
+            Object time = row.get("LAST_LOGIN_TIME");
+            if (time instanceof Date date) {
+                lastLoginMap.put(String.valueOf(row.get("TENANT_ID")), date);
+            }
+        }
+        // 经营数据
+        Map<String, Long> studentCountMap = countByTenant(
+                "SELECT TENANT_ID, COUNT(*) AS CNT FROM STUDENT WHERE DELETE_FLAG = 'NOT_DELETE' GROUP BY TENANT_ID");
+        Map<String, Long> orderCountMap = countByTenant(
+                "SELECT TENANT_ID, COUNT(*) AS CNT FROM STUDENT_ORDER WHERE DELETE_FLAG = 'NOT_DELETE' "
+                        + "AND STATUS IN ('PAID','REFUNDED') GROUP BY TENANT_ID");
+        Map<String, BigDecimal> paidAmountMap = new HashMap<>();
+        for (Map<String, Object> row : jdbcTemplate.queryForList(
+                "SELECT TENANT_ID, COALESCE(SUM(PAID_AMOUNT),0) AS AMT FROM STUDENT_ORDER "
+                        + "WHERE DELETE_FLAG = 'NOT_DELETE' AND STATUS IN ('PAID','REFUNDED') GROUP BY TENANT_ID")) {
+            Object amount = row.get("AMT");
+            paidAmountMap.put(String.valueOf(row.get("TENANT_ID")),
+                    amount instanceof BigDecimal decimal ? decimal : BigDecimal.ZERO);
+        }
+        long today = System.currentTimeMillis();
+        for (Tenant tenant : tenantList) {
+            TenantPackage tenantPackage = packageMap.get(tenant.getPackageId());
+            if (ObjectUtil.isNotEmpty(tenantPackage)) {
+                tenant.setPackageName(tenantPackage.getName());
+                tenant.setStudentLimit(tenantPackage.getStudentLimit());
+                tenant.setCampusLimit(tenantPackage.getCampusLimit());
+            }
+            if (tenant.getExpireTime() != null) {
+                long days = (tenant.getExpireTime().getTime() - today) / (24 * 60 * 60 * 1000L);
+                tenant.setExpireDays(days);
+            }
+            tenant.setLastLoginTime(lastLoginMap.get(tenant.getId()));
+            tenant.setStudentCount(studentCountMap.getOrDefault(tenant.getId(), 0L));
+            tenant.setOrderCount(orderCountMap.getOrDefault(tenant.getId(), 0L));
+            tenant.setPaidAmount(paidAmountMap.getOrDefault(tenant.getId(), BigDecimal.ZERO));
+        }
+    }
+
+    /**
+     * 按租户统计数量
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private Map<String, Long> countByTenant(String sql) {
+        Map<String, Long> resultMap = new HashMap<>();
+        for (Map<String, Object> row : jdbcTemplate.queryForList(sql)) {
+            Object count = row.get("CNT");
+            if (count instanceof Number number) {
+                resultMap.put(String.valueOf(row.get("TENANT_ID")), number.longValue());
+            }
+        }
+        return resultMap;
     }
 
     @Transactional(rollbackFor = Exception.class)

@@ -12,12 +12,14 @@
  */
 package vip.xiaonuo.platform.modular.tenant.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 import vip.xiaonuo.common.pojo.CommonEntity;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 /**
@@ -66,6 +68,46 @@ public class Tenant extends CommonEntity {
     /** 备注 */
     @Schema(description = "备注")
     private String remark;
+
+    /** 套餐名称（展示用） */
+    @Schema(description = "套餐名称")
+    @TableField(exist = false)
+    private String packageName;
+
+    /** 学员数上限（展示用） */
+    @Schema(description = "学员数上限")
+    @TableField(exist = false)
+    private Integer studentLimit;
+
+    /** 校区数上限（展示用） */
+    @Schema(description = "校区数上限")
+    @TableField(exist = false)
+    private Integer campusLimit;
+
+    /** 剩余天数（展示用，负数表示已过期） */
+    @Schema(description = "剩余天数")
+    @TableField(exist = false)
+    private Long expireDays;
+
+    /** 最近登录时间（展示用） */
+    @Schema(description = "最近登录时间")
+    @TableField(exist = false)
+    private Date lastLoginTime;
+
+    /** 学员数（展示用） */
+    @Schema(description = "学员数")
+    @TableField(exist = false)
+    private Long studentCount = 0L;
+
+    /** 订单数（展示用） */
+    @Schema(description = "订单数")
+    @TableField(exist = false)
+    private Long orderCount = 0L;
+
+    /** 收款金额（展示用） */
+    @Schema(description = "收款金额")
+    @TableField(exist = false)
+    private BigDecimal paidAmount = BigDecimal.ZERO;
 
     /** 扩展信息 */
     @Schema(description = "扩展信息")
