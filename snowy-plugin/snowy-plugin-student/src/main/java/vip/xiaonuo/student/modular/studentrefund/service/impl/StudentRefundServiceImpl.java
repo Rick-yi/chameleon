@@ -30,7 +30,7 @@ import vip.xiaonuo.student.modular.student.entity.Student;
 import vip.xiaonuo.student.modular.student.mapper.StudentMapper;
 import vip.xiaonuo.student.modular.student.service.StudentService;
 import vip.xiaonuo.student.modular.studentlessonaccount.entity.StudentLessonAccount;
-import vip.xiaonuo.student.modular.studentlessonaccount.enums.LessonAccountStatusEnum;
+import vip.xiaonuo.student.api.enums.LessonAccountStatusEnum;
 import vip.xiaonuo.student.modular.studentlessonaccount.mapper.StudentLessonAccountMapper;
 import vip.xiaonuo.student.modular.studentlessonaccount.service.StudentLessonAccountService;
 import vip.xiaonuo.student.modular.studentlessonflow.entity.StudentLessonFlow;

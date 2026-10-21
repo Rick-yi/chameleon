@@ -26,7 +26,7 @@ import vip.xiaonuo.common.enums.CommonSortOrderEnum;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.student.modular.student.entity.Student;
-import vip.xiaonuo.student.modular.student.enums.StudentStatusEnum;
+import vip.xiaonuo.student.api.enums.StudentStatusEnum;
 import vip.xiaonuo.student.modular.student.mapper.StudentMapper;
 import vip.xiaonuo.student.modular.student.param.StudentAddParam;
 import vip.xiaonuo.student.modular.student.param.StudentEditParam;

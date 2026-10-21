@@ -60,6 +60,10 @@ public class CourseClassAttend extends CommonEntity {
     @Schema(description = "点名操作人")
     private String attendUser;
 
+    /** 备注（未消课时记录原因） */
+    @Schema(description = "备注")
+    private String remark;
+
     /** 点名时间 */
     @Schema(description = "点名时间")
     private Date attendTime;

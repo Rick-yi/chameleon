@@ -31,7 +31,7 @@ import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.dev.api.DevConfigApi;
 import vip.xiaonuo.student.modular.studentlessonaccount.entity.StudentLessonAccount;
-import vip.xiaonuo.student.modular.studentlessonaccount.enums.LessonAccountStatusEnum;
+import vip.xiaonuo.student.api.enums.LessonAccountStatusEnum;
 import vip.xiaonuo.student.modular.studentlessonaccount.service.StudentLessonAccountService;
 import vip.xiaonuo.student.modular.notify.service.NotifyLogService;
 import vip.xiaonuo.student.modular.studentrenewarn.entity.StudentRenewWarn;

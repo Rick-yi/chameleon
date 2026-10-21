@@ -134,6 +134,29 @@ public class CourseApiProvider implements CourseApi {
     }
 
     @Override
+    public java.util.Map<String, String> listScheduleClassNameMap(java.util.List<String> scheduleIdList) {
+        java.util.Map<String, String> nameMap = new java.util.HashMap<>();
+        if (ObjectUtil.isEmpty(scheduleIdList)) {
+            return nameMap;
+        }
+        List<CourseSchedule> scheduleList = courseScheduleMapper.selectBatchIds(scheduleIdList);
+        List<String> classIdList = scheduleList.stream().map(CourseSchedule::getClassId)
+                .filter(ObjectUtil::isNotEmpty).distinct().collect(Collectors.toList());
+        if (ObjectUtil.isEmpty(classIdList)) {
+            return nameMap;
+        }
+        java.util.Map<String, String> classNameMap = new java.util.HashMap<>();
+        courseClassMapper.selectBatchIds(classIdList).forEach(item -> classNameMap.put(item.getId(), item.getName()));
+        for (CourseSchedule schedule : scheduleList) {
+            String className = classNameMap.get(schedule.getClassId());
+            if (className != null) {
+                nameMap.put(schedule.getId(), className);
+            }
+        }
+        return nameMap;
+    }
+
+    @Override
     public List<String> listScheduleIdsByCampus(String campusId) {
         List<String> classIdList = courseClassMapper.selectList(new LambdaQueryWrapper<CourseClass>()
                         .eq(CourseClass::getCampusId, campusId))

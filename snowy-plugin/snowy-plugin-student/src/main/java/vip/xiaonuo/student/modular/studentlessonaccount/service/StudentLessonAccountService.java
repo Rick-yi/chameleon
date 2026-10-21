@@ -44,6 +44,9 @@ public interface StudentLessonAccountService {
     /** 获取全部正常账户（续费预警扫描用） */
     List<StudentLessonAccount> listNormalAccounts();
 
+    /** 批量查询学员在指定课程下的课时账户 */
+    List<StudentLessonAccount> listByStudentAndCourse(List<String> studentIdList, String courseId);
+
     /** 点名扣课（条件更新防并发，任一不足抛异常整体回滚） */
     void deductLessons(List<LessonDeductParam> deductParamList);
 

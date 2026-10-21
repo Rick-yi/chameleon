@@ -120,6 +120,12 @@
 			<a-select v-model:value="addStudentIds" mode="multiple" placeholder="选择学员加入班级" :options="studentOptions" style="flex: 1" allow-clear />
 			<a-button type="primary" :disabled="!addStudentIds || addStudentIds.length === 0" @click="onAddStudents">加入班级</a-button>
 		</div>
+		<a-alert
+			type="info"
+			show-icon
+			style="margin-bottom: 12px"
+			message="课时余额按「课程」计算：同一课程下的多个班级共用一个课时账户，任一班消耗都会扣减同一余额"
+		/>
 		<s-table
 			ref="studentTableRef"
 			:columns="studentColumns"
@@ -132,6 +138,14 @@
 			<template #bodyCell="{ column, record }">
 				<template v-if="column.dataIndex === 'studentId'">
 					{{ studentName(record.studentId) }}
+				</template>
+				<template v-if="column.dataIndex === 'remain'">
+					<a-tag v-if="!balanceMap[record.studentId]" color="red">未购课</a-tag>
+					<a-tag v-else-if="balanceMap[record.studentId].remainLessons <= 0" color="red">课时已用完</a-tag>
+					<a-tag v-else-if="balanceMap[record.studentId].remainLessons <= 3" color="orange">
+						剩 {{ balanceMap[record.studentId].remainLessons }}
+					</a-tag>
+					<span v-else>剩 {{ balanceMap[record.studentId].remainLessons }}</span>
 				</template>
 				<template v-if="column.dataIndex === 'status'">
 					<a-tag :color="record.status === 'STUDYING' ? 'green' : 'default'">
@@ -159,6 +173,7 @@
 	const formData = ref({})
 	const open = ref(false)
 	const courseOptions = ref([])
+	const classRecords = ref([])
 	const studentOptions = ref([])
 	const campusOptions = ref([])
 	const teacherOptions = ref([])
@@ -182,8 +197,9 @@
 	]
 	const studentColumns = [
 		{ title: '学员', dataIndex: 'studentId' },
-		{ title: '状态', dataIndex: 'status' },
-		{ title: '入班时间', dataIndex: 'createTime' },
+		{ title: '剩余课时', dataIndex: 'remain', width: 110 },
+		{ title: '状态', dataIndex: 'status', width: 90 },
+		{ title: '入班时间', dataIndex: 'createTime', width: 170 },
 		{ title: '操作', dataIndex: 'action', align: 'center' }
 	]
 	const loadData = (parameter) => {
@@ -196,6 +212,9 @@
 	const loadCourses = () => {
 		courseApi.coursePage({ current: 1, size: 100 }).then((data) => {
 			courseOptions.value = (data.records || []).map((item) => ({ value: item.id, label: item.name }))
+		})
+		courseApi.classPage({ current: 1, size: 200 }).then((data) => {
+			classRecords.value = data.records || []
 		})
 	}
 	const loadStudents = () => {
@@ -268,8 +287,28 @@
 		studentOpen.value = true
 		loadStudents()
 	}
+	const balanceMap = ref({})
 	const loadClassStudents = (parameter) => {
-		return courseApi.classStudentPage({ current: 1, size: 100, classId: currentClass.value.id }).then((data) => data)
+		return courseApi
+			.classStudentPage({ current: 1, size: 100, classId: currentClass.value.id })
+			.then((data) => {
+				// 课时余额按课程维度查询：让老师一眼看出谁还有课可上
+				const cls = classRecords.value.find((item) => item.id === currentClass.value.id)
+				const studentIdList = (data.records || []).map((item) => item.studentId)
+				if (cls?.courseId && studentIdList.length) {
+					studentApi
+						.lessonBalance({ studentIds: studentIdList.join(','), courseId: cls.courseId })
+						.then((list) => {
+							const map = {}
+							for (const item of list || []) map[item.studentId] = item
+							balanceMap.value = map
+						})
+						.catch(() => (balanceMap.value = {}))
+				} else {
+					balanceMap.value = {}
+				}
+				return data
+			})
 	}
 	const onAddStudents = () => {
 		courseApi.classStudentAdd({ classId: currentClass.value.id, studentIdList: addStudentIds.value }).then(() => {

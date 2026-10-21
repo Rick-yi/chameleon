@@ -31,7 +31,7 @@ import vip.xiaonuo.student.api.pojo.LessonDeductParam;
 import vip.xiaonuo.student.modular.student.entity.Student;
 import vip.xiaonuo.student.modular.student.service.StudentService;
 import vip.xiaonuo.student.modular.studentlessonaccount.entity.StudentLessonAccount;
-import vip.xiaonuo.student.modular.studentlessonaccount.enums.LessonAccountStatusEnum;
+import vip.xiaonuo.student.api.enums.LessonAccountStatusEnum;
 import vip.xiaonuo.student.modular.studentlessonaccount.mapper.StudentLessonAccountMapper;
 import vip.xiaonuo.student.modular.studentlessonaccount.param.StudentLessonAccountPageParam;
 import vip.xiaonuo.student.modular.studentlessonaccount.param.StudentLessonAdjustParam;
@@ -46,6 +46,7 @@ import vip.xiaonuo.student.modular.studentrenewarn.service.StudentRenewWarnServi
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import vip.xiaonuo.student.core.service.StudentDataScopeService;
@@ -120,6 +121,16 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
     public List<StudentLessonAccount> listNormalAccounts() {
         return this.list(new LambdaQueryWrapper<StudentLessonAccount>()
                 .eq(StudentLessonAccount::getStatus, LessonAccountStatusEnum.NORMAL.getValue()));
+    }
+
+    @Override
+    public List<StudentLessonAccount> listByStudentAndCourse(List<String> studentIdList, String courseId) {
+        if (ObjectUtil.isEmpty(studentIdList) || ObjectUtil.isEmpty(courseId)) {
+            return new ArrayList<>();
+        }
+        return this.list(new LambdaQueryWrapper<StudentLessonAccount>()
+                .in(StudentLessonAccount::getStudentId, studentIdList)
+                .eq(StudentLessonAccount::getCourseId, courseId));
     }
 
     @Transactional(rollbackFor = Exception.class)

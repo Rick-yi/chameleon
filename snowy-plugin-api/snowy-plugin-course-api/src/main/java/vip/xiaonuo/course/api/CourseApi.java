@@ -73,6 +73,14 @@ public interface CourseApi {
     java.util.Map<String, String> listCourseNameMap(java.util.List<String> courseIdList);
 
     /**
+     * 批量获取排课所属班级名（排课id → 班级名），用于课时流水展示
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    java.util.Map<String, String> listScheduleClassNameMap(java.util.List<String> scheduleIdList);
+
+    /**
      * 获取校区下全部排课id（报表按校区过滤课消用）
      *
      * @author 会飞的猪

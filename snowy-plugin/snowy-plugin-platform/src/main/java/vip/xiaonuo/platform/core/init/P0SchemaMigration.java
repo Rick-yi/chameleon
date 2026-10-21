@@ -201,6 +201,12 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
                 jdbcTemplate.execute("ALTER TABLE `COURSE_PACKAGE` ADD COLUMN `ABSENT_DEDUCT` tinyint NULL DEFAULT NULL COMMENT '缺勤是否扣课(为空沿用课程配置)' AFTER `LEAVE_DEDUCT`");
                 log.info(">>> 课务结构升级：COURSE_PACKAGE 扣课规则列已添加");
             }
+            // 点名记录备注（未消课时记录原因）
+            if (!columnExists("COURSE_CLASS_ATTEND", "REMARK")) {
+                jdbcTemplate.execute("ALTER TABLE `COURSE_CLASS_ATTEND` ADD COLUMN `REMARK` varchar(200) NULL DEFAULT NULL COMMENT '备注(未消课原因等)' AFTER `LESSONS_DEDUCTED`");
+                log.info(">>> 课务结构升级：COURSE_CLASS_ATTEND.REMARK 已添加");
+            }
+
             // 定时任务归属租户
             if (!columnExists("DEV_JOB", "TENANT_ID")) {
                 jdbcTemplate.execute("ALTER TABLE `DEV_JOB` ADD COLUMN `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '归属租户id(平台任务为0)' AFTER `SORT_CODE`");

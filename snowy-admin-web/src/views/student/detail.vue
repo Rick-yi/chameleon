@@ -16,6 +16,12 @@
 		<a-card>
 			<a-tabs v-model:activeKey="activeTab">
 				<a-tab-pane key="account" tab="课时账户">
+					<a-alert
+						type="info"
+						show-icon
+						style="margin-bottom: 12px"
+						message="课时账户按「学员 + 课程」维度：同一课程下的多个班级共用一个余额，任一班点名都会扣减它"
+					/>
 					<a-table :columns="accountColumns" :data-source="accounts" :row-key="(r) => r.id" :pagination="false" bordered size="middle">
 						<template #bodyCell="{ column, record }">
 							<template v-if="column.dataIndex === 'courseId'">
@@ -37,6 +43,9 @@
 						<template #bodyCell="{ column, record }">
 							<template v-if="column.dataIndex === 'courseId'">
 								{{ courseMap[record.courseId] || '-' }}
+							</template>
+							<template v-if="column.dataIndex === 'className'">
+								{{ record.className || '-' }}
 							</template>
 						</template>
 					</a-table>
@@ -206,6 +215,7 @@
 		{ title: '时间', dataIndex: 'createTime', width: 170 },
 		{ title: '类型', dataIndex: 'flowType', width: 110 },
 		{ title: '课程', dataIndex: 'courseId' },
+		{ title: '班级', dataIndex: 'className', width: 150 },
 		{ title: '课时', dataIndex: 'lessons', width: 90 },
 		{ title: '备注', dataIndex: 'remark' }
 	]

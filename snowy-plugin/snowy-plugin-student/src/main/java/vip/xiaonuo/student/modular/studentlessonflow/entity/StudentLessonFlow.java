@@ -12,6 +12,7 @@
  */
 package vip.xiaonuo.student.modular.studentlessonflow.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
@@ -38,6 +39,11 @@ public class StudentLessonFlow extends CommonEntity {
     /** 租户id */
     @Schema(description = "租户id")
     private String tenantId;
+
+    /** 班级名称（列表查询时填充，非数据库字段） */
+    @Schema(description = "班级名称")
+    @TableField(exist = false)
+    private String className;
 
     /** 学员id */
     @Schema(description = "学员id")

@@ -44,7 +44,15 @@ import vip.xiaonuo.course.modular.courseschedule.entity.CourseSchedule;
 import vip.xiaonuo.course.modular.courseschedule.enums.CourseScheduleStatusEnum;
 import vip.xiaonuo.course.modular.courseschedule.service.CourseScheduleService;
 import vip.xiaonuo.student.api.StudentLessonApi;
+import vip.xiaonuo.student.api.StudentApi;
 import vip.xiaonuo.student.api.StudentNotifyApi;
+import vip.xiaonuo.student.api.dto.LessonBalanceDTO;
+import vip.xiaonuo.student.api.dto.StudentBriefDTO;
+import vip.xiaonuo.student.api.enums.LessonAccountStatusEnum;
+import vip.xiaonuo.student.api.enums.StudentStatusEnum;
+import vip.xiaonuo.course.api.dto.AttendConfirmResultDTO;
+import vip.xiaonuo.course.modular.courseclassstudent.entity.CourseClassStudent;
+import vip.xiaonuo.course.modular.courseclassstudent.service.CourseClassStudentService;
 import vip.xiaonuo.student.api.StudentOrderApi;
 import vip.xiaonuo.student.api.dto.StudentOrderRefDTO;
 import vip.xiaonuo.student.api.pojo.LessonDeductParam;
@@ -89,6 +97,12 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
     private StudentLessonApi studentLessonApi;
 
     @Resource
+    private StudentApi studentApi;
+
+    @Resource
+    private CourseClassStudentService courseClassStudentService;
+
+    @Resource
     private StudentNotifyApi studentNotifyApi;
 
     @Override
@@ -102,7 +116,8 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
 
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public void confirm(CourseClassAttendConfirmParam courseClassAttendConfirmParam) {
+    public AttendConfirmResultDTO confirm(CourseClassAttendConfirmParam courseClassAttendConfirmParam) {
+        AttendConfirmResultDTO result = new AttendConfirmResultDTO();
         CourseSchedule schedule = courseScheduleService.queryEntity(courseClassAttendConfirmParam.getScheduleId());
         if (!CourseScheduleStatusEnum.NORMAL.getValue().equals(schedule.getStatus())) {
             throw new CommonException("排课状态【{}】不允许点名", schedule.getStatus());
@@ -129,6 +144,32 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
                         .eq(CourseClassAttend::getScheduleId, schedule.getId())
                         .in(CourseClassAttend::getStudentId, itemStudentIdList))
                 .stream().map(CourseClassAttend::getStudentId).collect(Collectors.toList());
+        // 校验：只能给「本班在读学员」点名（防止越权点名他人并扣其课时）
+        List<CourseClassStudent> classStudentList = courseClassStudentService.listByClassId(courseClass.getId());
+        Map<String, String> classStudentNameMap = new HashMap<>();
+        for (CourseClassStudent classStudent : classStudentList) {
+            classStudentNameMap.put(classStudent.getStudentId(), classStudent.getStudentId());
+        }
+        List<StudentBriefDTO> studentBriefList = studentApi.listStudentBrief(itemStudentIdList);
+        Map<String, StudentBriefDTO> studentBriefMap = new HashMap<>();
+        for (StudentBriefDTO brief : studentBriefList) {
+            studentBriefMap.put(brief.getId(), brief);
+        }
+        for (String studentId : itemStudentIdList) {
+            if (!classStudentNameMap.containsKey(studentId)) {
+                StudentBriefDTO brief = studentBriefMap.get(studentId);
+                throw new CommonException("学员【{}】不在该班级，无法点名", brief == null ? studentId : brief.getName());
+            }
+            StudentBriefDTO brief = studentBriefMap.get(studentId);
+            if (brief != null && !StudentStatusEnum.STUDYING.getValue().equals(brief.getStatus())) {
+                throw new CommonException("学员【{}】当前状态【{}】，不能点名消课", brief.getName(), brief.getStatus());
+            }
+        }
+        // 课时余额（用于判断哪些学员本次无法消课，不影响其他学员）
+        Map<String, LessonBalanceDTO> balanceMap = new HashMap<>();
+        for (LessonBalanceDTO balance : studentLessonApi.listLessonBalance(itemStudentIdList, course.getId())) {
+            balanceMap.put(balance.getStudentId(), balance);
+        }
         List<CourseClassAttend> attendList = new ArrayList<>();
         List<LessonDeductParam> deductParamList = new ArrayList<>();
         for (CourseClassAttendItemParam item : courseClassAttendConfirmParam.getAttendList()) {
@@ -166,22 +207,45 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
             // 按生效规则计算应扣课时（课包优先、课程兜底）
             BigDecimal deductLessons = AttendDeductRule.deductLessons(itemLessonsPerClass, itemLeaveDeduct,
                     itemAbsentDeduct, item.getAttendStatus());
-            attend.setLessonsDeducted(deductLessons);
+            // 余额判断：课时不足/无账户/账户冻结 → 本次不消课，但保留出勤记录，不影响其他学员
+            String skipReason = null;
             if (deductLessons.compareTo(BigDecimal.ZERO) > 0) {
-                LessonDeductParam deductParam = new LessonDeductParam();
-                deductParam.setStudentId(item.getStudentId());
-                deductParam.setCourseId(course.getId());
-                deductParam.setScheduleId(schedule.getId());
-                deductParam.setLessons(deductLessons);
-                deductParam.setAttendStatus(item.getAttendStatus());
-                deductParamList.add(deductParam);
+                LessonBalanceDTO balance = balanceMap.get(item.getStudentId());
+                if (balance == null) {
+                    skipReason = "未购买该课程课包，无课时可消";
+                } else if (!LessonAccountStatusEnum.NORMAL.getValue().equals(balance.getStatus())) {
+                    skipReason = "课时账户状态异常（" + balance.getStatus() + "）";
+                } else if (balance.getRemainLessons() == null
+                        || balance.getRemainLessons().compareTo(deductLessons) < 0) {
+                    skipReason = "剩余课时不足（剩余 " + balance.getRemainLessons() + "，本次需 " + deductLessons + "）";
+                }
+            }
+            if (skipReason != null) {
+                attend.setLessonsDeducted(BigDecimal.ZERO);
+                attend.setRemark("未消课：" + skipReason);
+                StudentBriefDTO brief = studentBriefMap.get(item.getStudentId());
+                result.getSkippedList().add(new AttendConfirmResultDTO.Skipped(item.getStudentId(),
+                        brief == null ? item.getStudentId() : brief.getName(), skipReason));
+            } else {
+                attend.setLessonsDeducted(deductLessons);
+                if (deductLessons.compareTo(BigDecimal.ZERO) > 0) {
+                    LessonDeductParam deductParam = new LessonDeductParam();
+                    deductParam.setStudentId(item.getStudentId());
+                    deductParam.setCourseId(course.getId());
+                    deductParam.setScheduleId(schedule.getId());
+                    deductParam.setLessons(deductLessons);
+                    deductParam.setAttendStatus(item.getAttendStatus());
+                    deductParamList.add(deductParam);
+                    result.setDeductCount(result.getDeductCount() + 1);
+                }
             }
             attendList.add(attend);
         }
+        result.setTotalCount(attendList.size());
         if (ObjectUtil.isNotEmpty(attendList)) {
             this.saveBatch(attendList);
         }
-        // 扣课联动（同一事务：任一学员余额不足 → 抛异常 → 点名记录一并回滚）
+        // 扣课联动（同一事务；余额不足的学员已在上面跳过，不会影响整班）
         if (ObjectUtil.isNotEmpty(deductParamList)) {
             studentLessonApi.deductLessons(deductParamList);
         }
@@ -196,6 +260,7 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
                         "IN_APP");
             }
         }
+        return result;
     }
 
     @Transactional(rollbackFor = Exception.class)

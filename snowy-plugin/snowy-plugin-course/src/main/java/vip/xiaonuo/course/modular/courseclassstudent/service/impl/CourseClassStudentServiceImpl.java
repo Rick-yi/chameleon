@@ -31,9 +31,14 @@ import vip.xiaonuo.course.modular.courseclassstudent.param.CourseClassStudentAdd
 import vip.xiaonuo.course.modular.courseclassstudent.param.CourseClassStudentIdParam;
 import vip.xiaonuo.course.modular.courseclassstudent.param.CourseClassStudentPageParam;
 import vip.xiaonuo.course.modular.courseclassstudent.service.CourseClassStudentService;
+import vip.xiaonuo.student.api.StudentApi;
+import vip.xiaonuo.student.api.dto.StudentBriefDTO;
+import vip.xiaonuo.student.api.enums.StudentStatusEnum;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 班级学员Service接口实现类
@@ -46,8 +51,11 @@ public class CourseClassStudentServiceImpl extends ServiceImpl<CourseClassStuden
 
     private final CourseClassService courseClassService;
 
-    public CourseClassStudentServiceImpl(CourseClassService courseClassService) {
+    private final StudentApi studentApi;
+
+    public CourseClassStudentServiceImpl(CourseClassService courseClassService, StudentApi studentApi) {
         this.courseClassService = courseClassService;
+        this.studentApi = studentApi;
     }
 
     @Override
@@ -74,6 +82,24 @@ public class CourseClassStudentServiceImpl extends ServiceImpl<CourseClassStuden
         if (ObjectUtil.isEmpty(courseClass)) {
             throw new CommonException("班级不存在");
         }
+        if (ObjectUtil.isEmpty(courseClassStudentAddParam.getStudentIdList())) {
+            throw new CommonException("请选择要加入的学员");
+        }
+        // 学员校验：必须存在且在读（停课/已退费学员不能入班）
+        List<StudentBriefDTO> briefList = studentApi.listStudentBrief(courseClassStudentAddParam.getStudentIdList());
+        Map<String, StudentBriefDTO> briefMap = new HashMap<>();
+        for (StudentBriefDTO brief : briefList) {
+            briefMap.put(brief.getId(), brief);
+        }
+        for (String studentId : courseClassStudentAddParam.getStudentIdList()) {
+            StudentBriefDTO brief = briefMap.get(studentId);
+            if (ObjectUtil.isEmpty(brief)) {
+                throw new CommonException("学员不存在，id值为：{}", studentId);
+            }
+            if (!StudentStatusEnum.STUDYING.getValue().equals(brief.getStatus())) {
+                throw new CommonException("学员【{}】当前状态【{}】不能入班", brief.getName(), brief.getStatus());
+            }
+        }
         List<CourseClassStudent> toSaveList = new ArrayList<>();
         for (String studentId : courseClassStudentAddParam.getStudentIdList()) {
             // 已在该班（未退班）则跳过
@@ -90,9 +116,17 @@ public class CourseClassStudentServiceImpl extends ServiceImpl<CourseClassStuden
             courseClassStudent.setStatus(CourseClassStudentStatusEnum.STUDYING.getValue());
             toSaveList.add(courseClassStudent);
         }
-        if (ObjectUtil.isNotEmpty(toSaveList)) {
-            this.saveBatch(toSaveList);
+        if (ObjectUtil.isEmpty(toSaveList)) {
+            return;
         }
+        // 容量校验：在读学员数 + 新增人数不得超过班级容量
+        int currentCount = this.listByClassId(courseClassStudentAddParam.getClassId()).size();
+        int capacity = courseClass.getCapacity() == null ? 0 : courseClass.getCapacity();
+        if (capacity > 0 && currentCount + toSaveList.size() > capacity) {
+            throw new CommonException("班级【{}】容量为{}人，当前{}人，本次新增{}人，超出容量",
+                    courseClass.getName(), capacity, currentCount, toSaveList.size());
+        }
+        this.saveBatch(toSaveList);
     }
 
     @Transactional(rollbackFor = Exception.class)

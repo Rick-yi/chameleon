@@ -63,6 +63,10 @@ export default {
 	lessonFlowPage(data) {
 		return request('lessonFlow/page', data, 'get')
 	},
+	// 课时余额（批量：studentIds 逗号分隔 + courseId）
+	lessonBalance(data) {
+		return request('lessonAccount/balance', data, 'get')
+	},
 	// 退费
 	refundPage(data) {
 		return request('refund/page', data, 'get')

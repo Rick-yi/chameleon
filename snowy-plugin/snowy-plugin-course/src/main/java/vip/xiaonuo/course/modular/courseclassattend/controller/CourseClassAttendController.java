@@ -66,9 +66,9 @@ public class CourseClassAttendController {
     @Operation(summary = "点名确认")
     @CommonLog("点名确认")
     @PostMapping("/course/attend/confirm")
-    public CommonResult<String> confirm(@RequestBody @Valid CourseClassAttendConfirmParam courseClassAttendConfirmParam) {
-        courseClassAttendService.confirm(courseClassAttendConfirmParam);
-        return CommonResult.ok();
+    public CommonResult<vip.xiaonuo.course.api.dto.AttendConfirmResultDTO> confirm(
+            @RequestBody @Valid CourseClassAttendConfirmParam courseClassAttendConfirmParam) {
+        return CommonResult.data(courseClassAttendService.confirm(courseClassAttendConfirmParam));
     }
 
     /**

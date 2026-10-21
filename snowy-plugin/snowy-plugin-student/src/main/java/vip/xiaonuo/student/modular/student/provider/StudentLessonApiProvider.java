@@ -15,9 +15,11 @@ package vip.xiaonuo.student.modular.student.provider;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import vip.xiaonuo.student.api.StudentLessonApi;
+import vip.xiaonuo.student.api.dto.LessonBalanceDTO;
 import vip.xiaonuo.student.api.pojo.LessonDeductParam;
 import vip.xiaonuo.student.modular.studentlessonaccount.service.StudentLessonAccountService;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -38,6 +40,26 @@ public class StudentLessonApiProvider implements StudentLessonApi {
     @Override
     public void deductLessons(List<LessonDeductParam> deductParamList) {
         studentLessonAccountService.deductLessons(deductParamList);
+    }
+
+    @Override
+    public List<LessonBalanceDTO> listLessonBalance(List<String> studentIdList, String courseId) {
+        List<LessonBalanceDTO> balanceList = new ArrayList<>();
+        if (studentIdList == null || studentIdList.isEmpty() || courseId == null) {
+            return balanceList;
+        }
+        studentLessonAccountService.listByStudentAndCourse(studentIdList, courseId).forEach(account -> {
+            LessonBalanceDTO balance = new LessonBalanceDTO();
+            balance.setStudentId(account.getStudentId());
+            balance.setCourseId(account.getCourseId());
+            balance.setTotalLessons(account.getTotalLessons());
+            balance.setUsedLessons(account.getUsedLessons());
+            balance.setRemainLessons(account.getRemainLessons());
+            balance.setExpireTime(account.getExpireTime());
+            balance.setStatus(account.getStatus());
+            balanceList.add(balance);
+        });
+        return balanceList;
     }
 
     @Override

@@ -13,6 +13,7 @@
 package vip.xiaonuo.student.modular.studentlessonflow.service.impl;
 
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -26,6 +27,8 @@ import vip.xiaonuo.student.modular.studentlessonflow.param.StudentLessonFlowPage
 import vip.xiaonuo.student.modular.studentlessonflow.service.StudentLessonFlowService;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import vip.xiaonuo.student.core.service.StudentDataScopeService;
 import jakarta.annotation.Resource;
 
@@ -40,6 +43,9 @@ public class StudentLessonFlowServiceImpl extends ServiceImpl<StudentLessonFlowM
 
     @Resource
     private StudentDataScopeService studentDataScopeService;
+
+    @Resource
+    private vip.xiaonuo.course.api.CourseApi courseApi;
 
     @Override
     public Page<StudentLessonFlow> page(StudentLessonFlowPageParam studentLessonFlowPageParam) {
@@ -57,7 +63,27 @@ public class StudentLessonFlowServiceImpl extends ServiceImpl<StudentLessonFlowM
                 queryWrapper.lambda().in(StudentLessonFlow::getStudentId, visibleStudentIds);
             }
         }
-        return this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        Page<StudentLessonFlow> page = this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        fillClassName(page.getRecords());
+        return page;
+    }
+
+    /**
+     * 回填消课所属班级名（流水 → 排课 → 班级）
+     */
+    private void fillClassName(List<StudentLessonFlow> flowList) {
+        if (ObjectUtil.isEmpty(flowList)) {
+            return;
+        }
+        List<String> scheduleIdList = flowList.stream().map(StudentLessonFlow::getScheduleId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (ObjectUtil.isEmpty(scheduleIdList)) {
+            return;
+        }
+        Map<String, String> classNameMap = courseApi.listScheduleClassNameMap(scheduleIdList);
+        for (StudentLessonFlow flow : flowList) {
+            flow.setClassName(classNameMap.get(flow.getScheduleId()));
+        }
     }
 
     @Override

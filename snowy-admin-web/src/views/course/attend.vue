@@ -56,6 +56,13 @@
 						<template v-if="column.dataIndex === 'studentId'">
 							{{ studentName(record.studentId) }}
 						</template>
+						<template v-if="column.dataIndex === 'remain'">
+							<a-tag v-if="!balanceMap[record.studentId]" color="red">未购课</a-tag>
+							<a-tag v-else-if="balanceMap[record.studentId].remainLessons < 1" color="orange">
+								剩 {{ balanceMap[record.studentId].remainLessons }}
+							</a-tag>
+							<span v-else>剩 {{ balanceMap[record.studentId].remainLessons }}</span>
+						</template>
 						<template v-if="column.dataIndex === 'status'">
 							<a-radio-group v-model:value="record.attendStatus" :disabled="!!record.attendId" button-style="solid">
 								<a-radio-button value="ATTEND">到课</a-radio-button>
@@ -79,6 +86,7 @@
 
 <script setup name="courseAttend">
 	import { useRoute } from 'vue-router'
+	import { message } from 'ant-design-vue'
 	import courseApi from '@/api/course/courseApi'
 	import studentApi from '@/api/student/studentApi'
 	const route = useRoute()
@@ -86,6 +94,7 @@
 	const date = ref(new Date().toISOString().slice(0, 10))
 	const scheduleId = ref()
 	const classOptions = ref([])
+	const classRecords = ref([])
 	const scheduleOptions = ref([])
 	const scheduleList = ref([])
 	const students = ref([])
@@ -99,12 +108,14 @@
 	}
 	const columns = [
 		{ title: '学员', dataIndex: 'studentId' },
+		{ title: '剩余课时', dataIndex: 'remain', width: 100 },
 		{ title: '点名状态', dataIndex: 'status' },
 		{ title: '操作', dataIndex: 'action', align: 'center', width: 100 }
 	]
 	const loadClasses = () => {
-		courseApi.classPage({ current: 1, size: 100 }).then((data) => {
-			classOptions.value = (data.records || []).map((item) => ({ value: item.id, label: item.name }))
+		courseApi.classPage({ current: 1, size: 200 }).then((data) => {
+			classRecords.value = data.records || []
+			classOptions.value = classRecords.value.map((item) => ({ value: item.id, label: item.name }))
 		})
 	}
 	const loadSchedules = () => {
@@ -139,6 +150,22 @@
 		const s = studentMap.value[id]
 		return s ? `${s.name}(${s.parentPhone})` : id
 	}
+	const balanceMap = ref({})
+	// 加载学员在该课程下的剩余课时（没有余额 = 还没买这门课）
+	const loadBalance = (studentIdList, courseId) => {
+		if (!studentIdList.length || !courseId) {
+			balanceMap.value = {}
+			return Promise.resolve()
+		}
+		return studentApi
+			.lessonBalance({ studentIds: studentIdList.join(','), courseId })
+			.then((list) => {
+				const map = {}
+				for (const item of list || []) map[item.studentId] = item
+				balanceMap.value = map
+			})
+			.catch(() => (balanceMap.value = {}))
+	}
 	const loadAttendPage = () => {
 		if (!scheduleId.value) return
 		Promise.all([
@@ -153,14 +180,34 @@
 				attendId: attendMap[cs.studentId] ? attendMap[cs.studentId].id : undefined
 			}))
 			students.value = list
+			const cls = classRecords.value.find((item) => item.id === classId.value)
+			return loadBalance(list.map((item) => item.studentId), cls?.courseId)
 		})
 	}
 	const onConfirm = () => {
 		const attendList = students.value
 			.filter((s) => !s.attendId)
 			.map((s) => ({ studentId: s.studentId, attendStatus: s.attendStatus }))
-		if (attendList.length === 0) return
-		courseApi.attendConfirm({ scheduleId: scheduleId.value, attendList }).then(() => loadAttendPage())
+		if (attendList.length === 0) {
+			message.info('本节没有需要点名的学员')
+			return
+		}
+		courseApi
+			.attendConfirm({ scheduleId: scheduleId.value, attendList })
+			.then((res) => {
+				const result = res?.data
+				const skipped = result?.skippedList || []
+				if (skipped.length) {
+					// 课时不足的学员不阻断整班点名，单独提示
+					message.warning(
+						`点名完成，${result.deductCount} 人已消课；${skipped.length} 人未消课：` +
+							skipped.map((item) => `${item.studentName}（${item.reason}）`).join('；')
+					)
+				} else {
+					message.success(`点名完成，${result?.deductCount ?? attendList.length} 人已消课`)
+				}
+				loadAttendPage()
+			})
 	}
 	const onCancelAttend = (record) => {
 		courseApi.attendCancel({ id: record.attendId }).then(() => loadAttendPage())

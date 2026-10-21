@@ -42,7 +42,7 @@ import vip.xiaonuo.student.api.param.FinanceQueryParam;
 import vip.xiaonuo.student.core.service.StudentDataScopeService;
 import vip.xiaonuo.student.core.util.LessonRevenueUtil;
 import vip.xiaonuo.student.modular.student.entity.Student;
-import vip.xiaonuo.student.modular.student.enums.StudentStatusEnum;
+import vip.xiaonuo.student.api.enums.StudentStatusEnum;
 import vip.xiaonuo.student.modular.student.mapper.StudentMapper;
 import vip.xiaonuo.student.modular.studentlessonaccount.entity.StudentLessonAccount;
 import vip.xiaonuo.student.modular.studentlessonaccount.mapper.StudentLessonAccountMapper;

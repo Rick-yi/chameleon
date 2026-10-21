@@ -46,4 +46,16 @@ public interface StudentLessonApi {
      * @date 2026/10/20 10:00
      **/
     void restoreLessons(String scheduleId, String studentId);
+
+    /**
+     * 批量查询学员在指定课程下的课时余额
+     * <p>
+     * 课务域在点名前用它判断「是否还有课可消」，避免单个学员余额不足导致整班点名失败。
+     * </p>
+     *
+     * @param studentIdList 学员id集合
+     * @param courseId      课程id
+     * @return 余额列表（没有账户的学员不会返回）
+     */
+    java.util.List<vip.xiaonuo.student.api.dto.LessonBalanceDTO> listLessonBalance(java.util.List<String> studentIdList, String courseId);
 }

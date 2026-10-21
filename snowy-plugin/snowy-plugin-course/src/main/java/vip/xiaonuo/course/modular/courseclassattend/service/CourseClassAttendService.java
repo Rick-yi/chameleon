@@ -30,7 +30,7 @@ public interface CourseClassAttendService {
     Page<CourseClassAttend> page(CourseClassAttendPageParam courseClassAttendPageParam);
 
     /** 点名确认（保存点名记录 + 扣课联动，任一学员余额不足整体回滚） */
-    void confirm(CourseClassAttendConfirmParam courseClassAttendConfirmParam);
+    vip.xiaonuo.course.api.dto.AttendConfirmResultDTO confirm(CourseClassAttendConfirmParam courseClassAttendConfirmParam);
 
     /** 撤销点名（回补课时 + 删除记录） */
     void cancel(CourseClassAttendIdParam courseClassAttendIdParam);
