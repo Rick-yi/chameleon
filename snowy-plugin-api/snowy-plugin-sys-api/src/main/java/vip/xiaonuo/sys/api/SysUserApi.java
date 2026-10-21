@@ -122,6 +122,15 @@ public interface SysUserApi {
     List<JSONObject> listUserWithoutCurrent();
 
     /**
+     * 用户可选项（租户内启用用户，支持按姓名/账号搜索）
+     *
+     * @param searchKey 搜索关键字
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    List<JSONObject> listUserOptions(String searchKey);
+
+    /**
      * 获取用户的职位列表
      *
      * @author xuyuxiang

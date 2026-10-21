@@ -14,12 +14,16 @@ package vip.xiaonuo.course.modular.courseschedule.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import vip.xiaonuo.course.modular.courseschedule.entity.CourseSchedule;
+import vip.xiaonuo.course.api.dto.CourseScheduleGenerateResultDTO;
+import vip.xiaonuo.course.api.dto.CourseScheduleViewDTO;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleAddParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleChangeParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleGenerateParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleIdParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseSchedulePageParam;
+import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleWeekParam;
 
+import cn.hutool.json.JSONObject;
 import java.util.List;
 
 /**
@@ -37,7 +41,23 @@ public interface CourseScheduleService {
     void add(CourseScheduleAddParam courseScheduleAddParam);
 
     /** 按班级周模板批量生成（含冲突检测，任一冲突整体失败） */
-    void generate(CourseScheduleGenerateParam courseScheduleGenerateParam);
+    CourseScheduleGenerateResultDTO generate(CourseScheduleGenerateParam courseScheduleGenerateParam);
+
+    /**
+     * 课表区间查询（不分页，返回带班级/教师名称的视图数据）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    List<CourseScheduleViewDTO> week(CourseScheduleWeekParam courseScheduleWeekParam);
+
+    /**
+     * 教师可选项（租户内用户）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    List<JSONObject> teacherOptions(String searchKey);
 
     /** 调课（原排课置已调 + 新排课 + 变更记录） */
     void change(CourseScheduleChangeParam courseScheduleChangeParam);

@@ -4,7 +4,10 @@
 			<a-button @click="shiftWeek(-1)">‹ 上一周</a-button>
 			<span style="font-weight: 500">{{ weekLabel }}</span>
 			<a-button @click="shiftWeek(1)">下一周 ›</a-button>
-			<a-select v-model:value="searchFormState.classId" placeholder="全部班级" :options="classOptions" allow-clear style="width: 220px" />
+			<a-button @click="shiftWeek(0)">本周</a-button>
+			<a-select v-model:value="searchFormState.classId" placeholder="全部班级" :options="classOptions" allow-clear style="width: 200px" />
+			<a-select v-model:value="searchFormState.teacherId" placeholder="全部教师" :options="teacherOptions" allow-clear style="width: 160px" show-search option-filter-prop="label" @change="loadWeek" />
+			<a-input v-model:value="searchFormState.classroom" placeholder="教室" allow-clear style="width: 120px" @pressEnter="loadWeek" />
 			<div style="margin-left: auto; display: flex; gap: 8px">
 				<a-button @click="generateOpen = true">⚙ 批量生成</a-button>
 				<a-button type="primary" @click="onOpenAdd">＋ 手动排课</a-button>
@@ -27,13 +30,21 @@
 							style="background: #e6f4ff; border: 1px solid #91caff; border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; cursor: pointer"
 							@click="onOpenChange(s)"
 						>
-							<div style="font-size: 13px; font-weight: 500; color: #1677ff">{{ className(s.classId) }}</div>
-							<div style="font-size: 11px; color: rgba(0,0,0,.65)">{{ s.classroom }}</div>
+							<div style="font-size: 13px; font-weight: 500; color: #1677ff">{{ s.className || className(s.classId) }}</div>
+							<div style="font-size: 11px; color: rgba(0,0,0,.65)">{{ s.classroom || '未设教室' }}</div>
+							<div v-if="s.teacherName" style="font-size: 11px; color: rgba(0,0,0,.45)">{{ s.teacherName }}</div>
 						</div>
 					</div>
 				</template>
 			</div>
 			<a-alert v-if="conflictTip" type="error" show-icon :message="conflictTip" style="margin-top: 12px" />
+			<a-alert
+				v-else-if="!loading"
+				type="info"
+				show-icon
+				:message="`本周共 ${scheduleList.length} 节课`"
+				style="margin-top: 12px"
+			/>
 		</div>
 	</xn-panel>
 
@@ -66,15 +77,22 @@
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
-					<a-form-item label="教师id" name="teacherId">
-						<a-input v-model:value="addFormData.teacherId" placeholder="可选" allow-clear />
+					<a-form-item label="教师" name="teacherId">
+						<a-select
+							v-model:value="addFormData.teacherId"
+							placeholder="请选择教师"
+							:options="teacherOptions"
+							allow-clear
+							show-search
+							option-filter-prop="label"
+						/>
 					</a-form-item>
 				</a-col>
 			</a-row>
 		</a-form>
 	</a-modal>
 
-	<a-modal v-model:open="generateOpen" title="按周模板批量生成" :width="480" :destroy-on-close="true" @ok="onSubmitGenerate">
+	<a-modal v-model:open="generateOpen" title="按周模板批量生成" :width="520" :destroy-on-close="true">
 		<a-form ref="generateFormRef" :model="generateFormData" layout="vertical">
 			<a-form-item label="班级" name="classId" :rules="[{ required: true, message: '请选择班级' }]">
 				<a-select v-model:value="generateFormData.classId" placeholder="请选择班级" :options="classOptions" />
@@ -85,7 +103,19 @@
 			<a-form-item label="生成周数" name="weekCount" :rules="[{ required: true, message: '请输入生成周数' }]">
 				<a-input-number v-model:value="generateFormData.weekCount" :min="1" :max="26" style="width: 100%" />
 			</a-form-item>
+			<a-alert
+				v-if="generateResult"
+				:type="generateResult.conflicts && generateResult.conflicts.length ? 'warning' : 'success'"
+				show-icon
+				:message="generateSummary"
+				:description="(generateResult.conflicts || []).join('；')"
+				style="margin-bottom: 12px"
+			/>
 		</a-form>
+		<template #footer>
+			<a-button @click="onPreviewGenerate">预览</a-button>
+			<a-button @click="onSubmitGenerate">生成</a-button>
+		</template>
 	</a-modal>
 
 	<a-modal v-model:open="changeOpen" title="调课" :width="560" :destroy-on-close="true" @ok="onSubmitChange">
@@ -111,8 +141,15 @@
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
-					<a-form-item label="新教师id" name="teacherId">
-						<a-input v-model:value="changeFormData.teacherId" placeholder="可选" allow-clear />
+					<a-form-item label="新教师" name="teacherId">
+						<a-select
+							v-model:value="changeFormData.teacherId"
+							placeholder="请选择教师"
+							:options="teacherOptions"
+							allow-clear
+							show-search
+							option-filter-prop="label"
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :span="24">
@@ -132,33 +169,46 @@
 
 <script setup name="courseSchedule">
 	import courseApi from '@/api/course/courseApi'
+
 	const searchFormState = ref({})
 	const classOptions = ref([])
+	const teacherOptions = ref([])
+	const scheduleList = ref([])
 	const scheduleMap = ref({})
 	const weekDays = ref([])
 	const weekLabel = ref('')
 	const monday = ref(null)
 	const conflictTip = ref('')
-	const timeSlots = [
-		{ start: '09:00', end: '10:30' },
-		{ start: '10:00', end: '11:30' },
-		{ start: '14:00', end: '15:30' },
-		{ start: '16:00', end: '17:30' },
-		{ start: '19:00', end: '20:30' }
-	]
+	const loading = ref(false)
+	const timeSlots = ref([])
 	const addOpen = ref(false)
 	const addFormRef = ref()
 	const addFormData = ref({})
 	const generateOpen = ref(false)
 	const generateFormRef = ref()
 	const generateFormData = ref({})
+	const generateResult = ref(null)
 	const changeOpen = ref(false)
 	const changeFormRef = ref()
 	const changeFormData = ref({})
 
+	const DEFAULT_SLOTS = [
+		{ start: '09:00', end: '10:30' },
+		{ start: '10:00', end: '11:30' },
+		{ start: '14:00', end: '15:30' },
+		{ start: '16:00', end: '17:30' },
+		{ start: '19:00', end: '20:30' }
+	]
+
 	const pad = (n) => String(n).padStart(2, '0')
 	const fmtDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 	const fmtDateTime = (d) => `${fmtDate(d)} 00:00:00`
+	const toMinutes = (time) => {
+		if (!time) return 0
+		const [h, m] = String(time).split(':')
+		return Number(h) * 60 + Number(m)
+	}
+	const toTimeText = (minutes) => `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`
 
 	const buildWeek = () => {
 		const m = new Date(monday.value)
@@ -175,28 +225,63 @@
 		loadWeek()
 	}
 
+	// 课表加载：整周数据一次取回（不限条数），支持班级/教师/教室筛选
 	const loadWeek = () => {
 		const end = new Date(monday.value)
 		end.setDate(end.getDate() + 6)
+		loading.value = true
 		courseApi
-			.schedulePage({
-				current: 1,
-				size: 200,
+			.scheduleWeek({
 				classId: searchFormState.value.classId,
-				startDate: fmtDateTime(monday.value),
-				endDate: fmtDateTime(end)
+				teacherId: searchFormState.value.teacherId,
+				classroom: searchFormState.value.classroom,
+				startDate: fmtDate(monday.value),
+				endDate: fmtDate(end)
 			})
 			.then((data) => {
-				const records = (data.records || []).filter((s) => s.status === 'NORMAL')
-				const map = {}
-				for (const s of records) {
-					const date = s.scheduleDate.slice(0, 10)
-					const start = s.startTime.slice(0, 5)
-					map[date + '|' + start] = map[date + '|' + start] || []
-					map[date + '|' + start].push(s)
-				}
-				scheduleMap.value = map
+				scheduleList.value = data || []
+				renderSchedule()
 			})
+			.finally(() => {
+				loading.value = false
+			})
+	}
+
+	// 渲染：时间轴按实际排课动态生成，课节按开始时间归位（非整点课程也能显示）
+	const renderSchedule = () => {
+		const startSet = new Map()
+		for (const s of scheduleList.value) {
+			const start = (s.startTime || '').slice(0, 5)
+			if (!start) continue
+			if (!startSet.has(start)) {
+				startSet.set(start, toMinutes(s.endTime ? s.endTime.slice(0, 5) : start))
+			} else {
+				startSet.set(start, Math.max(startSet.get(start), toMinutes(s.endTime ? s.endTime.slice(0, 5) : start)))
+			}
+		}
+		const slots = startSet.size
+			? [...startSet.entries()]
+					.sort((a, b) => a[0].localeCompare(b[0]))
+					.map(([start, end]) => ({ start, end: toTimeText(end) }))
+			: DEFAULT_SLOTS
+		timeSlots.value = slots
+		const map = {}
+		for (const s of scheduleList.value) {
+			const date = (s.scheduleDate || '').slice(0, 10)
+			const start = (s.startTime || '').slice(0, 5)
+			if (!date || !start) continue
+			// 归位到「开始时间不晚于本节课」的最后一行，保证非整点课程不丢
+			let row = slots[0]
+			for (const slot of slots) {
+				if (slot.start <= start) {
+					row = slot
+				}
+			}
+			const key = date + '|' + row.start
+			map[key] = map[key] || []
+			map[key].push(s)
+		}
+		scheduleMap.value = map
 	}
 
 	const shiftWeek = (n) => {
@@ -220,8 +305,13 @@
 	}
 
 	const loadClasses = () => {
-		courseApi.classPage({ current: 1, size: 100 }).then((data) => {
+		courseApi.classPage({ current: 1, size: 200 }).then((data) => {
 			classOptions.value = (data.records || []).map((item) => ({ value: item.id, label: item.name }))
+		})
+	}
+	const loadTeachers = () => {
+		courseApi.teacherOptions({}).then((data) => {
+			teacherOptions.value = data || []
 		})
 	}
 	const className = (id) => {
@@ -230,7 +320,7 @@
 	}
 
 	const onOpenAdd = () => {
-		addFormData.value = { classId: searchFormState.value.classId }
+		addFormData.value = { classId: searchFormState.value.classId, startTime: '09:00', endTime: '10:30' }
 		addOpen.value = true
 	}
 	const onSubmitAdd = () => {
@@ -243,22 +333,38 @@
 			})
 		})
 	}
-	const onSubmitGenerate = () => {
+
+	const generateSummary = computed(() => {
+		if (!generateResult.value) return ''
+		const r = generateResult.value
+		return `计划 ${r.plannedCount} 节 · 新增 ${r.createdCount} 节 · 跳过重复 ${r.skippedCount} 节${r.preview ? '（仅预览）' : ''}`
+	})
+	const doGenerate = (preview) => {
 		generateFormRef.value.validate().then(() => {
-			const body = { ...generateFormData.value, startDate: `${generateFormData.value.startDate} 00:00:00` }
-			courseApi.scheduleGenerate(body).then(() => {
-				generateOpen.value = false
-				conflictTip.value = ''
-				loadWeek()
+			const body = {
+				...generateFormData.value,
+				startDate: `${generateFormData.value.startDate} 00:00:00`,
+				preview
+			}
+			return courseApi.scheduleGenerate(body).then((result) => {
+				generateResult.value = result || null
+				if (!preview) {
+					generateOpen.value = false
+					conflictTip.value = ''
+					loadWeek()
+				}
 			})
 		})
 	}
+	const onPreviewGenerate = () => doGenerate(true)
+	const onSubmitGenerate = () => doGenerate(false)
+
 	const onOpenChange = (record) => {
 		changeFormData.value = {
 			scheduleId: record.id,
-			scheduleDate: record.scheduleDate.slice(0, 10),
-			startTime: record.startTime.slice(0, 5),
-			endTime: record.endTime.slice(0, 5),
+			scheduleDate: (record.scheduleDate || '').slice(0, 10),
+			startTime: (record.startTime || '').slice(0, 5),
+			endTime: (record.endTime || '').slice(0, 5),
 			classroom: record.classroom,
 			teacherId: record.teacherId,
 			changeReason: ''
@@ -286,5 +392,6 @@
 	const day = (now.getDay() + 6) % 7
 	monday.value = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day)
 	loadClasses()
+	loadTeachers()
 	buildWeek()
 </script>

@@ -16,19 +16,24 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
+import cn.hutool.json.JSONObject;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vip.xiaonuo.common.annotation.CommonLog;
 import vip.xiaonuo.common.pojo.CommonResult;
+import vip.xiaonuo.course.api.dto.CourseScheduleViewDTO;
+import vip.xiaonuo.course.api.dto.CourseScheduleGenerateResultDTO;
 import vip.xiaonuo.course.modular.courseschedule.entity.CourseSchedule;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleAddParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleChangeParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleGenerateParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleIdParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseSchedulePageParam;
+import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleWeekParam;
 import vip.xiaonuo.course.modular.courseschedule.service.CourseScheduleService;
 
 import javax.validation.Valid;
@@ -83,9 +88,32 @@ public class CourseScheduleController {
     @Operation(summary = "按周模板批量生成排课")
     @CommonLog("按周模板批量生成排课")
     @PostMapping("/course/schedule/generate")
-    public CommonResult<String> generate(@RequestBody @Valid CourseScheduleGenerateParam courseScheduleGenerateParam) {
-        courseScheduleService.generate(courseScheduleGenerateParam);
-        return CommonResult.ok();
+    public CommonResult<CourseScheduleGenerateResultDTO> generate(@RequestBody @Valid CourseScheduleGenerateParam courseScheduleGenerateParam) {
+        return CommonResult.data(courseScheduleService.generate(courseScheduleGenerateParam));
+    }
+
+    /**
+     * 课表区间查询（不分页）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     */
+    @Operation(summary = "课表区间查询")
+    @GetMapping("/course/schedule/week")
+    public CommonResult<List<CourseScheduleViewDTO>> week(@Valid CourseScheduleWeekParam courseScheduleWeekParam) {
+        return CommonResult.data(courseScheduleService.week(courseScheduleWeekParam));
+    }
+
+    /**
+     * 教师可选项
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     */
+    @Operation(summary = "教师可选项")
+    @GetMapping("/course/schedule/teacherOptions")
+    public CommonResult<List<JSONObject>> teacherOptions(@RequestParam(required = false) String searchKey) {
+        return CommonResult.data(courseScheduleService.teacherOptions(searchKey));
     }
 
     /**

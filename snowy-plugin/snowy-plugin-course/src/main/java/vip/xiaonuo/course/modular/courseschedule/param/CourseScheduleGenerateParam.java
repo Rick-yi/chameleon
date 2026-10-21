@@ -40,6 +40,10 @@ public class CourseScheduleGenerateParam {
     @NotNull(message = "开始日期不能为空")
     private Date startDate;
 
+    /** 仅预览不落库 */
+    @Schema(description = "仅预览")
+    private Boolean preview = Boolean.FALSE;
+
     /** 生成周数 */
     @Schema(description = "生成周数", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull(message = "生成周数不能为空")

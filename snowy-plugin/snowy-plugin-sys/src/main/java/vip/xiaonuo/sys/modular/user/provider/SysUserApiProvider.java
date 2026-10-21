@@ -18,6 +18,7 @@ import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.json.JSONObject;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Service;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.sys.api.SysUserApi;
 import vip.xiaonuo.sys.modular.user.entity.SysUser;
+import vip.xiaonuo.sys.modular.user.enums.SysUserStatusEnum;
 import vip.xiaonuo.sys.modular.user.param.SysUserGrantRoleParam;
 import vip.xiaonuo.sys.modular.user.param.SysUserIdParam;
 import vip.xiaonuo.sys.modular.user.param.SysUserSelectorUserParam;
@@ -228,6 +230,19 @@ public class SysUserApiProvider implements SysUserApi {
         sysUserSelectorUserParam.setOrgId(orgId);
         sysUserSelectorUserParam.setSearchKey(searchKey);
         return BeanUtil.toBean(sysUserService.userSelector(sysUserSelectorUserParam), Page.class);
+    }
+
+    @Override
+    public List<JSONObject> listUserOptions(String searchKey) {
+        LambdaQueryWrapper<SysUser> queryWrapper = new LambdaQueryWrapper<SysUser>()
+                .select(SysUser::getId, SysUser::getAccount, SysUser::getName, SysUser::getAvatar)
+                .eq(SysUser::getUserStatus, SysUserStatusEnum.ENABLE.getValue())
+                .orderByAsc(SysUser::getSortCode)
+                .last("limit 200");
+        if (StrUtil.isNotBlank(searchKey)) {
+            queryWrapper.and(q -> q.like(SysUser::getName, searchKey).or().like(SysUser::getAccount, searchKey));
+        }
+        return sysUserService.list(queryWrapper).stream().map(JSONUtil::parseObj).collect(Collectors.toList());
     }
 
     @Override

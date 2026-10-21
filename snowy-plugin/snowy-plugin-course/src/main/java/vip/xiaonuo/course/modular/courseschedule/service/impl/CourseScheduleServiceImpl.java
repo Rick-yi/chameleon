@@ -15,6 +15,7 @@ package vip.xiaonuo.course.modular.courseschedule.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
@@ -27,6 +28,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
+import vip.xiaonuo.course.modular.course.entity.Course;
+import vip.xiaonuo.course.modular.course.mapper.CourseMapper;
 import vip.xiaonuo.course.modular.courseclass.entity.CourseClass;
 import vip.xiaonuo.course.modular.courseclass.mapper.CourseClassMapper;
 import vip.xiaonuo.course.modular.courseclass.service.CourseClassService;
@@ -47,6 +50,10 @@ import vip.xiaonuo.course.modular.courseschedule.service.CourseScheduleService;
 import vip.xiaonuo.course.modular.courseschedulechange.entity.CourseScheduleChange;
 import vip.xiaonuo.course.modular.courseschedulechange.service.CourseScheduleChangeService;
 import vip.xiaonuo.student.api.StudentNotifyApi;
+import vip.xiaonuo.sys.api.SysUserApi;
+import vip.xiaonuo.course.api.dto.CourseScheduleGenerateResultDTO;
+import vip.xiaonuo.course.api.dto.CourseScheduleViewDTO;
+import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleWeekParam;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -54,9 +61,12 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import vip.xiaonuo.auth.core.util.StpDataScopeUtil;
 
 /**
@@ -73,6 +83,12 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
 
     @Resource
     private CourseClassMapper courseClassMapper;
+
+    @Resource
+    private CourseMapper courseMapper;
+
+    @Resource
+    private SysUserApi sysUserApi;
 
     @Resource
     private CourseScheduleChangeService courseScheduleChangeService;
@@ -144,7 +160,8 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
 
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public void generate(CourseScheduleGenerateParam courseScheduleGenerateParam) {
+    public CourseScheduleGenerateResultDTO generate(CourseScheduleGenerateParam courseScheduleGenerateParam) {
+        CourseScheduleGenerateResultDTO result = new CourseScheduleGenerateResultDTO();
         // 校验班级及其周课表模板
         CourseClass courseClass = courseClassService.queryEntity(courseScheduleGenerateParam.getClassId());
         if (ObjectUtil.isEmpty(courseClass.getWeekTemplateJson())) {
@@ -162,8 +179,20 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         LocalDate startLocalDate = courseScheduleGenerateParam.getStartDate().toInstant()
                 .atZone(ZoneId.systemDefault()).toLocalDate();
         LocalDate monday = startLocalDate.with(DayOfWeek.MONDAY);
+        LocalDate lastDay = monday.plusWeeks(weekCount - 1).plusDays(6);
+        // 一次性载入区间内已有排课，冲突检测走内存比对（避免逐条查库）
+        List<CourseSchedule> existList = this.list(new LambdaQueryWrapper<CourseSchedule>()
+                .ge(CourseSchedule::getScheduleDate, Date.from(monday.atStartOfDay(ZoneId.systemDefault()).toInstant()))
+                .le(CourseSchedule::getScheduleDate, Date.from(lastDay.atStartOfDay(ZoneId.systemDefault()).toInstant()))
+                .eq(CourseSchedule::getStatus, CourseScheduleStatusEnum.NORMAL.getValue()));
+        Set<String> existKeySet = new HashSet<>();
+        for (CourseSchedule exist : existList) {
+            existKeySet.add(scheduleKey(exist.getClassId(), exist.getScheduleDate(), exist.getStartTime(), exist.getEndTime()));
+        }
         List<CourseSchedule> toSaveList = new ArrayList<>();
         List<String> allConflicts = new ArrayList<>();
+        int plannedCount = 0;
+        int skippedCount = 0;
         for (int week = 0; week < weekCount; week++) {
             for (int i = 0; i < templateList.size(); i++) {
                 JSONObject template = templateList.getJSONObject(i);
@@ -177,20 +206,43 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                 String classroom = template.getStr("classroom");
                 String teacherId = template.getStr("teacherId");
                 Date scheduleDate = Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
-                // 与已有排课冲突
-                List<String> conflicts = this.conflictCheck(courseScheduleGenerateParam.getClassId(), scheduleDate,
-                        startTime, endTime, classroom, teacherId, null);
-                allConflicts.addAll(conflicts);
-                // 与同批生成排课冲突（教室/教师）
+                plannedCount++;
+                // 幂等：与已有排课完全一致时跳过，不重复生成
+                if (existKeySet.contains(scheduleKey(courseScheduleGenerateParam.getClassId(), scheduleDate, startTime, endTime))) {
+                    skippedCount++;
+                    continue;
+                }
+                // 与区间内已有排课冲突（教室 / 教师 / 班级同时段重叠）
+                for (CourseSchedule exist : existList) {
+                    if (!sameDate(exist.getScheduleDate(), scheduleDate)) {
+                        continue;
+                    }
+                    if (!(exist.getStartTime().isBefore(endTime) && exist.getEndTime().isAfter(startTime))) {
+                        continue;
+                    }
+                    if (ObjectUtil.isNotEmpty(classroom) && classroom.equals(exist.getClassroom())) {
+                        allConflicts.add("教室【" + classroom + "】同时段已有排课");
+                    }
+                    if (ObjectUtil.isNotEmpty(teacherId) && teacherId.equals(exist.getTeacherId())) {
+                        allConflicts.add("教师同时段已有排课");
+                    }
+                    if (courseScheduleGenerateParam.getClassId().equals(exist.getClassId())) {
+                        allConflicts.add("该班级同时段已有排课");
+                    }
+                }
+                // 与同批生成排课冲突（教室 / 教师）
                 for (CourseSchedule planned : toSaveList) {
-                    if (planned.getScheduleDate().equals(scheduleDate)
-                            && planned.getStartTime().isBefore(endTime) && planned.getEndTime().isAfter(startTime)) {
-                        if (ObjectUtil.isNotEmpty(classroom) && classroom.equals(planned.getClassroom())) {
-                            allConflicts.add("教室【" + classroom + "】同时段已有排课（同批生成）");
-                        }
-                        if (ObjectUtil.isNotEmpty(teacherId) && teacherId.equals(planned.getTeacherId())) {
-                            allConflicts.add("教师同时段已有排课（同批生成）");
-                        }
+                    if (!sameDate(planned.getScheduleDate(), scheduleDate)) {
+                        continue;
+                    }
+                    if (!(planned.getStartTime().isBefore(endTime) && planned.getEndTime().isAfter(startTime))) {
+                        continue;
+                    }
+                    if (ObjectUtil.isNotEmpty(classroom) && classroom.equals(planned.getClassroom())) {
+                        allConflicts.add("教室【" + classroom + "】同时段已有排课（同批生成）");
+                    }
+                    if (ObjectUtil.isNotEmpty(teacherId) && teacherId.equals(planned.getTeacherId())) {
+                        allConflicts.add("教师同时段已有排课（同批生成）");
                     }
                 }
                 CourseSchedule courseSchedule = new CourseSchedule();
@@ -204,12 +256,44 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                 toSaveList.add(courseSchedule);
             }
         }
+        result.setPlannedCount(plannedCount);
+        result.setSkippedCount(skippedCount);
+        result.setConflicts(new ArrayList<>(new HashSet<>(allConflicts)));
+        // 预览模式：只给出将生成的结果与冲突，不落库
+        if (Boolean.TRUE.equals(courseScheduleGenerateParam.getPreview())) {
+            result.setPreview(Boolean.TRUE);
+            result.setCreatedCount(toSaveList.size());
+            return result;
+        }
         // 任一冲突整体失败（不落库）
         if (ObjectUtil.isNotEmpty(allConflicts)) {
-            List<String> distinctConflicts = new ArrayList<>(new HashSet<>(allConflicts));
-            throw new CommonException("存在排课冲突，未生成：{}", String.join("；", distinctConflicts));
+            throw new CommonException("存在排课冲突，未生成：{}", String.join("；", result.getConflicts()));
         }
-        this.saveBatch(toSaveList);
+        if (ObjectUtil.isNotEmpty(toSaveList)) {
+            this.saveBatch(toSaveList);
+        }
+        result.setCreatedCount(toSaveList.size());
+        return result;
+    }
+
+    /**
+     * 排课唯一键（班级 + 日期 + 起止时间），用于生成幂等判断
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private String scheduleKey(String classId, Date scheduleDate, LocalTime startTime, LocalTime endTime) {
+        return classId + "|" + DateUtil.formatDate(scheduleDate) + "|" + startTime + "|" + endTime;
+    }
+
+    /**
+     * 是否同一天
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private boolean sameDate(Date left, Date right) {
+        return left != null && right != null && DateUtil.formatDate(left).equals(DateUtil.formatDate(right));
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -317,5 +401,94 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             }
         }
         return new ArrayList<>(conflictSet);
+    }
+
+    @Override
+    public List<CourseScheduleViewDTO> week(CourseScheduleWeekParam courseScheduleWeekParam) {
+        Date start = cn.hutool.core.date.DateUtil.beginOfDay(parseDate(courseScheduleWeekParam.getStartDate(), defaultWeekStart()));
+        Date end = cn.hutool.core.date.DateUtil.endOfDay(parseDate(courseScheduleWeekParam.getEndDate(), defaultWeekEnd()));
+        List<String> visibleClassIdList = visibleClassIdList();
+        List<CourseSchedule> scheduleList = this.list(new LambdaQueryWrapper<CourseSchedule>()
+                .eq(StrUtil.isNotBlank(courseScheduleWeekParam.getClassId()), CourseSchedule::getClassId, courseScheduleWeekParam.getClassId())
+                .eq(StrUtil.isNotBlank(courseScheduleWeekParam.getTeacherId()), CourseSchedule::getTeacherId, courseScheduleWeekParam.getTeacherId())
+                .eq(StrUtil.isNotBlank(courseScheduleWeekParam.getClassroom()), CourseSchedule::getClassroom, courseScheduleWeekParam.getClassroom())
+                .in(ObjectUtil.isNotEmpty(visibleClassIdList), CourseSchedule::getClassId, visibleClassIdList)
+                .ge(CourseSchedule::getScheduleDate, start)
+                .le(CourseSchedule::getScheduleDate, end)
+                .eq(CourseSchedule::getStatus, CourseScheduleStatusEnum.NORMAL.getValue())
+                .orderByAsc(CourseSchedule::getScheduleDate)
+                .orderByAsc(CourseSchedule::getStartTime));
+        if (ObjectUtil.isEmpty(scheduleList)) {
+            return new ArrayList<>();
+        }
+        // 批量填充班级 / 课程 / 教师信息
+        List<String> classIdList = scheduleList.stream().map(CourseSchedule::getClassId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        Map<String, CourseClass> classMap = new HashMap<>();
+        if (ObjectUtil.isNotEmpty(classIdList)) {
+            courseClassMapper.selectBatchIds(classIdList).forEach(item -> classMap.put(item.getId(), item));
+        }
+        List<String> courseIdList = classMap.values().stream().map(CourseClass::getCourseId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        Map<String, String> courseNameMap = new HashMap<>();
+        if (ObjectUtil.isNotEmpty(courseIdList)) {
+            courseMapper.selectBatchIds(courseIdList).forEach(item -> courseNameMap.put(item.getId(), item.getName()));
+        }
+        List<String> teacherIdList = scheduleList.stream().map(CourseSchedule::getTeacherId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        Map<String, String> teacherNameMap = new HashMap<>();
+        if (ObjectUtil.isNotEmpty(teacherIdList)) {
+            sysUserApi.getUserListByIdListWithoutException(teacherIdList)
+                    .forEach(user -> teacherNameMap.put(user.getStr("id"), user.getStr("name")));
+        }
+        List<CourseScheduleViewDTO> resultList = new ArrayList<>();
+        for (CourseSchedule schedule : scheduleList) {
+            CourseScheduleViewDTO dto = new CourseScheduleViewDTO();
+            dto.setId(schedule.getId());
+            dto.setClassId(schedule.getClassId());
+            dto.setTeacherId(schedule.getTeacherId());
+            dto.setTeacherName(teacherNameMap.get(schedule.getTeacherId()));
+            dto.setScheduleDate(schedule.getScheduleDate());
+            dto.setStartTime(schedule.getStartTime() == null ? null : schedule.getStartTime().toString());
+            dto.setEndTime(schedule.getEndTime() == null ? null : schedule.getEndTime().toString());
+            dto.setClassroom(schedule.getClassroom());
+            dto.setStatus(schedule.getStatus());
+            CourseClass courseClass = classMap.get(schedule.getClassId());
+            if (ObjectUtil.isNotEmpty(courseClass)) {
+                dto.setClassName(courseClass.getName());
+                dto.setCourseId(courseClass.getCourseId());
+                dto.setCampusId(courseClass.getCampusId());
+                dto.setCourseName(courseNameMap.get(courseClass.getCourseId()));
+            }
+            resultList.add(dto);
+        }
+        return resultList;
+    }
+
+    @Override
+    public List<JSONObject> teacherOptions(String searchKey) {
+        List<JSONObject> userList = sysUserApi.listUserOptions(searchKey);
+        List<JSONObject> optionList = new ArrayList<>();
+        for (JSONObject user : userList) {
+            JSONObject option = new JSONObject();
+            option.set("value", user.getStr("id"));
+            option.set("label", user.getStr("name"));
+            optionList.add(option);
+        }
+        return optionList;
+    }
+
+    private Date parseDate(String date, Date defaultDate) {
+        return StrUtil.isNotBlank(date) ? cn.hutool.core.date.DateUtil.parse(date) : defaultDate;
+    }
+
+    private Date defaultWeekStart() {
+        LocalDate today = LocalDate.now();
+        return Date.from(today.with(DayOfWeek.MONDAY).atStartOfDay(ZoneId.systemDefault()).toInstant());
+    }
+
+    private Date defaultWeekEnd() {
+        LocalDate today = LocalDate.now();
+        return Date.from(today.with(DayOfWeek.SUNDAY).atStartOfDay(ZoneId.systemDefault()).toInstant());
     }
 }

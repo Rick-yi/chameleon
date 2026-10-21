@@ -90,6 +90,14 @@ export default {
 	scheduleCancel(data) {
 		return request('schedule/cancel', data)
 	},
+	// 课表区间查询（不分页）
+	scheduleWeek(data) {
+		return request('schedule/week', data, 'get')
+	},
+	// 教师可选项
+	teacherOptions(data) {
+		return request('schedule/teacherOptions', data, 'get')
+	},
 	// 点名
 	attendPage(data) {
 		return request('attend/page', data, 'get')
