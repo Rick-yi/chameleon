@@ -87,6 +87,10 @@ public class FinDailyStat extends CommonEntity {
     @Schema(description = "净课消课时")
     private BigDecimal netLessons = BigDecimal.ZERO;
 
+    /** 课消金额（权责口径） */
+    @Schema(description = "课消金额（权责口径）")
+    private BigDecimal recognizedAmount = BigDecimal.ZERO;
+
     /** 新增学员数 */
     @Schema(description = "新增学员数")
     private Long newStudentCount = 0L;

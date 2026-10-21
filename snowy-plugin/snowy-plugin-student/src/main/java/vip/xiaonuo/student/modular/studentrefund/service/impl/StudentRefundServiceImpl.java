@@ -240,12 +240,12 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
                 .eq(StudentLessonAccount::getId, account.getId())
                 .eq(StudentLessonAccount::getStatus, LessonAccountStatusEnum.FROZEN.getValue())
                 .set(StudentLessonAccount::getStatus, accountStatus));
-        // 退费销课流水（退款课时 + 作废赠课）
+        // 退费销课流水（只记购买课时部分，赠课作废不产生收入冲回，备注中说明）
         StudentLessonFlow flow = new StudentLessonFlow();
         flow.setStudentId(refund.getStudentId());
         flow.setCourseId(refund.getCourseId());
         flow.setFlowType(LessonFlowTypeEnum.REFUND.getValue());
-        flow.setLessons(totalRemove.negate());
+        flow.setLessons(refund.getRefundLessons().negate());
         flow.setRefOrderId(refund.getOrderId());
         flow.setRemark("退费销课（退款" + refund.getRefundLessons().stripTrailingZeros().toPlainString()
                 + "课时，赠课作废" + refundGiftLessons.stripTrailingZeros().toPlainString() + "课时）");

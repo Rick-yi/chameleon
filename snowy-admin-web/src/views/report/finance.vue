@@ -19,7 +19,7 @@
 						<a-button type="primary" @click="loadAll">查询</a-button>
 						<a-button @click="reset">重置</a-button>
 						<a-dropdown v-if="hasPerm('reportExport')">
-							<a-button>
+							<a-button :loading="exportLoading">
 								导出
 								<down-outlined />
 							</a-button>
@@ -104,6 +104,17 @@
 				<a-table :columns="rankColumns" :data-source="courseRankList" :pagination="false" bordered size="middle" />
 			</a-card>
 
+			<a-card title="课消与收入确认" :bordered="false" style="margin-top: 16px">
+				<a-table
+					:columns="consumeColumns"
+					:data-source="consumeList"
+					:row-key="(r) => `${r.courseId}-${r.coursePackageId}`"
+					:pagination="false"
+					bordered
+					size="middle"
+				/>
+			</a-card>
+
 			<a-card :bordered="false" style="margin-top: 16px" v-if="hasPerm('reportDetail')">
 				<a-tabs v-model:activeKey="activeTab">
 					<a-tab-pane key="payment" tab="收款明细">
@@ -163,6 +174,7 @@
 <script setup name="reportFinance">
 	import { h, nextTick, onMounted, reactive, ref } from 'vue'
 	import { Line, Pie } from '@antv/g2plot'
+	import { message } from 'ant-design-vue'
 	import dayjs from 'dayjs'
 	import reportApi from '@/api/report/reportApi'
 	import financeApi from '@/api/finance/financeApi'
@@ -202,7 +214,9 @@
 	const paymentList = ref([])
 	const refundList = ref([])
 	const dailyList = ref([])
+	const consumeList = ref([])
 	const reconcile = ref({ consistent: true, messages: [] })
+	const exportLoading = ref(false)
 	const paymentPage = reactive({ current: 1, pageSize: 10, total: 0, showSizeChanger: true })
 	const refundPage = reactive({ current: 1, pageSize: 10, total: 0, showSizeChanger: true })
 
@@ -298,14 +312,16 @@
 			reportApi.channel(params),
 			reportApi.courseRank(params),
 			reportApi.campusRank(params),
-			reportApi.attendTrend(params)
-		]).then(([summaryData, trendData, channelData, rankData, campusData, attendData]) => {
+			reportApi.attendTrend(params),
+			reportApi.consume(params)
+		]).then(([summaryData, trendData, channelData, rankData, campusData, attendData, consumeData]) => {
 			summary.value = summaryData || emptySummary()
 			trendList.value = trendData || []
 			channelList.value = channelData || []
 			courseRankList.value = rankData || []
 			campusRankList.value = campusData || []
 			attendTrendList.value = attendData || []
+			consumeList.value = consumeData || []
 			nextTick(renderCharts)
 		})
 	}
@@ -345,10 +361,33 @@
 	}
 
 	const onExport = ({ key }) => {
-		const params = { ...buildQuery(), type: key }
-		reportApi.exportReport(params).then((res) => {
-			downloadUtil.resultDownload(res)
-		})
+		exportLoading.value = true
+		reportApi
+			.exportAsync({ ...buildQuery(), type: key })
+			.then((task) => {
+				pollExportTask(task.id)
+			})
+			.finally(() => {
+				exportLoading.value = false
+			})
+	}
+
+	// 异步导出：轮询任务状态，完成后自动下载
+	const pollExportTask = (taskId) => {
+		const timer = setInterval(() => {
+			reportApi.exportAsyncStatus({ id: taskId }).then((task) => {
+				if (task.status === 'SUCCESS') {
+					clearInterval(timer)
+					reportApi.exportAsyncDownload({ id: taskId }).then((res) => {
+						downloadUtil.resultDownload(res)
+						message.success('导出完成，已开始下载')
+					})
+				} else if (task.status === 'FAILED') {
+					clearInterval(timer)
+					message.error(task.errorMsg || '导出失败')
+				}
+			})
+		}, 1500)
 	}
 
 	// 对账
@@ -453,7 +492,16 @@
 		{ title: '净营收', dataIndex: 'netAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
 		{ title: '订单数', dataIndex: 'orderCount' },
 		{ title: '净课消课时', dataIndex: 'netLessons', customRender: ({ text }) => Number(text || 0).toFixed(2) },
+		{ title: '课消金额', dataIndex: 'recognizedAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
 		{ title: '新增学员', dataIndex: 'newStudentCount' }
+	]
+	const consumeColumns = [
+		{ title: '课程', dataIndex: 'courseName' },
+		{ title: '课包', dataIndex: 'coursePackageName' },
+		{ title: '消课课时', dataIndex: 'attendLessons', customRender: ({ text }) => Number(text || 0).toFixed(2) },
+		{ title: '课消金额', dataIndex: 'recognizedAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
+		{ title: '订单数', dataIndex: 'orderCount' },
+		{ title: '学员数', dataIndex: 'studentCount' }
 	]
 
 	const loadCourses = () => {

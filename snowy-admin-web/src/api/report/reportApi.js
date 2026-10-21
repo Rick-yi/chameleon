@@ -51,6 +51,20 @@ export default {
 			responseType: 'blob'
 		})
 	},
+	exportAsync(data) {
+		return financeRequest('export/async', data, 'get')
+	},
+	exportAsyncStatus(data) {
+		return financeRequest('export/async/status', data, 'get')
+	},
+	exportAsyncDownload(data) {
+		return financeRequest('export/async/download', data, 'get', {
+			responseType: 'blob'
+		})
+	},
+	consume(data) {
+		return financeRequest('consume', data, 'get')
+	},
 	dailyStat(data) {
 		return financeRequest('dailyStat', data, 'get')
 	},

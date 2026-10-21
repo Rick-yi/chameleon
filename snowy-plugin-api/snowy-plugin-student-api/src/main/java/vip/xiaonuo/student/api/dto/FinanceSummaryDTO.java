@@ -91,4 +91,8 @@ public class FinanceSummaryDTO {
     /** 实收率（百分比） */
     @Schema(description = "实收率（百分比）")
     private BigDecimal collectionRate = BigDecimal.ZERO;
+
+    /** 数据来源：REALTIME 实时聚合 / DAILY_STAT 日汇总表 */
+    @Schema(description = "数据来源")
+    private String dataSource = "REALTIME";
 }

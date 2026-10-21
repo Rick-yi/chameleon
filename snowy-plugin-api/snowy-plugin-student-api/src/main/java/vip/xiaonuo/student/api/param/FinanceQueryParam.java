@@ -72,4 +72,8 @@ public class FinanceQueryParam {
     /** 状态（退费单） */
     @Schema(description = "状态")
     private String status;
+
+    /** 数据来源：REAL 强制实时 / DAILY 强制日汇总；不传则自动（命中日汇总走快路径） */
+    @Schema(description = "数据来源：REAL/DAILY")
+    private String source;
 }

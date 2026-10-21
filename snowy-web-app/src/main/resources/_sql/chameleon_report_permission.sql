@@ -51,6 +51,10 @@ JOIN (
     SELECT '/finance/report/dailyStat' UNION ALL
     SELECT '/finance/report/dailyStat/rebuild' UNION ALL
     SELECT '/finance/report/reconcile' UNION ALL
+    SELECT '/finance/report/consume' UNION ALL
+    SELECT '/finance/report/export/async' UNION ALL
+    SELECT '/finance/report/export/async/status' UNION ALL
+    SELECT '/finance/report/export/async/download' UNION ALL
     SELECT '/finance/report/cache/clear' UNION ALL
     SELECT '/course/report/academic/attendance' UNION ALL
     SELECT '/course/report/academic/classFill' UNION ALL

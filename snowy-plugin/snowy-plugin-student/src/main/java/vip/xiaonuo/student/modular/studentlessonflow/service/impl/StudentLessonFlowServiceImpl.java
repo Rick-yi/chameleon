@@ -25,6 +25,8 @@ import vip.xiaonuo.student.modular.studentlessonflow.mapper.StudentLessonFlowMap
 import vip.xiaonuo.student.modular.studentlessonflow.param.StudentLessonFlowPageParam;
 import vip.xiaonuo.student.modular.studentlessonflow.service.StudentLessonFlowService;
 
+import java.util.List;
+
 /**
  * 课时流水Service接口实现类
  *
@@ -57,5 +59,14 @@ public class StudentLessonFlowServiceImpl extends ServiceImpl<StudentLessonFlowM
                 .eq(StudentLessonFlow::getFlowType, LessonFlowTypeEnum.ATTEND.getValue())
                 .orderByDesc(StudentLessonFlow::getCreateTime)
                 .last("limit 1"));
+    }
+
+    @Override
+    public List<StudentLessonFlow> listDeductFlows(String scheduleId, String studentId) {
+        return this.list(new LambdaQueryWrapper<StudentLessonFlow>()
+                .eq(StudentLessonFlow::getScheduleId, scheduleId)
+                .eq(StudentLessonFlow::getStudentId, studentId)
+                .eq(StudentLessonFlow::getFlowType, LessonFlowTypeEnum.ATTEND.getValue())
+                .orderByAsc(StudentLessonFlow::getCreateTime));
     }
 }

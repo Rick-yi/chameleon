@@ -48,4 +48,12 @@ public interface FinDailyStatService {
      * @date 2026/10/21 10:00
      **/
     BigDecimal sumPaidAmount(String startDate, String endDate);
+
+    /**
+     * 判断区间是否已被日汇总完整覆盖（每天都有汇总行）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    boolean covered(String startDate, String endDate);
 }

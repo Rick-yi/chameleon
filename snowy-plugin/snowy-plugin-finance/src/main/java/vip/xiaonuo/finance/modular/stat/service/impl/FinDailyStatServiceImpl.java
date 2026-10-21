@@ -25,9 +25,7 @@ import vip.xiaonuo.finance.modular.stat.mapper.FinDailyStatMapper;
 import vip.xiaonuo.finance.modular.stat.service.FinDailyStatService;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,7 +33,8 @@ import java.util.Map;
  * 财务日汇总Service接口实现类
  * <p>
  * 汇总使用 JdbcTemplate 直接查询业务表并显式带上 TENANT_ID 条件，避免绕过租户隔离；
- * 结果写入 FIN_DAILY_STAT（该表已登记进租户拦截表清单）。
+ * v1 按「租户 + 日期」单行汇总（校区/课程维度留空，维度下钻仍走实时聚合），
+ * 每一天都会落一行（含零值行），用于判断区间是否已被完整汇总覆盖。
  * </p>
  *
  * @author 会飞的猪
@@ -56,72 +55,65 @@ public class FinDailyStatServiceImpl implements FinDailyStatService {
         Date start = DateUtil.beginOfDay(DateUtil.parse(statDate));
         Date end = DateUtil.offsetDay(start, 1);
 
-        Map<String, FinDailyStat> statMap = new LinkedHashMap<>();
+        FinDailyStat stat = new FinDailyStat();
+        stat.setStatDate(start);
 
         // 收款
-        for (Map<String, Object> row : jdbcTemplate.queryForList(
-                "SELECT COALESCE(`CAMPUS_ID`,'') AS `CAMPUS_ID`, COALESCE(`COURSE_ID`,'') AS `COURSE_ID`, "
-                        + "COUNT(*) AS `ORDER_COUNT`, COUNT(DISTINCT `STUDENT_ID`) AS `PAYING_STUDENT_COUNT`, "
+        MapWrapper orderStat = queryOne(
+                "SELECT COUNT(*) AS `ORDER_COUNT`, COUNT(DISTINCT `STUDENT_ID`) AS `PAYING_STUDENT_COUNT`, "
                         + "COALESCE(SUM(`PAID_AMOUNT`),0) AS `PAID_AMOUNT` FROM `STUDENT_ORDER` "
                         + "WHERE `TENANT_ID` = ? AND `DELETE_FLAG` = 'NOT_DELETE' AND `STATUS` IN ('PAID','REFUNDED') "
-                        + "AND COALESCE(`PAY_TIME`, `CREATE_TIME`) >= ? AND COALESCE(`PAY_TIME`, `CREATE_TIME`) < ? "
-                        + "GROUP BY `CAMPUS_ID`, `COURSE_ID`",
-                tenantId, start, end)) {
-            FinDailyStat stat = statOf(statMap, string(row.get("CAMPUS_ID")), string(row.get("COURSE_ID")));
-            stat.setOrderCount(toLong(row.get("ORDER_COUNT")));
-            stat.setPayingStudentCount(toLong(row.get("PAYING_STUDENT_COUNT")));
-            stat.setPaidAmount(toBigDecimal(row.get("PAID_AMOUNT")));
-        }
+                        + "AND COALESCE(`PAY_TIME`, `CREATE_TIME`) >= ? AND COALESCE(`PAY_TIME`, `CREATE_TIME`) < ?",
+                tenantId, start, end);
+        stat.setOrderCount(orderStat.getLong("ORDER_COUNT"));
+        stat.setPayingStudentCount(orderStat.getLong("PAYING_STUDENT_COUNT"));
+        stat.setPaidAmount(orderStat.getBigDecimal("PAID_AMOUNT"));
 
         // 退费
-        for (Map<String, Object> row : jdbcTemplate.queryForList(
-                "SELECT COALESCE(o.`CAMPUS_ID`,'') AS `CAMPUS_ID`, COALESCE(r.`COURSE_ID`,'') AS `COURSE_ID`, "
-                        + "COALESCE(SUM(r.`REFUND_AMOUNT`),0) AS `REFUND_AMOUNT` FROM `STUDENT_REFUND` r "
-                        + "LEFT JOIN `STUDENT_ORDER` o ON o.`ID` = r.`ORDER_ID` AND o.`TENANT_ID` = r.`TENANT_ID` "
-                        + "AND o.`DELETE_FLAG` = 'NOT_DELETE' "
-                        + "WHERE r.`TENANT_ID` = ? AND r.`DELETE_FLAG` = 'NOT_DELETE' AND r.`STATUS` = 'REFUNDED' "
-                        + "AND COALESCE(r.`REFUND_TIME`, r.`APPROVE_TIME`, r.`UPDATE_TIME`, r.`CREATE_TIME`) >= ? "
-                        + "AND COALESCE(r.`REFUND_TIME`, r.`APPROVE_TIME`, r.`UPDATE_TIME`, r.`CREATE_TIME`) < ? "
-                        + "GROUP BY o.`CAMPUS_ID`, r.`COURSE_ID`",
-                tenantId, start, end)) {
-            FinDailyStat stat = statOf(statMap, string(row.get("CAMPUS_ID")), string(row.get("COURSE_ID")));
-            stat.setRefundAmount(toBigDecimal(row.get("REFUND_AMOUNT")));
-        }
+        MapWrapper refundStat = queryOne(
+                "SELECT COALESCE(SUM(`REFUND_AMOUNT`),0) AS `REFUND_AMOUNT` FROM `STUDENT_REFUND` "
+                        + "WHERE `TENANT_ID` = ? AND `DELETE_FLAG` = 'NOT_DELETE' AND `STATUS` = 'REFUNDED' "
+                        + "AND COALESCE(`REFUND_TIME`, `APPROVE_TIME`, `UPDATE_TIME`, `CREATE_TIME`) >= ? "
+                        + "AND COALESCE(`REFUND_TIME`, `APPROVE_TIME`, `UPDATE_TIME`, `CREATE_TIME`) < ?",
+                tenantId, start, end);
+        stat.setRefundAmount(refundStat.getBigDecimal("REFUND_AMOUNT"));
 
-        // 课消
-        for (Map<String, Object> row : jdbcTemplate.queryForList(
-                "SELECT COALESCE(`COURSE_ID`,'') AS `COURSE_ID`, "
-                        + "COALESCE(SUM(CASE WHEN `FLOW_TYPE` = 'ATTEND' THEN ABS(`LESSONS`) ELSE 0 END),0) AS `ATTEND_LESSONS`, "
+        // 课消课时
+        MapWrapper lessonStat = queryOne(
+                "SELECT COALESCE(SUM(CASE WHEN `FLOW_TYPE` = 'ATTEND' THEN ABS(`LESSONS`) ELSE 0 END),0) AS `ATTEND_LESSONS`, "
                         + "COALESCE(SUM(CASE WHEN `FLOW_TYPE` = 'RESTORE' THEN ABS(`LESSONS`) ELSE 0 END),0) AS `RESTORE_LESSONS` "
                         + "FROM `STUDENT_LESSON_FLOW` WHERE `TENANT_ID` = ? AND `DELETE_FLAG` = 'NOT_DELETE' "
-                        + "AND `FLOW_TYPE` IN ('ATTEND','RESTORE') AND `CREATE_TIME` >= ? AND `CREATE_TIME` < ? "
-                        + "GROUP BY `COURSE_ID`",
-                tenantId, start, end)) {
-            FinDailyStat stat = statOf(statMap, "", string(row.get("COURSE_ID")));
-            stat.setAttendLessons(toBigDecimal(row.get("ATTEND_LESSONS")));
-            stat.setRestoreLessons(toBigDecimal(row.get("RESTORE_LESSONS")));
-        }
+                        + "AND `FLOW_TYPE` IN ('ATTEND','RESTORE') AND `CREATE_TIME` >= ? AND `CREATE_TIME` < ?",
+                tenantId, start, end);
+        stat.setAttendLessons(lessonStat.getBigDecimal("ATTEND_LESSONS"));
+        stat.setRestoreLessons(lessonStat.getBigDecimal("RESTORE_LESSONS"));
+
+        // 课消金额（权责口径）：消课 × 订单购买课时单价，退费销课与回补为负
+        MapWrapper recognizedStat = queryOne(
+                "SELECT COALESCE(SUM(CASE WHEN f.`FLOW_TYPE` = 'ATTEND' THEN ABS(f.`LESSONS`) * (o.`PAID_AMOUNT` / NULLIF(o.`PACKAGE_LESSONS`,0)) "
+                        + "WHEN f.`FLOW_TYPE` IN ('RESTORE','REFUND') THEN -ABS(f.`LESSONS`) * (o.`PAID_AMOUNT` / NULLIF(o.`PACKAGE_LESSONS`,0)) "
+                        + "ELSE 0 END),0) AS `RECOGNIZED_AMOUNT` "
+                        + "FROM `STUDENT_LESSON_FLOW` f "
+                        + "JOIN `STUDENT_ORDER` o ON o.`ID` = f.`REF_ORDER_ID` AND o.`TENANT_ID` = f.`TENANT_ID` AND o.`DELETE_FLAG` = 'NOT_DELETE' "
+                        + "WHERE f.`TENANT_ID` = ? AND f.`DELETE_FLAG` = 'NOT_DELETE' AND f.`CREATE_TIME` >= ? AND f.`CREATE_TIME` < ?",
+                tenantId, start, end);
+        stat.setRecognizedAmount(recognizedStat.getBigDecimal("RECOGNIZED_AMOUNT"));
 
         // 新增学员
         Long newStudentCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM `STUDENT` WHERE `TENANT_ID` = ? AND `DELETE_FLAG` = 'NOT_DELETE' "
                         + "AND `CREATE_TIME` >= ? AND `CREATE_TIME` < ?",
                 Long.class, tenantId, start, end);
-        if (ObjectUtil.isNotEmpty(newStudentCount) && newStudentCount > 0) {
-            FinDailyStat stat = statOf(statMap, "", "");
-            stat.setNewStudentCount(newStudentCount);
-        }
+        stat.setNewStudentCount(ObjectUtil.defaultIfNull(newStudentCount, 0L));
+
+        stat.setNetAmount(stat.getPaidAmount().subtract(stat.getRefundAmount()));
+        stat.setNetLessons(stat.getAttendLessons().subtract(stat.getRestoreLessons()));
 
         // 覆盖写入当日汇总
         jdbcTemplate.update("DELETE FROM `FIN_DAILY_STAT` WHERE `TENANT_ID` = ? AND `STAT_DATE` = ?", tenantId, start);
-        for (FinDailyStat stat : statMap.values()) {
-            stat.setId(IdUtil.getSnowflakeNextIdStr());
-            stat.setTenantId(tenantId);
-            stat.setStatDate(start);
-            stat.setNetAmount(stat.getPaidAmount().subtract(stat.getRefundAmount()));
-            stat.setNetLessons(stat.getAttendLessons().subtract(stat.getRestoreLessons()));
-            finDailyStatMapper.insert(stat);
-        }
+        stat.setId(IdUtil.getSnowflakeNextIdStr());
+        stat.setTenantId(tenantId);
+        finDailyStatMapper.insert(stat);
     }
 
     @Override
@@ -129,29 +121,11 @@ public class FinDailyStatServiceImpl implements FinDailyStatService {
         String tenantId = currentTenantId();
         Date start = DateUtil.beginOfDay(DateUtil.parse(startDate));
         Date end = DateUtil.offsetDay(DateUtil.beginOfDay(DateUtil.parse(endDate)), 1);
-        List<Map<String, Object>> rowList = jdbcTemplate.queryForList(
-                "SELECT `STAT_DATE`, COALESCE(SUM(`PAID_AMOUNT`),0) AS `PAID_AMOUNT`, "
-                        + "COALESCE(SUM(`REFUND_AMOUNT`),0) AS `REFUND_AMOUNT`, "
-                        + "COALESCE(SUM(`NET_AMOUNT`),0) AS `NET_AMOUNT`, "
-                        + "COALESCE(SUM(`ORDER_COUNT`),0) AS `ORDER_COUNT`, "
-                        + "COALESCE(SUM(`NET_LESSONS`),0) AS `NET_LESSONS`, "
-                        + "COALESCE(SUM(`NEW_STUDENT_COUNT`),0) AS `NEW_STUDENT_COUNT` "
-                        + "FROM `FIN_DAILY_STAT` WHERE `TENANT_ID` = ? AND `DELETE_FLAG` = 'NOT_DELETE' "
-                        + "AND `STAT_DATE` >= ? AND `STAT_DATE` < ? GROUP BY `STAT_DATE` ORDER BY `STAT_DATE`",
-                tenantId, start, end);
-        List<FinDailyStat> resultList = new ArrayList<>();
-        for (Map<String, Object> row : rowList) {
-            FinDailyStat stat = new FinDailyStat();
-            stat.setStatDate(toDate(row.get("STAT_DATE")));
-            stat.setPaidAmount(toBigDecimal(row.get("PAID_AMOUNT")));
-            stat.setRefundAmount(toBigDecimal(row.get("REFUND_AMOUNT")));
-            stat.setNetAmount(toBigDecimal(row.get("NET_AMOUNT")));
-            stat.setOrderCount(toLong(row.get("ORDER_COUNT")));
-            stat.setNetLessons(toBigDecimal(row.get("NET_LESSONS")));
-            stat.setNewStudentCount(toLong(row.get("NEW_STUDENT_COUNT")));
-            resultList.add(stat);
-        }
-        return resultList;
+        return finDailyStatMapper.selectList(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<FinDailyStat>()
+                .eq(FinDailyStat::getTenantId, tenantId)
+                .ge(FinDailyStat::getStatDate, start)
+                .lt(FinDailyStat::getStatDate, end)
+                .orderByAsc(FinDailyStat::getStatDate));
     }
 
     @Override
@@ -166,20 +140,35 @@ public class FinDailyStatServiceImpl implements FinDailyStatService {
         return value == null ? BigDecimal.ZERO : value;
     }
 
+    @Override
+    public boolean covered(String startDate, String endDate) {
+        String tenantId = currentTenantId();
+        Date start = DateUtil.beginOfDay(DateUtil.parse(startDate));
+        Date end = DateUtil.offsetDay(DateUtil.beginOfDay(DateUtil.parse(endDate)), 1);
+        // 结束时间为开区间上界：等于今天零点说明只覆盖到昨天，未闭环的区间不走日汇总快路径
+        if (end.after(DateUtil.beginOfDay(new Date()))) {
+            return false;
+        }
+        Long dayCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(DISTINCT `STAT_DATE`) FROM `FIN_DAILY_STAT` "
+                        + "WHERE `TENANT_ID` = ? AND `DELETE_FLAG` = 'NOT_DELETE' AND `STAT_DATE` >= ? AND `STAT_DATE` < ?",
+                Long.class, tenantId, start, end);
+        long expectDays = DateUtil.betweenDay(start, end, true);
+        return dayCount != null && dayCount == expectDays;
+    }
+
     /**
-     * 取或创建汇总项
+     * 单行查询结果
      *
      * @author 会飞的猪
      * @date 2026/10/21 10:00
      **/
-    private FinDailyStat statOf(Map<String, FinDailyStat> statMap, String campusId, String courseId) {
-        String key = campusId + "|" + courseId;
-        return statMap.computeIfAbsent(key, k -> {
-            FinDailyStat stat = new FinDailyStat();
-            stat.setCampusId(StrUtil.emptyToNull(campusId));
-            stat.setCourseId(StrUtil.emptyToNull(courseId));
-            return stat;
-        });
+    private MapWrapper queryOne(String sql, Object... args) {
+        List<Map<String, Object>> rowList = jdbcTemplate.queryForList(sql, args);
+        if (rowList.isEmpty()) {
+            return new MapWrapper();
+        }
+        return new MapWrapper(rowList.get(0));
     }
 
     private String currentTenantId() {
@@ -187,28 +176,38 @@ public class FinDailyStatServiceImpl implements FinDailyStatService {
         return StrUtil.blankToDefault(tenantId, "0");
     }
 
-    private String string(Object value) {
-        return value == null ? "" : value.toString();
-    }
+    /**
+     * 查询结果行读取包装
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private static class MapWrapper {
 
-    private Long toLong(Object value) {
-        return value instanceof Number number ? number.longValue() : 0L;
-    }
+        private final java.util.Map<String, Object> data;
 
-    private BigDecimal toBigDecimal(Object value) {
-        if (value instanceof BigDecimal decimal) {
-            return decimal;
+        MapWrapper() {
+            this.data = new java.util.HashMap<>();
         }
-        if (value instanceof Number number) {
-            return BigDecimal.valueOf(number.doubleValue());
-        }
-        return BigDecimal.ZERO;
-    }
 
-    private Date toDate(Object value) {
-        if (value instanceof Date date) {
-            return date;
+        MapWrapper(java.util.Map<String, Object> data) {
+            this.data = data;
         }
-        return null;
+
+        long getLong(String key) {
+            Object value = data.get(key);
+            return value instanceof Number number ? number.longValue() : 0L;
+        }
+
+        BigDecimal getBigDecimal(String key) {
+            Object value = data.get(key);
+            if (value instanceof BigDecimal decimal) {
+                return decimal;
+            }
+            if (value instanceof Number number) {
+                return BigDecimal.valueOf(number.doubleValue());
+            }
+            return BigDecimal.ZERO;
+        }
     }
 }

@@ -29,6 +29,7 @@ import vip.xiaonuo.student.api.dto.DashboardTodoDTO;
 import vip.xiaonuo.student.api.dto.FinanceAttendTrendDTO;
 import vip.xiaonuo.student.api.dto.FinanceCampusRankDTO;
 import vip.xiaonuo.student.api.dto.FinanceChannelDTO;
+import vip.xiaonuo.student.api.dto.FinanceConsumeDTO;
 import vip.xiaonuo.student.api.dto.FinanceCourseRankDTO;
 import vip.xiaonuo.student.api.dto.FinancePaymentDTO;
 import vip.xiaonuo.student.api.dto.FinanceReconcileDTO;
@@ -402,8 +403,8 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
         }
         summary.setRenewWarnCount(studentRenewWarnMapper.selectCount(warnWrapper));
 
-        summary.setRecognizedAmount(orderList.stream().map(this::recognizedAmountOf)
-                .reduce(BigDecimal.ZERO, BigDecimal::add));
+        summary.setRecognizedAmount(consume(financeQueryParam).stream()
+                .map(FinanceConsumeDTO::getRecognizedAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
         if (summary.getPayingStudentCount() > 0) {
             summary.setPerStudentRevenue(paidAmount.divide(BigDecimal.valueOf(summary.getPayingStudentCount()),
                     2, RoundingMode.HALF_UP));
@@ -644,6 +645,99 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
     }
 
     @Override
+    public List<FinanceConsumeDTO> consume(FinanceQueryParam financeQueryParam) {
+        Date start = parseStart(financeQueryParam.getStartTime());
+        Date end = parseEnd(financeQueryParam.getEndTime());
+        if (start == null) {
+            start = DateUtil.beginOfMonth(new Date());
+        }
+        if (end == null) {
+            end = new Date();
+        }
+        LambdaQueryWrapper<StudentLessonFlow> wrapper = new LambdaQueryWrapper<StudentLessonFlow>()
+                .in(StudentLessonFlow::getFlowType, LessonFlowTypeEnum.ATTEND.getValue(),
+                        LessonFlowTypeEnum.RESTORE.getValue(), LessonFlowTypeEnum.REFUND.getValue())
+                .ge(StudentLessonFlow::getCreateTime, start)
+                .le(StudentLessonFlow::getCreateTime, end)
+                .eq(StrUtil.isNotBlank(financeQueryParam.getCourseId()), StudentLessonFlow::getCourseId,
+                        financeQueryParam.getCourseId());
+        List<StudentLessonFlow> flowList = studentLessonFlowMapper.selectList(wrapper);
+        if (ObjectUtil.isEmpty(flowList)) {
+            return new ArrayList<>();
+        }
+        List<String> orderIdList = flowList.stream().map(StudentLessonFlow::getRefOrderId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        Map<String, StudentOrder> orderMap = new HashMap<>();
+        if (ObjectUtil.isNotEmpty(orderIdList)) {
+            studentOrderMapper.selectBatchIds(orderIdList).forEach(order -> orderMap.put(order.getId(), order));
+        }
+        Map<String, FinanceConsumeDTO> resultMap = new LinkedHashMap<>();
+        Map<String, Set<String>> orderIdSetMap = new HashMap<>();
+        Map<String, Set<String>> studentIdSetMap = new HashMap<>();
+        for (StudentLessonFlow flow : flowList) {
+            StudentOrder order = orderMap.get(flow.getRefOrderId());
+            BigDecimal lessons = nvl(flow.getLessons()).abs();
+            boolean isAttend = LessonFlowTypeEnum.ATTEND.getValue().equals(flow.getFlowType());
+            boolean isRestore = LessonFlowTypeEnum.RESTORE.getValue().equals(flow.getFlowType());
+            boolean isRefund = LessonFlowTypeEnum.REFUND.getValue().equals(flow.getFlowType());
+            String courseId = flow.getCourseId();
+            String coursePackageId = order == null ? null : order.getCoursePackageId();
+            String key = courseId + "|" + StrUtil.blankToDefault(coursePackageId, "");
+            FinanceConsumeDTO dto = resultMap.computeIfAbsent(key, k -> {
+                FinanceConsumeDTO item = new FinanceConsumeDTO();
+                item.setCourseId(courseId);
+                item.setCoursePackageId(coursePackageId);
+                return item;
+            });
+            if (isAttend) {
+                dto.setAttendLessons(dto.getAttendLessons().add(lessons));
+            } else if (isRestore) {
+                dto.setAttendLessons(dto.getAttendLessons().subtract(lessons));
+            }
+            BigDecimal unitPrice = order == null ? null : orderUnitPrice(order);
+            if (unitPrice != null) {
+                if (isAttend) {
+                    dto.setRecognizedAmount(dto.getRecognizedAmount().add(lessons.multiply(unitPrice)));
+                } else if (isRestore || isRefund) {
+                    dto.setRecognizedAmount(dto.getRecognizedAmount().subtract(lessons.multiply(unitPrice)));
+                }
+            }
+            if (order != null) {
+                orderIdSetMap.computeIfAbsent(key, k -> new java.util.LinkedHashSet<>()).add(order.getId());
+            }
+            studentIdSetMap.computeIfAbsent(key, k -> new java.util.LinkedHashSet<>()).add(flow.getStudentId());
+        }
+        List<FinanceConsumeDTO> resultList = new ArrayList<>(resultMap.values());
+        for (FinanceConsumeDTO dto : resultList) {
+            String key = dto.getCourseId() + "|" + StrUtil.blankToDefault(dto.getCoursePackageId(), "");
+            dto.setOrderCount((long) orderIdSetMap.getOrDefault(key, Set.of()).size());
+            dto.setStudentCount((long) studentIdSetMap.getOrDefault(key, Set.of()).size());
+            dto.setCourseName(StrUtil.blankToDefault(courseApi.getCourseName(dto.getCourseId()), "未关联课程"));
+            if (StrUtil.isNotBlank(dto.getCoursePackageId())) {
+                JSONObject packageInfo = courseApi.getCoursePackageInfo(dto.getCoursePackageId());
+                dto.setCoursePackageName(packageInfo == null ? null : packageInfo.getStr("name"));
+            }
+        }
+        resultList.sort((a, b) -> b.getRecognizedAmount().compareTo(a.getRecognizedAmount()));
+        return resultList;
+    }
+
+    /**
+     * 订单购买课时单价（实收 ÷ 购买课时）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private BigDecimal orderUnitPrice(StudentOrder order) {
+        BigDecimal packageLessons = nvl(order.getPackageLessons());
+        if (packageLessons.compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+        BigDecimal paid = order.getPaidAmount() == null ? nvl(order.getAmount()) : order.getPaidAmount();
+        return paid.divide(packageLessons, 6, RoundingMode.HALF_UP);
+    }
+
+    @Override
     public FinanceReconcileDTO reconcile(FinanceQueryParam financeQueryParam) {
         Date start = parseStart(financeQueryParam.getStartTime());
         Date end = parseEnd(financeQueryParam.getEndTime());
@@ -665,8 +759,10 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
                 new LambdaQueryWrapper<StudentLessonFlow>()
                         .in(StudentLessonFlow::getFlowType, LessonFlowTypeEnum.ATTEND.getValue(),
                                 LessonFlowTypeEnum.RESTORE.getValue())));
-        BigDecimal accountUsed = studentLessonAccountMapper.selectList(new LambdaQueryWrapper<StudentLessonAccount>())
-                .stream().map(item -> nvl(item.getUsedLessons())).reduce(BigDecimal.ZERO, BigDecimal::add);
+        List<StudentLessonAccount> accountList = studentLessonAccountMapper.selectList(
+                new LambdaQueryWrapper<StudentLessonAccount>());
+        BigDecimal accountUsed = accountList.stream().map(item -> nvl(item.getUsedLessons()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         FinanceSummaryDTO summary = summary(param);
 
@@ -681,17 +777,51 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
         result.setAccountUsedLessons(accountUsed);
         result.setLessonDiff(flowLessons.subtract(accountUsed));
 
+        // 有流水支撑的账户与「历史数据无流水」的账户分开统计，避免误报
+        Map<String, BigDecimal> accountFlowMap = new HashMap<>();
+        for (StudentLessonFlow flow : studentLessonFlowMapper.selectList(
+                new LambdaQueryWrapper<StudentLessonFlow>()
+                        .in(StudentLessonFlow::getFlowType, LessonFlowTypeEnum.ATTEND.getValue(),
+                                LessonFlowTypeEnum.RESTORE.getValue()))) {
+            accountFlowMap.merge(flow.getStudentId() + "|" + flow.getCourseId(), flowLessons(flow), BigDecimal::add);
+        }
+        BigDecimal trackedUsed = BigDecimal.ZERO;
+        BigDecimal trackedFlow = BigDecimal.ZERO;
+        BigDecimal untrackedUsed = BigDecimal.ZERO;
+        for (StudentLessonAccount account : accountList) {
+            BigDecimal used = nvl(account.getUsedLessons());
+            BigDecimal flow = accountFlowMap.getOrDefault(account.getStudentId() + "|" + account.getCourseId(),
+                    BigDecimal.ZERO);
+            if (flow.compareTo(BigDecimal.ZERO) == 0 && used.compareTo(BigDecimal.ZERO) != 0) {
+                untrackedUsed = untrackedUsed.add(used);
+            } else {
+                trackedUsed = trackedUsed.add(used);
+                trackedFlow = trackedFlow.add(flow);
+            }
+        }
+        result.setTrackedUsedLessons(trackedUsed);
+        result.setTrackedFlowLessons(trackedFlow);
+        result.setUntrackedUsedLessons(untrackedUsed);
+
         if (result.getPaidDiff().compareTo(BigDecimal.ZERO) != 0) {
             result.getMessages().add("收款口径差异：" + result.getPaidDiff().toPlainString() + " 元");
         }
         if (result.getRefundDiff().compareTo(BigDecimal.ZERO) != 0) {
             result.getMessages().add("退费口径差异：" + result.getRefundDiff().toPlainString() + " 元");
         }
-        if (result.getLessonDiff().compareTo(BigDecimal.ZERO) != 0) {
-            result.getMessages().add("课消课时差异（全量流水净消耗 " + result.getFlowAttendLessons().toPlainString()
-                    + " 与账户已用 " + result.getAccountUsedLessons().toPlainString() + "）");
+        BigDecimal trackedDiff = trackedFlow.subtract(trackedUsed);
+        if (trackedDiff.compareTo(BigDecimal.ZERO) != 0) {
+            result.getMessages().add("课消课时差异（有流水账户：流水净消耗 " + trackedFlow.toPlainString()
+                    + " 与账户已用 " + trackedUsed.toPlainString() + "）");
         }
-        result.setConsistent(result.getMessages().isEmpty());
+        if (untrackedUsed.compareTo(BigDecimal.ZERO) > 0) {
+            result.getMessages().add("另有 " + untrackedUsed.toPlainString()
+                    + " 课时为历史数据（无消课流水支撑，不计入差异）");
+        }
+        result.setConsistent(result.getMessages().isEmpty()
+                || (trackedDiff.compareTo(BigDecimal.ZERO) == 0
+                && result.getPaidDiff().compareTo(BigDecimal.ZERO) == 0
+                && result.getRefundDiff().compareTo(BigDecimal.ZERO) == 0));
         return result;
     }
 
@@ -970,25 +1100,6 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
      **/
     private BigDecimal nvl(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
-    }
-
-    /**
-     * 课消金额（权责口径）：已消耗购买课时 × 订单单价
-     *
-     * @author 会飞的猪
-     * @date 2026/10/20 10:00
-     **/
-    private BigDecimal recognizedAmountOf(StudentOrder order) {
-        BigDecimal packageLessons = nvl(order.getPackageLessons());
-        if (packageLessons.compareTo(BigDecimal.ZERO) <= 0) {
-            return BigDecimal.ZERO;
-        }
-        BigDecimal consumedLessons = nvl(order.getConsumedLessons()).min(packageLessons);
-        if (consumedLessons.compareTo(BigDecimal.ZERO) <= 0) {
-            return BigDecimal.ZERO;
-        }
-        return orderPaidAmount(order).multiply(consumedLessons)
-                .divide(packageLessons, 2, RoundingMode.HALF_UP);
     }
 
     /**

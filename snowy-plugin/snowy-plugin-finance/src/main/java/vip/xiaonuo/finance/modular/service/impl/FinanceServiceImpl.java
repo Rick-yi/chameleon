@@ -14,19 +14,23 @@ package vip.xiaonuo.finance.modular.service.impl;
 
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.DigestUtil;
+import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import vip.xiaonuo.common.cache.CommonCacheOperator;
 import vip.xiaonuo.common.context.TenantContext;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.util.CommonDownloadUtil;
 import vip.xiaonuo.common.util.CommonExcelUtil;
+import vip.xiaonuo.finance.modular.export.FinanceExportRowBuilder;
 import vip.xiaonuo.finance.modular.service.FinanceService;
 import vip.xiaonuo.finance.modular.stat.entity.FinDailyStat;
 import vip.xiaonuo.finance.modular.stat.service.FinDailyStatService;
@@ -35,6 +39,7 @@ import vip.xiaonuo.student.api.dto.DashboardOverviewDTO;
 import vip.xiaonuo.student.api.dto.FinanceAttendTrendDTO;
 import vip.xiaonuo.student.api.dto.FinanceCampusRankDTO;
 import vip.xiaonuo.student.api.dto.FinanceChannelDTO;
+import vip.xiaonuo.student.api.dto.FinanceConsumeDTO;
 import vip.xiaonuo.student.api.dto.FinanceCourseRankDTO;
 import vip.xiaonuo.student.api.dto.FinancePaymentDTO;
 import vip.xiaonuo.student.api.dto.FinanceReconcileDTO;
@@ -53,6 +58,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 /**
@@ -84,14 +90,52 @@ public class FinanceServiceImpl implements FinanceService {
     @Resource
     private CommonCacheOperator cacheOperator;
 
+    @Resource
+    private JdbcTemplate jdbcTemplate;
+
+    @Resource
+    private FinanceExportRowBuilder financeExportRowBuilder;
+
     @Override
     public Page<FinancePaymentDTO> paymentPage(FinanceQueryParam financeQueryParam) {
-        return studentFinanceApi.paymentPage(financeQueryParam);
+        String key = cacheKey("paymentPage", financeQueryParam);
+        Object cached = cacheOperator.get(key);
+        if (cached instanceof String json) {
+            try {
+                JSONObject jsonObject = JSONUtil.parseObj(json);
+                Page<FinancePaymentDTO> page = new Page<>(ObjectUtil.defaultIfNull(financeQueryParam.getCurrent(), 1),
+                        ObjectUtil.defaultIfNull(financeQueryParam.getSize(), 10), jsonObject.getInt("total"));
+                page.setRecords(JSONUtil.toList(jsonObject.getJSONArray("records"), FinancePaymentDTO.class));
+                return page;
+            } catch (Exception e) {
+                log.warn(">>> 收款明细缓存解析失败，重新查询：{}", key);
+            }
+        }
+        Page<FinancePaymentDTO> page = studentFinanceApi.paymentPage(financeQueryParam);
+        cacheOperator.put(key, JSONUtil.toJsonStr(Map.of("total", page.getTotal(), "records", page.getRecords())),
+                CACHE_TTL_SECONDS);
+        return page;
     }
 
     @Override
     public Page<FinanceRefundDTO> refundPage(FinanceQueryParam financeQueryParam) {
-        return studentFinanceApi.refundPage(financeQueryParam);
+        String key = cacheKey("refundPage", financeQueryParam);
+        Object cached = cacheOperator.get(key);
+        if (cached instanceof String json) {
+            try {
+                JSONObject jsonObject = JSONUtil.parseObj(json);
+                Page<FinanceRefundDTO> page = new Page<>(ObjectUtil.defaultIfNull(financeQueryParam.getCurrent(), 1),
+                        ObjectUtil.defaultIfNull(financeQueryParam.getSize(), 10), jsonObject.getInt("total"));
+                page.setRecords(JSONUtil.toList(jsonObject.getJSONArray("records"), FinanceRefundDTO.class));
+                return page;
+            } catch (Exception e) {
+                log.warn(">>> 退费明细缓存解析失败，重新查询：{}", key);
+            }
+        }
+        Page<FinanceRefundDTO> page = studentFinanceApi.refundPage(financeQueryParam);
+        cacheOperator.put(key, JSONUtil.toJsonStr(Map.of("total", page.getTotal(), "records", page.getRecords())),
+                CACHE_TTL_SECONDS);
+        return page;
     }
 
     @Override
@@ -102,13 +146,19 @@ public class FinanceServiceImpl implements FinanceService {
     @Override
     public FinanceSummaryDTO summary(FinanceQueryParam financeQueryParam) {
         return cachedObject("summary", FinanceSummaryDTO.class, financeQueryParam,
-                () -> studentFinanceApi.summary(financeQueryParam));
+                () -> {
+                    FinanceSummaryDTO fastSummary = fastSummary(financeQueryParam);
+                    return fastSummary != null ? fastSummary : studentFinanceApi.summary(financeQueryParam);
+                });
     }
 
     @Override
     public List<FinanceTrendDTO> trend(FinanceQueryParam financeQueryParam) {
         return cachedList("trend", FinanceTrendDTO.class, financeQueryParam,
-                () -> studentFinanceApi.trend(financeQueryParam));
+                () -> {
+                    List<FinanceTrendDTO> fastTrend = fastTrend(financeQueryParam);
+                    return fastTrend != null ? fastTrend : studentFinanceApi.trend(financeQueryParam);
+                });
     }
 
     @Override
@@ -144,68 +194,17 @@ public class FinanceServiceImpl implements FinanceService {
 
     @Override
     public void export(FinanceQueryParam financeQueryParam, String type, HttpServletResponse response) throws IOException {
-        String exportType = StrUtil.blankToDefault(type, "PAYMENT").toUpperCase();
-        String sheetName;
-        String fileName;
-        List<List<String>> headList = new ArrayList<>();
-        List<List<String>> rowList = new ArrayList<>();
-        if ("PAYMENT".equals(exportType)) {
-            sheetName = "收款明细";
-            fileName = "收款明细_" + DateUtil.format(new Date(), "yyyyMMddHHmmss") + ".xlsx";
-            headList.add(List.of("学员"));
-            headList.add(List.of("课包"));
-            headList.add(List.of("应收金额"));
-            headList.add(List.of("实收金额"));
-            headList.add(List.of("收款渠道"));
-            headList.add(List.of("支付时间"));
-            headList.add(List.of("状态"));
-            headList.add(List.of("订单号"));
-            for (FinancePaymentDTO dto : studentFinanceApi.paymentList(financeQueryParam)) {
-                rowList.add(List.of(text(dto.getStudentName()), text(dto.getPackageName()),
-                        money(dto.getAmount()), money(dto.getPaidAmount()), channelName(dto.getPayChannel()),
-                        time(dto.getPayTime() == null ? dto.getCreateTime() : dto.getPayTime()),
-                        orderStatusName(dto.getStatus()), text(dto.getId())));
-            }
-        } else if ("REFUND".equals(exportType)) {
-            sheetName = "退费明细";
-            fileName = "退费明细_" + DateUtil.format(new Date(), "yyyyMMddHHmmss") + ".xlsx";
-            headList.add(List.of("学员"));
-            headList.add(List.of("退费金额"));
-            headList.add(List.of("退费课时"));
-            headList.add(List.of("状态"));
-            headList.add(List.of("审批时间"));
-            headList.add(List.of("退费单号"));
-            for (FinanceRefundDTO dto : studentFinanceApi.refundList(financeQueryParam)) {
-                rowList.add(List.of(text(dto.getStudentName()), money(dto.getRefundAmount()),
-                        money(dto.getRefundLessons()), refundStatusName(dto.getStatus()),
-                        time(dto.getApproveTime()), text(dto.getId())));
-            }
-        } else if ("COURSE_SUMMARY".equals(exportType)) {
-            sheetName = "课程汇总";
-            fileName = "课程汇总_" + DateUtil.format(new Date(), "yyyyMMddHHmmss") + ".xlsx";
-            headList.add(List.of("课程"));
-            headList.add(List.of("收款金额"));
-            headList.add(List.of("退费金额"));
-            headList.add(List.of("净营收"));
-            headList.add(List.of("课消课时"));
-            headList.add(List.of("订单数"));
-            for (FinanceStatDTO dto : studentFinanceApi.courseStat(financeQueryParam)) {
-                rowList.add(List.of(text(dto.getCourseName()), money(dto.getPaidAmount()),
-                        money(dto.getRefundAmount()), money(dto.getNetAmount()),
-                        money(dto.getAttendLessons()), String.valueOf(dto.getOrderCount() == null ? 0L : dto.getOrderCount())));
-            }
-        } else {
-            throw new CommonException("不支持的导出类型：{}", exportType);
-        }
-        if (rowList.isEmpty()) {
+        FinanceExportRowBuilder.ExportPayload payload = financeExportRowBuilder.build(type, financeQueryParam);
+        if (payload.rowList().isEmpty()) {
             throw new CommonException("无数据可导出");
         }
-        if (rowList.size() > MAX_EXPORT_ROWS) {
-            throw new CommonException("导出数据量超过 {} 行，请缩小时间范围后再导出", MAX_EXPORT_ROWS);
+        if (payload.rowList().size() > MAX_EXPORT_ROWS) {
+            throw new CommonException("导出数据量超过 {} 行，请缩小时间范围或改用异步导出", MAX_EXPORT_ROWS);
         }
+        String fileName = payload.sheetName() + "_" + DateUtil.format(new Date(), "yyyyMMddHHmmss") + ".xlsx";
         File file = FileUtil.file(FileUtil.getTmpDir(), fileName);
         try {
-            CommonExcelUtil.write(file, sheetName, headList, rowList);
+            CommonExcelUtil.write(file, payload.sheetName(), payload.headList(), payload.rowList());
             CommonDownloadUtil.download(file, response);
         } finally {
             FileUtil.del(file);
@@ -226,8 +225,13 @@ public class FinanceServiceImpl implements FinanceService {
     }
 
     @Override
-    public FinanceReconcileDTO reconcile(FinanceQueryParam financeQueryParam) {
-        FinanceReconcileDTO reconcile = studentFinanceApi.reconcile(financeQueryParam);
+    public List<FinanceConsumeDTO> consume(FinanceQueryParam financeQueryParam) {
+        return cachedList("consume", FinanceConsumeDTO.class, financeQueryParam,
+                () -> studentFinanceApi.consume(financeQueryParam));
+    }
+
+    @Override
+    public FinanceReconcileDTO reconcile(FinanceQueryParam financeQueryParam) {        FinanceReconcileDTO reconcile = studentFinanceApi.reconcile(financeQueryParam);
         String startDate = StrUtil.blankToDefault(financeQueryParam.getStartTime(),
                 DateUtil.formatDateTime(DateUtil.beginOfMonth(new Date()))).substring(0, 10);
         String endDate = StrUtil.blankToDefault(financeQueryParam.getEndTime(),
@@ -309,60 +313,178 @@ public class FinanceServiceImpl implements FinanceService {
         return "report:" + StrUtil.blankToDefault(TenantContext.getTenantId(), "0") + ":" + name + ":" + hash;
     }
 
+    /**
+     * 日汇总快路径：区间已被日汇总完整覆盖、且没有校区/课程筛选时，直接用日汇总表出数
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private FinanceSummaryDTO fastSummary(FinanceQueryParam param) {
+        if ("REAL".equalsIgnoreCase(param.getSource())) {
+            return null;
+        }
+        String startDate = fullDayDate(param.getStartTime(), false);
+        String endDate = fullDayDate(param.getEndTime(), true);
+        if (startDate == null || endDate == null) {
+            return null;
+        }
+        if (StrUtil.isNotBlank(param.getCampusId()) || StrUtil.isNotBlank(param.getCourseId())) {
+            return null;
+        }
+        if (!finDailyStatService.covered(startDate, endDate)) {
+            return null;
+        }
+        List<FinDailyStat> statList = finDailyStatService.listByDate(startDate, endDate);
+        if (ObjectUtil.isEmpty(statList)) {
+            return null;
+        }
+        FinanceSummaryDTO summary = new FinanceSummaryDTO();
+        BigDecimal paid = BigDecimal.ZERO;
+        BigDecimal refund = BigDecimal.ZERO;
+        BigDecimal lessons = BigDecimal.ZERO;
+        BigDecimal recognized = BigDecimal.ZERO;
+        long orderCount = 0L;
+        long newStudentCount = 0L;
+        for (FinDailyStat stat : statList) {
+            paid = paid.add(nvl(stat.getPaidAmount()));
+            refund = refund.add(nvl(stat.getRefundAmount()));
+            lessons = lessons.add(nvl(stat.getNetLessons()));
+            recognized = recognized.add(nvl(stat.getRecognizedAmount()));
+            orderCount += ObjectUtil.defaultIfNull(stat.getOrderCount(), 0L);
+            newStudentCount += ObjectUtil.defaultIfNull(stat.getNewStudentCount(), 0L);
+        }
+        summary.setPaidAmount(paid);
+        summary.setRefundAmount(refund);
+        summary.setNetAmount(paid.subtract(refund));
+        summary.setOrderCount(orderCount);
+        summary.setNewStudentCount(newStudentCount);
+        summary.setAttendLessons(lessons);
+        summary.setRecognizedAmount(recognized);
+        summary.setDataSource("DAILY_STAT");
+
+        String tenantId = currentTenantId();
+        Date start = DateUtil.beginOfDay(DateUtil.parse(startDate));
+        Date end = DateUtil.endOfDay(DateUtil.parse(endDate));
+        long payingStudentCount = queryLong("SELECT COUNT(DISTINCT `STUDENT_ID`) FROM `STUDENT_ORDER` "
+                + "WHERE `TENANT_ID` = ? AND `DELETE_FLAG` = 'NOT_DELETE' AND `STATUS` IN ('PAID','REFUNDED') "
+                + "AND COALESCE(`PAY_TIME`, `CREATE_TIME`) >= ? AND COALESCE(`PAY_TIME`, `CREATE_TIME`) <= ?",
+                tenantId, start, end);
+        summary.setPayingStudentCount(payingStudentCount);
+        BigDecimal unpaidAmount = queryBigDecimal("SELECT COALESCE(SUM(`AMOUNT`),0) FROM `STUDENT_ORDER` "
+                + "WHERE `TENANT_ID` = ? AND `DELETE_FLAG` = 'NOT_DELETE' AND `STATUS` = 'UNPAID' "
+                + "AND `CREATE_TIME` >= ? AND `CREATE_TIME` <= ?", tenantId, start, end);
+        long unpaidOrderCount = queryLong("SELECT COUNT(*) FROM `STUDENT_ORDER` "
+                + "WHERE `TENANT_ID` = ? AND `DELETE_FLAG` = 'NOT_DELETE' AND `STATUS` = 'UNPAID' "
+                + "AND `CREATE_TIME` >= ? AND `CREATE_TIME` <= ?", tenantId, start, end);
+        summary.setUnpaidAmount(unpaidAmount);
+        summary.setUnpaidOrderCount(unpaidOrderCount);
+        summary.setStudyingStudentCount(queryLong("SELECT COUNT(*) FROM `STUDENT` "
+                + "WHERE `TENANT_ID` = ? AND `DELETE_FLAG` = 'NOT_DELETE' AND `STATUS` = 'STUDYING'", tenantId));
+        summary.setRenewWarnCount(queryLong("SELECT COUNT(*) FROM `STUDENT_RENEW_WARN` "
+                + "WHERE `TENANT_ID` = ? AND `DELETE_FLAG` = 'NOT_DELETE' AND `STATUS` = 'PENDING'", tenantId));
+        if (orderCount > 0) {
+            summary.setAvgOrderAmount(paid.divide(BigDecimal.valueOf(orderCount), 2, RoundingMode.HALF_UP));
+        }
+        if (paid.compareTo(BigDecimal.ZERO) > 0) {
+            summary.setRefundRate(refund.multiply(BigDecimal.valueOf(100)).divide(paid, 2, RoundingMode.HALF_UP));
+        }
+        if (payingStudentCount > 0) {
+            summary.setPerStudentRevenue(paid.divide(BigDecimal.valueOf(payingStudentCount), 2, RoundingMode.HALF_UP));
+        }
+        BigDecimal receivable = paid.add(unpaidAmount);
+        if (receivable.compareTo(BigDecimal.ZERO) > 0) {
+            summary.setCollectionRate(paid.multiply(BigDecimal.valueOf(100)).divide(receivable, 2, RoundingMode.HALF_UP));
+        }
+        return summary;
+    }
+
+    /**
+     * 日汇总快路径趋势
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private List<FinanceTrendDTO> fastTrend(FinanceQueryParam param) {
+        if ("REAL".equalsIgnoreCase(param.getSource())) {
+            return null;
+        }
+        String startDate = fullDayDate(param.getStartTime(), false);
+        String endDate = fullDayDate(param.getEndTime(), true);
+        if (startDate == null || endDate == null) {
+            return null;
+        }
+        if (StrUtil.isNotBlank(param.getCampusId()) || StrUtil.isNotBlank(param.getCourseId())) {
+            return null;
+        }
+        if (!finDailyStatService.covered(startDate, endDate)) {
+            return null;
+        }
+        List<FinDailyStat> statList = finDailyStatService.listByDate(startDate, endDate);
+        if (ObjectUtil.isEmpty(statList)) {
+            return null;
+        }
+        boolean monthly = !"DAY".equalsIgnoreCase(param.getDimension());
+        Map<String, FinanceTrendDTO> trendMap = new java.util.LinkedHashMap<>();
+        for (FinDailyStat stat : statList) {
+            String period = monthly ? DateUtil.format(stat.getStatDate(), "yyyy-MM") : DateUtil.formatDate(stat.getStatDate());
+            FinanceTrendDTO dto = trendMap.computeIfAbsent(period, key -> {
+                FinanceTrendDTO item = new FinanceTrendDTO();
+                item.setPeriod(key);
+                return item;
+            });
+            dto.setPaidAmount(dto.getPaidAmount().add(nvl(stat.getPaidAmount())));
+            dto.setRefundAmount(dto.getRefundAmount().add(nvl(stat.getRefundAmount())));
+            dto.setAttendLessons(dto.getAttendLessons().add(nvl(stat.getNetLessons())));
+        }
+        List<FinanceTrendDTO> resultList = new ArrayList<>(trendMap.values());
+        resultList.forEach(item -> item.setNetAmount(item.getPaidAmount().subtract(item.getRefundAmount())));
+        return resultList;
+    }
+
+    /**
+     * 解析整天起止时间（yyyy-MM-dd），非整天返回 null
+     * <p>
+     * 起始时间需为 00:00:00，结束时间需为 23:59:59（当天末尾），才允许走日汇总快路径。
+     * </p>
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private String fullDayDate(String time, boolean isEnd) {
+        if (StrUtil.isBlank(time)) {
+            return null;
+        }
+        Date parsed = DateUtil.parse(time);
+        if (isEnd) {
+            long gap = DateUtil.endOfDay(parsed).getTime() - parsed.getTime();
+            if (gap > 1000) {
+                return null;
+            }
+        } else if (!DateUtil.beginOfDay(parsed).equals(parsed)) {
+            return null;
+        }
+        return DateUtil.formatDate(parsed);
+    }
+
+    private BigDecimal nvl(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private String currentTenantId() {
+        return StrUtil.blankToDefault(TenantContext.getTenantId(), "0");
+    }
+
+    private long queryLong(String sql, Object... args) {
+        Long value = jdbcTemplate.queryForObject(sql, Long.class, args);
+        return value == null ? 0L : value;
+    }
+
+    private BigDecimal queryBigDecimal(String sql, Object... args) {
+        BigDecimal value = jdbcTemplate.queryForObject(sql, BigDecimal.class, args);
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
     private String text(String value) {
         return value == null ? "" : value;
-    }
-
-    private String money(BigDecimal value) {
-        return (value == null ? BigDecimal.ZERO : value).setScale(2, RoundingMode.HALF_UP).toPlainString();
-    }
-
-    private String time(Date value) {
-        return value == null ? "" : DateUtil.formatDateTime(value);
-    }
-
-    private String channelName(String channel) {
-        if ("OFFLINE".equals(channel)) {
-            return "线下转账";
-        }
-        if ("CASH".equals(channel)) {
-            return "现金";
-        }
-        if ("WECHAT".equals(channel)) {
-            return "微信";
-        }
-        if ("ALIPAY".equals(channel)) {
-            return "支付宝";
-        }
-        return text(channel);
-    }
-
-    private String orderStatusName(String status) {
-        if ("PAID".equals(status)) {
-            return "已支付";
-        }
-        if ("REFUNDED".equals(status)) {
-            return "已退费";
-        }
-        return text(status);
-    }
-
-    private String refundStatusName(String status) {
-        if ("PENDING".equals(status)) {
-            return "待审批";
-        }
-        if ("TO_REFUND".equals(status)) {
-            return "待退款";
-        }
-        if ("REFUNDED".equals(status)) {
-            return "已退款";
-        }
-        if ("REJECTED".equals(status)) {
-            return "已驳回";
-        }
-        if ("CANCELLED".equals(status)) {
-            return "已撤销";
-        }
-        return text(status);
     }
 }

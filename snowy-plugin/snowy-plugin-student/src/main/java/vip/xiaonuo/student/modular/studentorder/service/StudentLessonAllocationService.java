@@ -12,6 +12,7 @@
  */
 package vip.xiaonuo.student.modular.studentorder.service;
 
+import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import jakarta.annotation.Resource;
@@ -93,6 +94,43 @@ public class StudentLessonAllocationService {
             throw new CommonException("订单课时分摊失败：订单剩余课时不足");
         }
         return allocationList;
+    }
+
+    /**
+     * 回补课时到指定订单（撤销点名时精确回退到原订单）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    public void restoreToOrder(String studentId, String orderId, BigDecimal lessons) {
+        BigDecimal remaining = nvl(lessons);
+        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        StudentOrder order = studentOrderMapper.selectById(orderId);
+        if (ObjectUtil.isEmpty(order) || !studentId.equals(order.getStudentId())) {
+            // 订单缺失或不属于该学员，退回先进先出回退
+            restore(studentId, ObjectUtil.isEmpty(order) ? null : order.getCourseId(), remaining);
+            return;
+        }
+        int updated = studentOrderMapper.update(null, new LambdaUpdateWrapper<StudentOrder>()
+                .eq(StudentOrder::getId, orderId)
+                .apply("COALESCE(CONSUMED_LESSONS, 0) >= {0}", remaining)
+                .setSql("CONSUMED_LESSONS = COALESCE(CONSUMED_LESSONS, 0) - " + remaining.toPlainString()));
+        if (updated == 0) {
+            // 该订单可回退额度不足，先退该订单剩余额度，剩余部分按先进先出回退
+            BigDecimal canRestore = nvl(order.getConsumedLessons()).min(remaining);
+            if (canRestore.compareTo(BigDecimal.ZERO) > 0) {
+                studentOrderMapper.update(null, new LambdaUpdateWrapper<StudentOrder>()
+                        .eq(StudentOrder::getId, orderId)
+                        .apply("COALESCE(CONSUMED_LESSONS, 0) >= {0}", canRestore)
+                        .setSql("CONSUMED_LESSONS = COALESCE(CONSUMED_LESSONS, 0) - " + canRestore.toPlainString()));
+                remaining = remaining.subtract(canRestore);
+            }
+            if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+                restore(studentId, order.getCourseId(), remaining);
+            }
+        }
     }
 
     /**

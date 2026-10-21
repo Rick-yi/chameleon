@@ -19,6 +19,7 @@ import vip.xiaonuo.student.api.dto.DashboardOverviewDTO;
 import vip.xiaonuo.student.api.dto.FinanceAttendTrendDTO;
 import vip.xiaonuo.student.api.dto.FinanceCampusRankDTO;
 import vip.xiaonuo.student.api.dto.FinanceChannelDTO;
+import vip.xiaonuo.student.api.dto.FinanceConsumeDTO;
 import vip.xiaonuo.student.api.dto.FinanceCourseRankDTO;
 import vip.xiaonuo.student.api.dto.FinancePaymentDTO;
 import vip.xiaonuo.student.api.dto.FinanceReconcileDTO;
@@ -84,6 +85,9 @@ public interface FinanceService {
 
     /** 报表对账（报表数字与业务明细比对） */
     FinanceReconcileDTO reconcile(FinanceQueryParam financeQueryParam);
+
+    /** 课消与收入确认（按课程 + 课包） */
+    List<FinanceConsumeDTO> consume(FinanceQueryParam financeQueryParam);
 
     /** 清理当前租户的报表缓存 */
     void clearCache();

@@ -16,6 +16,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import vip.xiaonuo.student.modular.studentlessonflow.entity.StudentLessonFlow;
 import vip.xiaonuo.student.modular.studentlessonflow.param.StudentLessonFlowPageParam;
 
+import java.util.List;
+
 /**
  * 课时流水Service接口
  *
@@ -32,4 +34,12 @@ public interface StudentLessonFlowService {
 
     /** 获取某学员某排课的最新点名消课流水（撤销点名回补用） */
     StudentLessonFlow getDeductFlow(String scheduleId, String studentId);
+
+    /**
+     * 获取某学员某排课的全部点名消课流水（一次消课可能跨多个订单）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    List<StudentLessonFlow> listDeductFlows(String scheduleId, String studentId);
 }

@@ -182,6 +182,20 @@ public class StudentReportApiProvider implements StudentReportApi {
      * @date 2026/10/20 10:00
      **/
     private List<String> resolveStudentIdList(AcademicReportQueryParam param) {
+        // 服务端注入的学员范围（教师维度数据范围）优先；空集合表示明确没有可见学员
+        if (param.getStudentIds() != null) {
+            List<String> scopedIdList = param.getStudentIds();
+            if (scopedIdList.isEmpty()) {
+                return scopedIdList;
+            }
+            if (StrUtil.isBlank(param.getCampusId())) {
+                return scopedIdList;
+            }
+            List<String> campusStudentIdList = studentMapper.selectList(new LambdaQueryWrapper<Student>()
+                            .eq(Student::getCampusId, param.getCampusId()))
+                    .stream().map(Student::getId).collect(Collectors.toList());
+            return scopedIdList.stream().filter(campusStudentIdList::contains).collect(Collectors.toList());
+        }
         if (StrUtil.isNotBlank(param.getClassId())) {
             List<String> classStudentIdList = courseApi.getStudyingStudentIdList(param.getClassId());
             if (ObjectUtil.isEmpty(classStudentIdList)) {

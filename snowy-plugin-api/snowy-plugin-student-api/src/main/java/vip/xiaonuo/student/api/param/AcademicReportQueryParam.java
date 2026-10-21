@@ -16,6 +16,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
+
 /**
  * 教务报表查询参数
  *
@@ -53,6 +55,10 @@ public class AcademicReportQueryParam {
     /** 风险类型：LOW_LESSON/NO_ATTEND/STOPPED */
     @Schema(description = "风险类型")
     private String type;
+
+    /** 限定学员id集合（教师维度数据范围由服务端注入） */
+    @Schema(description = "限定学员id集合")
+    private List<String> studentIds;
 
     /** 返回条数 */
     @Schema(description = "返回条数")

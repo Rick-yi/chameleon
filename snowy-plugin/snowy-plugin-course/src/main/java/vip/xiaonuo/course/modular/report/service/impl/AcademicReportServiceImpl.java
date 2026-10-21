@@ -12,6 +12,7 @@
  */
 package vip.xiaonuo.course.modular.report.service.impl;
 
+import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ObjectUtil;
@@ -71,6 +72,9 @@ public class AcademicReportServiceImpl implements AcademicReportService {
 
     /** 默认返回条数 */
     private static final int DEFAULT_LIMIT = 100;
+
+    /** 管理角色编码（不受教师维度数据范围限制） */
+    private static final List<String> ADMIN_ROLE_LIST = List.of("superAdmin", "bizAdmin", "platformAdmin");
 
     @Resource
     private CourseClassMapper courseClassMapper;
@@ -230,17 +234,24 @@ public class AcademicReportServiceImpl implements AcademicReportService {
         Map<String, String> teacherNameMap = loadUserNameMap(new ArrayList<>(workloadMap.keySet()));
         List<AcademicTeacherWorkloadDTO> resultList = new ArrayList<>(workloadMap.values());
         resultList.forEach(dto -> dto.setTeacherName(teacherNameMap.get(dto.getTeacherId())));
+        // 教师维度数据范围：非管理角色只看自己的课时
+        String scope = teacherScope();
+        if (StrUtil.isNotBlank(scope)) {
+            resultList = resultList.stream().filter(dto -> scope.equals(dto.getTeacherId())).collect(Collectors.toList());
+        }
         resultList.sort((a, b) -> b.getActualLessons().compareTo(a.getActualLessons()));
         return limit(resultList, param.getLimit());
     }
 
     @Override
     public List<AcademicLessonProgressDTO> lessonProgress(AcademicReportQueryParam param) {
+        applyTeacherScope(param);
         return studentReportApi.lessonProgress(param);
     }
 
     @Override
     public List<AcademicRiskStudentDTO> riskStudents(AcademicReportQueryParam param) {
+        applyTeacherScope(param);
         return studentReportApi.riskStudents(param);
     }
 
@@ -357,12 +368,71 @@ public class AcademicReportServiceImpl implements AcademicReportService {
      * @date 2026/10/20 10:00
      **/
     private List<CourseClass> queryClassList(AcademicReportQueryParam param) {
+        String scope = teacherScope();
         return courseClassMapper.selectList(new LambdaQueryWrapper<CourseClass>()
                 .eq(StrUtil.isNotBlank(param.getCampusId()), CourseClass::getCampusId, param.getCampusId())
                 .eq(StrUtil.isNotBlank(param.getCourseId()), CourseClass::getCourseId, param.getCourseId())
                 .eq(StrUtil.isNotBlank(param.getClassId()), CourseClass::getId, param.getClassId())
                 .eq(StrUtil.isNotBlank(param.getTeacherId()), CourseClass::getTeacherId, param.getTeacherId())
+                // 教师维度数据范围：非管理角色只能看自己带的班级
+                .eq(StrUtil.isNotBlank(scope), CourseClass::getTeacherId, scope)
                 .orderByAsc(CourseClass::getName));
+    }
+
+    /**
+     * 当前用户是否为管理角色（管理角色不受教师维度数据范围限制）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private boolean isAdminRole() {
+        try {
+            List<String> roleList = StpUtil.getRoleList();
+            return roleList == null || roleList.isEmpty() || roleList.stream().anyMatch(ADMIN_ROLE_LIST::contains);
+        } catch (Exception e) {
+            // 无登录上下文（定时任务、开放接口）时不限制
+            return true;
+        }
+    }
+
+    /**
+     * 教师维度数据范围：受限时返回当前用户id，否则返回 null（不限制）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private String teacherScope() {
+        if (isAdminRole()) {
+            return null;
+        }
+        try {
+            return StpUtil.getLoginIdAsString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 给查询参数注入教师维度学员范围
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private void applyTeacherScope(AcademicReportQueryParam param) {
+        String scope = teacherScope();
+        if (StrUtil.isBlank(scope)) {
+            return;
+        }
+        List<String> classIdList = courseClassMapper.selectList(new LambdaQueryWrapper<CourseClass>()
+                        .eq(CourseClass::getTeacherId, scope))
+                .stream().map(CourseClass::getId).collect(Collectors.toList());
+        if (classIdList.isEmpty()) {
+            param.setStudentIds(List.of());
+            return;
+        }
+        param.setStudentIds(courseClassStudentMapper.selectList(new LambdaQueryWrapper<CourseClassStudent>()
+                        .in(CourseClassStudent::getClassId, classIdList))
+                .stream().map(CourseClassStudent::getStudentId).distinct().collect(Collectors.toList()));
     }
 
     /**

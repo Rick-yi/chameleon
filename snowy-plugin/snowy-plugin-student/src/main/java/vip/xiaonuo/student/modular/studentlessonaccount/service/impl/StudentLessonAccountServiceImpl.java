@@ -181,52 +181,66 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
             // 按订单分摊消耗，供退费按订单核算（同时得到本次消课归属的订单）
             List<StudentLessonAllocationService.OrderAllocation> allocationList =
                     studentLessonAllocationService.allocate(param.getStudentId(), param.getCourseId(), param.getLessons());
-            // 消课流水（关联分摊到的订单，便于按订单确认收入）
-            StudentLessonFlow flow = new StudentLessonFlow();
-            flow.setStudentId(param.getStudentId());
-            flow.setCourseId(param.getCourseId());
-            flow.setScheduleId(param.getScheduleId());
-            flow.setFlowType(LessonFlowTypeEnum.ATTEND.getValue());
-            flow.setLessons(param.getLessons().negate());
-            flow.setRemark("点名" + param.getAttendStatus());
-            if (ObjectUtil.isNotEmpty(allocationList)) {
-                flow.setRefOrderId(allocationList.get(0).orderId());
+            // 消课流水：按分摊到的订单逐笔记录，便于按订单精确确认收入
+            for (StudentLessonAllocationService.OrderAllocation allocation : allocationList) {
+                StudentLessonFlow flow = new StudentLessonFlow();
+                flow.setStudentId(param.getStudentId());
+                flow.setCourseId(param.getCourseId());
+                flow.setScheduleId(param.getScheduleId());
+                flow.setFlowType(LessonFlowTypeEnum.ATTEND.getValue());
+                flow.setLessons(allocation.lessons().negate());
+                flow.setRefOrderId(allocation.orderId());
+                flow.setRemark("点名" + param.getAttendStatus());
+                studentLessonFlowService.add(flow);
             }
-            studentLessonFlowService.add(flow);
         }
     }
 
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void restoreLessons(String scheduleId, String studentId) {
-        // 定位原消课流水
-        StudentLessonFlow deductFlow = studentLessonFlowService.getDeductFlow(scheduleId, studentId);
-        if (ObjectUtil.isEmpty(deductFlow)) {
+        // 定位原消课流水（一次消课可能跨多个订单，逐笔回补）
+        List<StudentLessonFlow> deductFlowList = studentLessonFlowService.listDeductFlows(scheduleId, studentId);
+        if (ObjectUtil.isEmpty(deductFlowList)) {
             throw new CommonException("未找到该学员的原消课流水，无法回补");
         }
-        BigDecimal restoreLessons = deductFlow.getLessons().negate();
-        StudentLessonAccount account = this.getAccount(studentId, deductFlow.getCourseId());
+        BigDecimal restoreLessons = BigDecimal.ZERO;
+        for (StudentLessonFlow deductFlow : deductFlowList) {
+            restoreLessons = restoreLessons.add(nvl(deductFlow.getLessons()).abs());
+        }
+        StudentLessonAccount account = this.getAccount(studentId, deductFlowList.get(0).getCourseId());
         // 条件更新防并发：已用足够才回补
         boolean restored = this.update(new LambdaUpdateWrapper<StudentLessonAccount>()
                 .eq(StudentLessonAccount::getId, account.getId())
                 .ge(StudentLessonAccount::getUsedLessons, restoreLessons)
-                .setSql("USED_LESSONS = USED_LESSONS - " + restoreLessons)
-                .setSql("REMAIN_LESSONS = REMAIN_LESSONS + " + restoreLessons));
+                .setSql("USED_LESSONS = USED_LESSONS - " + restoreLessons.toPlainString())
+                .setSql("REMAIN_LESSONS = REMAIN_LESSONS + " + restoreLessons.toPlainString()));
         if (!restored) {
             throw new CommonException("账户数据异常，回补失败");
         }
-        // 回补流水（关联原流水）
-        StudentLessonFlow flow = new StudentLessonFlow();
-        flow.setStudentId(studentId);
-        flow.setCourseId(deductFlow.getCourseId());
-        flow.setScheduleId(scheduleId);
-        flow.setFlowType(LessonFlowTypeEnum.RESTORE.getValue());
-        flow.setLessons(restoreLessons);
-        flow.setRefFlowId(deductFlow.getId());
-        flow.setRemark("撤销点名回补");
-        studentLessonFlowService.add(flow);
-        // 回补订单消耗
-        studentLessonAllocationService.restore(studentId, deductFlow.getCourseId(), restoreLessons);
+        // 回补流水（逐笔关联原消课流水）
+        for (StudentLessonFlow deductFlow : deductFlowList) {
+            BigDecimal flowLessons = nvl(deductFlow.getLessons()).abs();
+            StudentLessonFlow flow = new StudentLessonFlow();
+            flow.setStudentId(studentId);
+            flow.setCourseId(deductFlow.getCourseId());
+            flow.setScheduleId(scheduleId);
+            flow.setFlowType(LessonFlowTypeEnum.RESTORE.getValue());
+            flow.setLessons(flowLessons);
+            flow.setRefFlowId(deductFlow.getId());
+            flow.setRefOrderId(deductFlow.getRefOrderId());
+            flow.setRemark("撤销点名回补");
+            studentLessonFlowService.add(flow);
+        }
+        // 回补订单消耗（优先回退到原订单，缺失时按先进先出回退）
+        for (StudentLessonFlow deductFlow : deductFlowList) {
+            BigDecimal flowLessons = nvl(deductFlow.getLessons()).abs();
+            if (StrUtil.isNotBlank(deductFlow.getRefOrderId())) {
+                studentLessonAllocationService.restoreToOrder(studentId, deductFlow.getRefOrderId(), flowLessons);
+            } else {
+                studentLessonAllocationService.restore(studentId, deductFlow.getCourseId(), flowLessons);
+            }
+        }
     }
 
     /**
@@ -290,6 +304,16 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
         } catch (Exception e) {
             return "system";
         }
+    }
+
+    /**
+     * 空值转 0
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private BigDecimal nvl(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 
     /**

@@ -13,6 +13,7 @@
 package vip.xiaonuo.finance.modular.controller;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
+import cn.hutool.core.io.FileUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,13 +24,18 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.pojo.CommonResult;
+import vip.xiaonuo.common.util.CommonDownloadUtil;
+import vip.xiaonuo.finance.modular.export.FinExportTask;
+import vip.xiaonuo.finance.modular.export.FinExportTaskService;
 import vip.xiaonuo.finance.modular.service.FinanceService;
 import vip.xiaonuo.finance.modular.stat.entity.FinDailyStat;
 import vip.xiaonuo.student.api.dto.DashboardOverviewDTO;
 import vip.xiaonuo.student.api.dto.FinanceAttendTrendDTO;
 import vip.xiaonuo.student.api.dto.FinanceCampusRankDTO;
 import vip.xiaonuo.student.api.dto.FinanceChannelDTO;
+import vip.xiaonuo.student.api.dto.FinanceConsumeDTO;
 import vip.xiaonuo.student.api.dto.FinanceCourseRankDTO;
 import vip.xiaonuo.student.api.dto.FinancePaymentDTO;
 import vip.xiaonuo.student.api.dto.FinanceReconcileDTO;
@@ -40,6 +46,7 @@ import vip.xiaonuo.student.api.dto.FinanceTrendDTO;
 import vip.xiaonuo.student.api.dto.ReportOptionDTO;
 import vip.xiaonuo.student.api.param.FinanceQueryParam;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
@@ -60,6 +67,9 @@ public class FinanceController {
 
     @Resource
     private FinanceService financeService;
+
+    @Resource
+    private FinExportTaskService finExportTaskService;
 
     /**
      * 获取收款单分页
@@ -258,6 +268,67 @@ public class FinanceController {
     @GetMapping("/finance/report/reconcile")
     public CommonResult<FinanceReconcileDTO> reconcile(FinanceQueryParam financeQueryParam) {
         return CommonResult.data(financeService.reconcile(financeQueryParam));
+    }
+
+    /**
+     * 课消与收入确认
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     */
+    @Operation(summary = "课消与收入确认")
+    @SaCheckPermission("/finance/report/consume")
+    @GetMapping("/finance/report/consume")
+    public CommonResult<List<FinanceConsumeDTO>> consume(FinanceQueryParam financeQueryParam) {
+        return CommonResult.data(financeService.consume(financeQueryParam));
+    }
+
+    /**
+     * 创建异步导出任务
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     */
+    @Operation(summary = "创建异步导出任务")
+    @SaCheckPermission("/finance/report/export/async")
+    @GetMapping("/finance/report/export/async")
+    public CommonResult<FinExportTask> exportAsync(FinanceQueryParam financeQueryParam,
+                                                    @RequestParam(required = false, defaultValue = "PAYMENT") String type) {
+        return CommonResult.data(finExportTaskService.create(type, financeQueryParam));
+    }
+
+    /**
+     * 查询异步导出任务状态
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     */
+    @Operation(summary = "查询异步导出任务状态")
+    @SaCheckPermission("/finance/report/export/async/status")
+    @GetMapping("/finance/report/export/async/status")
+    public CommonResult<FinExportTask> exportAsyncStatus(@RequestParam String id) {
+        return CommonResult.data(finExportTaskService.get(id));
+    }
+
+    /**
+     * 下载异步导出文件
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     */
+    @Operation(summary = "下载异步导出文件")
+    @SaCheckPermission("/finance/report/export/async/download")
+    @GetMapping("/finance/report/export/async/download")
+    public void exportAsyncDownload(@RequestParam String id, HttpServletResponse response) throws IOException {
+        FinExportTask task = finExportTaskService.get(id);
+        if (!FinExportTaskService.STATUS_SUCCESS.equals(task.getStatus())) {
+            throw new CommonException("导出任务尚未完成，当前状态：{}", task.getStatus());
+        }
+        File file = new File(task.getFilePath());
+        if (!file.exists()) {
+            throw new CommonException("导出文件已过期，请重新导出");
+        }
+        CommonDownloadUtil.download(task.getFileName(), FileUtil.readBytes(file), response);
     }
 
     /**

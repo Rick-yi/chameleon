@@ -74,6 +74,7 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
               `ATTEND_LESSONS` decimal(10,2) NULL DEFAULT 0.00 COMMENT '点名消课课时',
               `RESTORE_LESSONS` decimal(10,2) NULL DEFAULT 0.00 COMMENT '回补课时',
               `NET_LESSONS` decimal(10,2) NULL DEFAULT 0.00 COMMENT '净课消课时',
+              `RECOGNIZED_AMOUNT` decimal(12,2) NULL DEFAULT 0.00 COMMENT '课消金额(权责口径)',
               `NEW_STUDENT_COUNT` bigint NULL DEFAULT 0 COMMENT '新增学员数',
               `DELETE_FLAG` varchar(255) NULL DEFAULT 'NOT_DELETE' COMMENT '删除标志',
               `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
@@ -85,9 +86,30 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
             ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '财务日汇总' ROW_FORMAT = Dynamic
             """;
 
+    private static final String FIN_EXPORT_TASK_DDL = """
+            CREATE TABLE IF NOT EXISTS `FIN_EXPORT_TASK` (
+              `ID` varchar(20) NOT NULL COMMENT '主键',
+              `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '租户id',
+              `EXPORT_TYPE` varchar(20) NULL DEFAULT NULL COMMENT '导出类型',
+              `PARAM_JSON` varchar(1000) NULL DEFAULT NULL COMMENT '查询参数',
+              `STATUS` varchar(20) NULL DEFAULT 'PENDING' COMMENT '状态(PENDING/RUNNING/SUCCESS/FAILED)',
+              `FILE_PATH` varchar(500) NULL DEFAULT NULL COMMENT '生成文件路径',
+              `FILE_NAME` varchar(255) NULL DEFAULT NULL COMMENT '下载文件名',
+              `ROW_COUNT` bigint NULL DEFAULT 0 COMMENT '数据行数',
+              `ERROR_MSG` varchar(500) NULL DEFAULT NULL COMMENT '失败原因',
+              `FINISH_TIME` datetime NULL DEFAULT NULL COMMENT '完成时间',
+              `DELETE_FLAG` varchar(255) NULL DEFAULT 'NOT_DELETE' COMMENT '删除标志',
+              `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+              `CREATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '创建人',
+              `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '更新时间',
+              `UPDATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '更新人',
+              PRIMARY KEY (`ID`) USING BTREE,
+              INDEX `IDX_FIN_EXPORT_TENANT` (`TENANT_ID`, `STATUS`)
+            ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '报表异步导出任务' ROW_FORMAT = Dynamic
+            """;
+
     @Resource
     private JdbcTemplate jdbcTemplate;
-
     @Override
     public void onApplicationEvent(ApplicationStartedEvent event) {
         try {
@@ -149,6 +171,15 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
             if (!tableExists("FIN_DAILY_STAT")) {
                 jdbcTemplate.execute(FIN_DAILY_STAT_DDL);
                 log.info(">>> 报表结构升级：FIN_DAILY_STAT 已创建");
+            }
+            if (!columnExists("FIN_DAILY_STAT", "RECOGNIZED_AMOUNT")) {
+                jdbcTemplate.execute("ALTER TABLE `FIN_DAILY_STAT` ADD COLUMN `RECOGNIZED_AMOUNT` decimal(12,2) NULL DEFAULT 0.00 COMMENT '课消金额(权责口径)' AFTER `NET_LESSONS`");
+                log.info(">>> 报表结构升级：FIN_DAILY_STAT.RECOGNIZED_AMOUNT 已添加");
+            }
+
+            if (!tableExists("FIN_EXPORT_TASK")) {
+                jdbcTemplate.execute(FIN_EXPORT_TASK_DDL);
+                log.info(">>> 报表结构升级：FIN_EXPORT_TASK 已创建");
             }
 
             // 课程扣课规则可配置（请假/缺勤是否扣课）

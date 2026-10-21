@@ -69,6 +69,18 @@ public class FinanceReconcileDTO {
     @Schema(description = "课消差异")
     private BigDecimal lessonDiff = BigDecimal.ZERO;
 
+    /** 有流水支撑账户的已用课时合计 */
+    @Schema(description = "有流水支撑账户的已用课时合计")
+    private BigDecimal trackedUsedLessons = BigDecimal.ZERO;
+
+    /** 有流水支撑账户的流水净消耗合计 */
+    @Schema(description = "有流水支撑账户的流水净消耗合计")
+    private BigDecimal trackedFlowLessons = BigDecimal.ZERO;
+
+    /** 无流水支撑的历史已用课时（不计入差异） */
+    @Schema(description = "无流水支撑的历史已用课时")
+    private BigDecimal untrackedUsedLessons = BigDecimal.ZERO;
+
     /** 是否一致 */
     @Schema(description = "是否一致")
     private Boolean consistent = Boolean.TRUE;

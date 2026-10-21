@@ -17,6 +17,7 @@ import vip.xiaonuo.student.api.dto.DashboardOverviewDTO;
 import vip.xiaonuo.student.api.dto.FinanceAttendTrendDTO;
 import vip.xiaonuo.student.api.dto.FinanceCampusRankDTO;
 import vip.xiaonuo.student.api.dto.FinanceChannelDTO;
+import vip.xiaonuo.student.api.dto.FinanceConsumeDTO;
 import vip.xiaonuo.student.api.dto.FinanceCourseRankDTO;
 import vip.xiaonuo.student.api.dto.FinancePaymentDTO;
 import vip.xiaonuo.student.api.dto.FinanceReconcileDTO;
@@ -144,6 +145,14 @@ public interface StudentFinanceApi {
      * @date 2026/10/21 10:00
      **/
     FinanceReconcileDTO reconcile(FinanceQueryParam financeQueryParam);
+
+    /**
+     * 课消与收入确认（按课程 + 课包）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    List<FinanceConsumeDTO> consume(FinanceQueryParam financeQueryParam);
 
     /**
      * 经营看板聚合
