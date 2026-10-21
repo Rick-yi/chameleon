@@ -18,6 +18,10 @@
 					<template #icon><thunderbolt-outlined /></template>
 					批量生成
 				</a-button>
+				<a-button @click="onOpenAdhoc">
+					<template #icon><team-outlined /></template>
+					直接排课
+				</a-button>
 				<a-button type="primary" @click="onOpenAdd">
 					<template #icon><plus-outlined /></template>
 					手动排课
@@ -246,6 +250,75 @@
 		</a-form>
 	</a-modal>
 
+	<!-- 直接排课：不建班级，直接给课程和一群学员排课 -->
+	<a-modal v-model:open="adhocOpen" title="直接排课（无需建班级）" :width="720" :destroy-on-close="true" @ok="onSubmitAdhoc">
+		<a-alert
+			type="info"
+			show-icon
+			style="margin-bottom: 16px"
+			message="适用于老师带固定学员、临时集训、一对一或试听：直接指定课程、老师与这节课的学员名单，按周时段展开生成排课"
+		/>
+		<a-form layout="vertical">
+			<a-row :gutter="16">
+				<a-col :span="12">
+					<a-form-item label="课程" required>
+						<a-select v-model:value="adhocForm.courseId" placeholder="请选择课程" :options="courseOptions" show-search option-filter-prop="label" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="老师">
+						<a-select v-model:value="adhocForm.teacherId" placeholder="请选择老师" :options="teacherOptions" allow-clear show-search option-filter-prop="label" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="8">
+					<a-form-item label="教室">
+						<a-input v-model:value="adhocForm.classroom" placeholder="如：A101" allow-clear />
+					</a-form-item>
+				</a-col>
+				<a-col :span="8">
+					<a-form-item label="开始日期" required>
+						<a-date-picker v-model:value="adhocForm.startDate" value-format="YYYY-MM-DD" style="width: 100%" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="8">
+					<a-form-item label="生成周数" required>
+						<a-input-number v-model:value="adhocForm.weekCount" :min="1" :max="26" style="width: 100%" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="24">
+					<a-form-item label="上课学员" required>
+						<a-select
+							v-model:value="adhocForm.studentIdList"
+							mode="multiple"
+							placeholder="搜索并选择这节课的学员"
+							:options="studentOptions"
+							show-search
+							option-filter-prop="label"
+							:max-tag-count="responsive"
+						/>
+					</a-form-item>
+				</a-col>
+				<a-col :span="24">
+					<a-form-item label="每周时段" required>
+						<div style="width: 100%">
+							<div v-for="(item, index) in adhocForm.weekTemplate" :key="index" style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap">
+								<a-select v-model:value="item.dayOfWeek" style="width: 110px" :options="weekDayOptions" />
+								<a-time-picker v-model:value="item.startTime" format="HH:mm" value-format="HH:mm" style="width: 110px" />
+								<span>至</span>
+								<a-time-picker v-model:value="item.endTime" format="HH:mm" value-format="HH:mm" style="width: 110px" />
+								<a-button type="link" danger size="small" @click="adhocForm.weekTemplate.splice(index, 1)">删除</a-button>
+							</div>
+							<a-button type="dashed" block @click="addAdhocSlot">
+								<template #icon><plus-outlined /></template>
+								添加上课时段
+							</a-button>
+						</div>
+					</a-form-item>
+				</a-col>
+			</a-row>
+		</a-form>
+	</a-modal>
+
 	<!-- 课表模板 -->
 	<a-modal v-model:open="templateOpen" title="编辑班级课表模板" :width="720" :destroy-on-close="true" @ok="onSubmitTemplate">
 		<a-form layout="vertical">
@@ -347,8 +420,9 @@
 <script setup name="courseSchedule">
 	import { useRoute, useRouter } from 'vue-router'
 	import { message } from 'ant-design-vue'
-	import { FileTextOutlined, HistoryOutlined, ProfileOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
+	import { FileTextOutlined, HistoryOutlined, PlusOutlined, ProfileOutlined, TeamOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
 	import courseApi from '@/api/course/courseApi'
+	import studentApi from '@/api/student/studentApi'
 	import downloadUtil from '@/utils/downloadUtil'
 	const router = useRouter()
 	const route = useRoute()
@@ -400,6 +474,77 @@
 				changeList.value = data?.records || []
 			})
 			.finally(() => (changeLoading.value = false))
+	}
+	// ---------- 直接排课（不挂班级） ----------
+	const adhocOpen = ref(false)
+	const adhocForm = ref({})
+	const courseOptions = ref([])
+	const studentOptions = ref([])
+	const weekDayOptions = [
+		{ value: 1, label: '周一' },
+		{ value: 2, label: '周二' },
+		{ value: 3, label: '周三' },
+		{ value: 4, label: '周四' },
+		{ value: 5, label: '周五' },
+		{ value: 6, label: '周六' },
+		{ value: 7, label: '周日' }
+	]
+	const loadAdhocOptions = () => {
+		courseApi.coursePage({ current: 1, size: 200 }).then((data) => {
+			courseOptions.value = (data.records || []).map((item) => ({ value: item.id, label: item.name }))
+		})
+		studentApi.studentPage({ current: 1, size: 500 }).then((data) => {
+			studentOptions.value = (data.records || []).map((item) => ({
+				value: item.id,
+				label: `${item.name}(${item.parentPhone || '-'})`
+			}))
+		})
+	}
+	const onOpenAdhoc = () => {
+		const start = new Date()
+		adhocForm.value = {
+			courseId: undefined,
+			teacherId: undefined,
+			classroom: undefined,
+			studentIdList: [],
+			startDate: fmtDate(start),
+			weekCount: 4,
+			weekTemplate: [{ dayOfWeek: 1, startTime: '09:00', endTime: '10:30' }]
+		}
+		adhocOpen.value = true
+	}
+	const addAdhocSlot = () => {
+		adhocForm.value.weekTemplate.push({ dayOfWeek: 1, startTime: '09:00', endTime: '10:30' })
+	}
+	const onSubmitAdhoc = () => {
+		const form = adhocForm.value
+		if (!form.courseId) {
+			message.warning('请选择课程')
+			return
+		}
+		if (!form.studentIdList || !form.studentIdList.length) {
+			message.warning('请选择上课学员')
+			return
+		}
+		if (!form.weekTemplate || !form.weekTemplate.length) {
+			message.warning('请配置每周上课时段')
+			return
+		}
+		courseApi
+			.scheduleGenerateAdhoc({
+				courseId: form.courseId,
+				teacherId: form.teacherId,
+				classroom: form.classroom,
+				studentIdList: form.studentIdList,
+				startDate: `${form.startDate} 00:00:00`,
+				weekCount: form.weekCount,
+				weekTemplateJson: JSON.stringify(form.weekTemplate)
+			})
+			.then((result) => {
+				adhocOpen.value = false
+				message.success(`已生成 ${result?.createdCount || 0} 节课`)
+				loadWeek()
+			})
 	}
 	const templateOpen = ref(false)
 	const templateEditorRef = ref()
@@ -792,5 +937,6 @@
 	}
 	loadClasses()
 	loadTeachers()
+	loadAdhocOptions()
 	buildWeek()
 </script>

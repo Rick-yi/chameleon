@@ -40,6 +40,14 @@ public class CourseSchedule extends CommonEntity {
     @Schema(description = "租户id")
     private String tenantId;
 
+    /** 校区id（直接排课时按老师所属校区，用于数据范围） */
+    @Schema(description = "校区id")
+    private String campusId;
+
+    /** 课程id（消课按此课程扣减课时账户；挂班级时由班级带出） */
+    @Schema(description = "课程id")
+    private String courseId;
+
     /** 班级id */
     @Schema(description = "班级id")
     private String classId;

@@ -106,6 +106,10 @@ export default {
 	scheduleExport(data) {
 		return request('schedule/export', data, 'get', { responseType: 'blob' })
 	},
+	// 直接排课（不挂班级：老师带一群学生上课）
+	scheduleGenerateAdhoc(data) {
+		return request('schedule/generateAdhoc', data)
+	},
 	// 调课记录
 	scheduleChangePage(data) {
 		return request('scheduleChange/page', data, 'get')

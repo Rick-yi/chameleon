@@ -42,12 +42,14 @@ import vip.xiaonuo.course.modular.courseschedule.entity.CourseSchedule;
 import vip.xiaonuo.course.modular.courseschedule.enums.CourseScheduleStatusEnum;
 import vip.xiaonuo.course.modular.courseschedule.mapper.CourseScheduleMapper;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleAddParam;
+import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleAdhocParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleChangeParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleGenerateParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleIdParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseSchedulePageParam;
 import vip.xiaonuo.course.modular.courseschedule.service.CourseScheduleService;
 import vip.xiaonuo.course.modular.courseschedulechange.entity.CourseScheduleChange;
+import vip.xiaonuo.course.modular.courschedulestudent.service.CourseScheduleStudentService;
 import vip.xiaonuo.course.modular.courseschedulechange.service.CourseScheduleChangeService;
 import vip.xiaonuo.student.api.StudentNotifyApi;
 import vip.xiaonuo.sys.api.SysUserApi;
@@ -66,6 +68,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.List;
 import java.util.Set;
@@ -103,6 +106,9 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
     private BizEventApi bizEventApi;
 
     @Resource
+    private CourseScheduleStudentService courseScheduleStudentService;
+
+    @Resource
     private StudentNotifyApi studentNotifyApi;
 
     @Resource
@@ -136,6 +142,17 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
      * @author 会飞的猪
      * @date 2026/10/21 10:00
      **/
+    /**
+     * 取老师所属校区（直接排课时用于数据范围）
+     */
+    private String teacherCampusId(String teacherId) {
+        if (StrUtil.isBlank(teacherId)) {
+            return null;
+        }
+        cn.hutool.json.JSONObject user = sysUserApi.getUserByIdWithoutException(teacherId);
+        return user == null ? null : user.getStr("orgId");
+    }
+
     private List<String> visibleClassIdList() {
         List<String> visibleCampusIds = StpDataScopeUtil.visibleOrgIds();
         if (visibleCampusIds == null) {
@@ -256,6 +273,7 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                 }
                 CourseSchedule courseSchedule = new CourseSchedule();
                 courseSchedule.setClassId(courseScheduleGenerateParam.getClassId());
+                courseSchedule.setCourseId(courseClass.getCourseId());
                 courseSchedule.setScheduleDate(scheduleDate);
                 courseSchedule.setStartTime(startTime);
                 courseSchedule.setEndTime(endTime);
@@ -424,11 +442,154 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             if (ObjectUtil.isNotEmpty(teacherId) && teacherId.equals(exist.getTeacherId())) {
                 conflictSet.add("教师同时段已有排课");
             }
-            if (classId.equals(exist.getClassId())) {
+            if (ObjectUtil.isNotEmpty(classId) && classId.equals(exist.getClassId())) {
                 conflictSet.add("该班级同时段已有排课");
             }
         }
         return new ArrayList<>(conflictSet);
+    }
+
+    /**
+     * 直接排课（不挂班级）
+     * <p>
+     * 老师带一群学生上课时无需先建班级：直接指定课程、老师、教室与这节课的学员名单，
+     * 按周模板展开生成排课；点名名单 = 本表学员；消课按课程扣减学员的课时账户。
+     * </p>
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public CourseScheduleGenerateResultDTO generateAdhoc(CourseScheduleAdhocParam courseScheduleAdhocParam) {
+        CourseScheduleGenerateResultDTO result = new CourseScheduleGenerateResultDTO();
+        if (ObjectUtil.isEmpty(courseScheduleAdhocParam.getStudentIdList())) {
+            throw new CommonException("请选择上课学员");
+        }
+        if (ObjectUtil.isEmpty(courseScheduleAdhocParam.getWeekTemplateJson())) {
+            throw new CommonException("请配置每周上课时段");
+        }
+        JSONArray templateList = JSONUtil.parseArray(courseScheduleAdhocParam.getWeekTemplateJson());
+        if (ObjectUtil.isEmpty(templateList)) {
+            throw new CommonException("每周上课时段为空");
+        }
+        Integer weekCount = courseScheduleAdhocParam.getWeekCount();
+        if (ObjectUtil.isEmpty(weekCount) || weekCount <= 0 || weekCount > 26) {
+            throw new CommonException("生成周数需在1-26之间");
+        }
+        LocalDate startLocalDate = courseScheduleAdhocParam.getStartDate().toInstant()
+                .atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate monday = startLocalDate.with(DayOfWeek.MONDAY);
+        LocalDate lastDay = monday.plusWeeks(weekCount - 1).plusDays(6);
+        List<CourseSchedule> existList = this.list(new LambdaQueryWrapper<CourseSchedule>()
+                .ge(CourseSchedule::getScheduleDate, Date.from(monday.atStartOfDay(ZoneId.systemDefault()).toInstant()))
+                .le(CourseSchedule::getScheduleDate, Date.from(lastDay.atStartOfDay(ZoneId.systemDefault()).toInstant()))
+                .eq(CourseSchedule::getStatus, CourseScheduleStatusEnum.NORMAL.getValue()));
+        Set<String> existKeySet = new HashSet<>();
+        for (CourseSchedule exist : existList) {
+            existKeySet.add(scheduleKey(null, exist.getScheduleDate(), exist.getStartTime(), exist.getEndTime()));
+        }
+        List<CourseSchedule> toSaveList = new ArrayList<>();
+        List<String> allConflicts = new ArrayList<>();
+        int plannedCount = 0;
+        int skippedCount = 0;
+        for (int week = 0; week < weekCount; week++) {
+            for (int i = 0; i < templateList.size(); i++) {
+                JSONObject template = templateList.getJSONObject(i);
+                int dayOfWeek = template.getInt("dayOfWeek");
+                if (dayOfWeek < 1 || dayOfWeek > 7) {
+                    throw new CommonException("上课时段星期配置非法：{}", dayOfWeek);
+                }
+                LocalDate date = monday.plusWeeks(week).plusDays(dayOfWeek - 1);
+                LocalTime startTime = LocalTime.parse(template.getStr("startTime"));
+                LocalTime endTime = LocalTime.parse(template.getStr("endTime"));
+                String classroom = ObjectUtil.isNotEmpty(template.getStr("classroom"))
+                        ? template.getStr("classroom") : courseScheduleAdhocParam.getClassroom();
+                String teacherId = ObjectUtil.isNotEmpty(template.getStr("teacherId"))
+                        ? template.getStr("teacherId") : courseScheduleAdhocParam.getTeacherId();
+                Date scheduleDate = Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
+                plannedCount++;
+                if (existKeySet.contains(scheduleKey(null, scheduleDate, startTime, endTime))) {
+                    skippedCount++;
+                    continue;
+                }
+                for (CourseSchedule exist : existList) {
+                    if (!sameDate(exist.getScheduleDate(), scheduleDate)) {
+                        continue;
+                    }
+                    if (!(exist.getStartTime().isBefore(endTime) && exist.getEndTime().isAfter(startTime))) {
+                        continue;
+                    }
+                    if (ObjectUtil.isNotEmpty(classroom) && classroom.equals(exist.getClassroom())) {
+                        allConflicts.add("教室【" + classroom + "】同时段已有排课");
+                    }
+                    if (ObjectUtil.isNotEmpty(teacherId) && teacherId.equals(exist.getTeacherId())) {
+                        allConflicts.add("教师同时段已有排课");
+                    }
+                }
+                for (CourseSchedule planned : toSaveList) {
+                    if (!sameDate(planned.getScheduleDate(), scheduleDate)) {
+                        continue;
+                    }
+                    if (!(planned.getStartTime().isBefore(endTime) && planned.getEndTime().isAfter(startTime))) {
+                        continue;
+                    }
+                    if (ObjectUtil.isNotEmpty(classroom) && classroom.equals(planned.getClassroom())) {
+                        allConflicts.add("教室【" + classroom + "】同时段已有排课（同批生成）");
+                    }
+                    if (ObjectUtil.isNotEmpty(teacherId) && teacherId.equals(planned.getTeacherId())) {
+                        allConflicts.add("教师同时段已有排课（同批生成）");
+                    }
+                }
+                CourseSchedule courseSchedule = new CourseSchedule();
+                courseSchedule.setClassId(null);
+                courseSchedule.setCourseId(courseScheduleAdhocParam.getCourseId());
+                courseSchedule.setCampusId(teacherCampusId(courseScheduleAdhocParam.getTeacherId()));
+                courseSchedule.setScheduleDate(scheduleDate);
+                courseSchedule.setStartTime(startTime);
+                courseSchedule.setEndTime(endTime);
+                courseSchedule.setClassroom(classroom);
+                courseSchedule.setTeacherId(teacherId);
+                courseSchedule.setStatus(CourseScheduleStatusEnum.NORMAL.getValue());
+                toSaveList.add(courseSchedule);
+            }
+        }
+        result.setPlannedCount(plannedCount);
+        result.setSkippedCount(skippedCount);
+        result.setConflicts(new ArrayList<>(new HashSet<>(allConflicts)));
+        if (ObjectUtil.isNotEmpty(allConflicts)) {
+            throw new CommonException("存在排课冲突，未生成：{}", String.join("；", result.getConflicts()));
+        }
+        if (ObjectUtil.isEmpty(toSaveList)) {
+            result.setCreatedCount(0);
+            return result;
+        }
+        this.saveBatch(toSaveList);
+        // 绑定这节课的学员名单
+        for (CourseSchedule schedule : toSaveList) {
+            courseScheduleStudentService.saveBatchStudent(schedule.getId(), courseScheduleAdhocParam.getStudentIdList());
+        }
+        result.setCreatedCount(toSaveList.size());
+        bizEventApi.log(BizEventCodeEnum.SCHEDULE_GENERATE.getValue(), "schedule", null, "直接排课",
+                Map.of("计划", String.valueOf(result.getPlannedCount()), "新增", String.valueOf(result.getCreatedCount()),
+                        "学员", String.valueOf(courseScheduleAdhocParam.getStudentIdList().size())));
+        return result;
+    }
+
+    /**
+     * 某节课的上课名单：班级在读学员 ∪ 排课直接指定学员
+     */
+    @Override
+    public List<String> listRosterStudentIds(String scheduleId) {
+        Set<String> studentIdSet = new LinkedHashSet<>();
+        if (StrUtil.isBlank(scheduleId)) {
+            return new ArrayList<>();
+        }
+        CourseSchedule schedule = this.getById(scheduleId);
+        if (ObjectUtil.isNotEmpty(schedule) && StrUtil.isNotBlank(schedule.getClassId())) {
+            for (CourseClassStudent classStudent : courseClassStudentService.listByClassId(schedule.getClassId())) {
+                studentIdSet.add(classStudent.getStudentId());
+            }
+        }
+        studentIdSet.addAll(courseScheduleStudentService.listStudentIdsByScheduleId(scheduleId));
+        return new ArrayList<>(studentIdSet);
     }
 
     @Override
@@ -436,11 +597,21 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         Date start = cn.hutool.core.date.DateUtil.beginOfDay(parseDate(courseScheduleWeekParam.getStartDate(), defaultWeekStart()));
         Date end = cn.hutool.core.date.DateUtil.endOfDay(parseDate(courseScheduleWeekParam.getEndDate(), defaultWeekEnd()));
         List<String> visibleClassIdList = visibleClassIdList();
+        List<String> visibleCampusIds = StpDataScopeUtil.visibleOrgIds();
         List<CourseSchedule> scheduleList = this.list(new LambdaQueryWrapper<CourseSchedule>()
                 .eq(StrUtil.isNotBlank(courseScheduleWeekParam.getClassId()), CourseSchedule::getClassId, courseScheduleWeekParam.getClassId())
                 .eq(StrUtil.isNotBlank(courseScheduleWeekParam.getTeacherId()), CourseSchedule::getTeacherId, courseScheduleWeekParam.getTeacherId())
                 .eq(StrUtil.isNotBlank(courseScheduleWeekParam.getClassroom()), CourseSchedule::getClassroom, courseScheduleWeekParam.getClassroom())
-                .in(ObjectUtil.isNotEmpty(visibleClassIdList), CourseSchedule::getClassId, visibleClassIdList)
+                // 数据范围：挂班级的按班级可见；直接排课（无班级）的按校区可见
+                .and(ObjectUtil.isNotEmpty(visibleClassIdList) || ObjectUtil.isNotEmpty(visibleCampusIds), q -> {
+                    if (ObjectUtil.isNotEmpty(visibleClassIdList)) {
+                        q.in(CourseSchedule::getClassId, visibleClassIdList);
+                    }
+                    if (ObjectUtil.isNotEmpty(visibleCampusIds)) {
+                        q.or(i -> i.isNull(CourseSchedule::getClassId)
+                                .in(CourseSchedule::getCampusId, visibleCampusIds));
+                    }
+                })
                 .ge(CourseSchedule::getScheduleDate, start)
                 .le(CourseSchedule::getScheduleDate, end)
                 .eq(CourseSchedule::getStatus, CourseScheduleStatusEnum.NORMAL.getValue())
@@ -505,6 +676,12 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                 dto.setCourseId(courseClass.getCourseId());
                 dto.setCampusId(courseClass.getCampusId());
                 dto.setCourseName(courseNameMap.get(courseClass.getCourseId()));
+            } else {
+                // 直接排课（不挂班级）：展示课程名
+                dto.setClassName("直接排课");
+                dto.setCourseId(schedule.getCourseId());
+                dto.setCampusId(schedule.getCampusId());
+                dto.setCourseName(courseNameMap.get(schedule.getCourseId()));
             }
             resultList.add(dto);
         }

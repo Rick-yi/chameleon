@@ -38,6 +38,7 @@ import vip.xiaonuo.course.modular.courseclassattend.mapper.CourseClassAttendMapp
 import vip.xiaonuo.course.modular.courseclass.entity.CourseClass;
 import vip.xiaonuo.course.modular.courseclass.mapper.CourseClassMapper;
 import vip.xiaonuo.course.modular.courseschedule.entity.CourseSchedule;
+import vip.xiaonuo.course.modular.courseschedule.service.CourseScheduleService;
 import vip.xiaonuo.platform.api.BizEventApi;
 import vip.xiaonuo.platform.api.enums.BizEventCodeEnum;
 import vip.xiaonuo.course.modular.courseschedule.mapper.CourseScheduleMapper;
@@ -186,8 +187,15 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
             throw new CommonException("排课状态【{}】不允许点名", schedule.getStatus());
         }
         // 每课扣课时数（课程配置，默认1）
-        CourseClass courseClass = courseClassService.queryEntity(schedule.getClassId());
-        Course course = courseService.queryEntity(courseClass.getCourseId());
+        // 排课可以挂班级，也可以是「直接排课」（不挂班级，课程直接取自排课）
+        CourseClass courseClass = null;
+        Course course;
+        if (StrUtil.isNotBlank(schedule.getClassId())) {
+            courseClass = courseClassService.queryEntity(schedule.getClassId());
+            course = courseService.queryEntity(courseClass.getCourseId());
+        } else {
+            course = courseService.queryEntity(schedule.getCourseId());
+        }
         // 扣课规则（课程配置）：到课必扣；缺勤、请假是否扣课可配置
         boolean absentDeduct = course.getAbsentDeduct() == null || course.getAbsentDeduct();
         boolean leaveDeduct = Boolean.TRUE.equals(course.getLeaveDeduct());
@@ -207,11 +215,12 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
                         .eq(CourseClassAttend::getScheduleId, schedule.getId())
                         .in(CourseClassAttend::getStudentId, itemStudentIdList))
                 .stream().map(CourseClassAttend::getStudentId).collect(Collectors.toList());
-        // 校验：只能给「本班在读学员」点名（防止越权点名他人并扣其课时）
-        List<CourseClassStudent> classStudentList = courseClassStudentService.listByClassId(courseClass.getId());
+        // 校验：只能给「本节课名单」内的学员点名（防止越权点名他人并扣其课时）
+        // 名单 = 班级在读学员 ∪ 排课直接指定学员（老师带一群学生、无固定班级时）
+        List<String> rosterStudentIdList = courseScheduleService.listRosterStudentIds(schedule.getId());
         Map<String, String> classStudentNameMap = new HashMap<>();
-        for (CourseClassStudent classStudent : classStudentList) {
-            classStudentNameMap.put(classStudent.getStudentId(), classStudent.getStudentId());
+        for (String rosterStudentId : rosterStudentIdList) {
+            classStudentNameMap.put(rosterStudentId, rosterStudentId);
         }
         List<StudentBriefDTO> studentBriefList = studentApi.listStudentBrief(itemStudentIdList);
         Map<String, StudentBriefDTO> studentBriefMap = new HashMap<>();
@@ -315,7 +324,7 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
         // 埋点：点名消课
         if (ObjectUtil.isNotEmpty(attendList)) {
             bizEventApi.log(BizEventCodeEnum.ATTEND_CONFIRM.getValue(), "schedule", schedule.getId(),
-                    courseClass.getName(),
+                    courseClass == null ? "直接排课" : courseClass.getName(),
                     Map.of("人数", String.valueOf(attendList.size()), "扣课人次", String.valueOf(deductParamList.size())));
         }
         // 消课通知落库（v1 站内记录，家长端/订阅消息在 M4 消费）

@@ -17,6 +17,7 @@ import vip.xiaonuo.course.modular.courseschedule.entity.CourseSchedule;
 import vip.xiaonuo.course.api.dto.CourseScheduleGenerateResultDTO;
 import vip.xiaonuo.course.api.dto.CourseScheduleViewDTO;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleAddParam;
+import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleAdhocParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleChangeParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleGenerateParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleIdParam;
@@ -42,6 +43,25 @@ public interface CourseScheduleService {
 
     /** 按班级周模板批量生成（含冲突检测，任一冲突整体失败） */
     CourseScheduleGenerateResultDTO generate(CourseScheduleGenerateParam courseScheduleGenerateParam);
+
+    /**
+     * 直接排课（不挂班级：老师带一群学生上课）
+     * <p>
+     * 排课直接关联课程与这节课的学员名单，点名与消课按课程扣减课时账户。
+     * </p>
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    CourseScheduleGenerateResultDTO generateAdhoc(CourseScheduleAdhocParam courseScheduleAdhocParam);
+
+    /**
+     * 查询某节课的上课名单（班级在读学员 ∪ 排课直接指定学员）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    List<String> listRosterStudentIds(String scheduleId);
 
     /**
      * 课表区间查询（不分页，返回带班级/教师名称的视图数据）

@@ -32,6 +32,7 @@ import vip.xiaonuo.course.api.dto.CourseScheduleViewDTO;
 import vip.xiaonuo.course.api.dto.CourseScheduleGenerateResultDTO;
 import vip.xiaonuo.course.modular.courseschedule.entity.CourseSchedule;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleAddParam;
+import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleAdhocParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleChangeParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleGenerateParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleIdParam;
@@ -141,6 +142,20 @@ public class CourseScheduleController {
      * @author 会飞的猪
      * @date 2026/10/20 10:00
      */
+    /**
+     * 直接排课（不挂班级：老师带一群学生上课）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     */
+    @Operation(summary = "直接排课（不挂班级）")
+    @CommonLog("直接排课")
+    @PostMapping("/course/schedule/generateAdhoc")
+    public CommonResult<CourseScheduleGenerateResultDTO> generateAdhoc(
+            @RequestBody @Valid CourseScheduleAdhocParam courseScheduleAdhocParam) {
+        return CommonResult.data(courseScheduleService.generateAdhoc(courseScheduleAdhocParam));
+    }
+
     @PostMapping("/course/schedule/change")
     public CommonResult<String> change(@RequestBody @Valid CourseScheduleChangeParam courseScheduleChangeParam) {
         courseScheduleService.change(courseScheduleChangeParam);

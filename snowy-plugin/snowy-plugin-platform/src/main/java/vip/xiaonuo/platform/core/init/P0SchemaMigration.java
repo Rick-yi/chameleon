@@ -86,6 +86,24 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
             ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '财务日汇总' ROW_FORMAT = Dynamic
             """;
 
+    /** 排课学员表 DDL（不挂班级时直接指定这节课的学员） */
+    private static final String SCHEDULE_STUDENT_DDL = """
+            CREATE TABLE IF NOT EXISTS `COURSE_SCHEDULE_STUDENT` (
+              `ID` varchar(20) NOT NULL COMMENT '主键',
+              `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '租户id',
+              `SCHEDULE_ID` varchar(20) NOT NULL COMMENT '排课id',
+              `STUDENT_ID` varchar(20) NOT NULL COMMENT '学员id',
+              `DELETE_FLAG` varchar(255) NULL DEFAULT NULL COMMENT '删除标志',
+              `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+              `CREATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '创建用户',
+              `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '修改时间',
+              `UPDATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '修改用户',
+              PRIMARY KEY (`ID`),
+              UNIQUE INDEX `UK_SCHEDULE_STUDENT` (`SCHEDULE_ID`, `STUDENT_ID`),
+              INDEX `IDX_SCHEDULE_STUDENT_STUDENT` (`TENANT_ID`, `STUDENT_ID`)
+            ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '排课学员(不挂班级时直接指定)';
+            """;
+
     /** 业务埋点表 DDL */
     private static final String BIZ_EVENT_DDL = """
             CREATE TABLE IF NOT EXISTS `BIZ_EVENT` (
@@ -244,6 +262,17 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
                 jdbcTemplate.execute("ALTER TABLE `COURSE_CLASS_STUDENT` DROP INDEX `UK_CLASS_STUDENT`");
                 jdbcTemplate.execute("ALTER TABLE `COURSE_CLASS_STUDENT` ADD UNIQUE INDEX `UK_CLASS_STUDENT_ACTIVE` (`CLASS_ID`, `STUDENT_ID`, `ACTIVE_FLAG`)");
                 log.info(">>> 课务结构升级：COURSE_CLASS_STUDENT 唯一索引已改为 ACTIVE_FLAG 方案");
+            }
+
+            // 排课解绑班级：新增课程/校区列 + 排课学员表（老师带一群学生、无固定班级时使用）
+            if (!columnExists("COURSE_SCHEDULE", "COURSE_ID")) {
+                jdbcTemplate.execute("ALTER TABLE `COURSE_SCHEDULE` ADD COLUMN `COURSE_ID` varchar(20) NULL DEFAULT NULL COMMENT '课程id(消课按此课程扣减课时账户)' AFTER `CLASS_ID`");
+                jdbcTemplate.execute("ALTER TABLE `COURSE_SCHEDULE` ADD COLUMN `CAMPUS_ID` varchar(20) NULL DEFAULT NULL COMMENT '校区id(直接排课时按老师所属校区)' AFTER `COURSE_ID`");
+                log.info(">>> 课务结构升级：COURSE_SCHEDULE 课程/校区列已添加");
+            }
+            if (!tableExists("COURSE_SCHEDULE_STUDENT")) {
+                jdbcTemplate.execute(SCHEDULE_STUDENT_DDL);
+                log.info(">>> 课务结构升级：COURSE_SCHEDULE_STUDENT 排课学员表已创建");
             }
 
             // 业务埋点表
