@@ -117,6 +117,7 @@
 	import { useRouter } from 'vue-router'
 	import { Bar, Line, Pie } from '@antv/g2plot'
 	import reportApi from '@/api/report/reportApi'
+	import { payChannelText } from '@/utils/payChannel'
 
 	const router = useRouter()
 	const loading = ref(false)
@@ -189,7 +190,7 @@
 			trendChart.render()
 		}
 
-		const channelData = channelList.value.map((item) => ({ type: item.channel, value: money(item.paidAmount) }))
+		const channelData = channelList.value.map((item) => ({ type: payChannelText(item.channel), value: money(item.paidAmount) }))
 		if (channelData.length) {
 			channelChart = new Pie('reportChannelChart', {
 				data: channelData,

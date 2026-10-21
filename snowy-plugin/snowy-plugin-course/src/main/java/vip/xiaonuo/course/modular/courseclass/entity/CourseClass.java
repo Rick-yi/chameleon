@@ -12,6 +12,7 @@
  */
 package vip.xiaonuo.course.modular.courseclass.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
@@ -64,6 +65,11 @@ public class CourseClass extends CommonEntity {
     /** 周课表模板(JSON数组) */
     @Schema(description = "周课表模板(JSON数组)")
     private String weekTemplateJson;
+
+    /** 在读学员数（列表填充，非数据库字段） */
+    @Schema(description = "在读学员数")
+    @TableField(exist = false)
+    private Integer studentCount;
 
     /** 状态 */
     @Schema(description = "状态(启用/停用)")

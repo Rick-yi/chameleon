@@ -88,6 +88,7 @@
 	import { message } from 'ant-design-vue'
 	import studentApi from '@/api/student/studentApi'
 	import courseApi from '@/api/course/courseApi'
+	import { PAY_CHANNEL_OPTIONS } from '@/utils/payChannel'
 	const searchFormState = ref({})
 	const tableRef = ref()
 	const statusOptions = [
@@ -124,10 +125,7 @@
 	const renewFormRef = ref()
 	const renewFormData = ref({})
 	const renewPackageOptions = ref([])
-	const payChannelOptions = [
-		{ value: 'OFFLINE', label: '线下转账' },
-		{ value: 'CASH', label: '现金' }
-	]
+	const payChannelOptions = PAY_CHANNEL_OPTIONS
 	const loadPackages = (courseId) => {
 		courseApi.packagePage({ current: 1, size: 100 }).then((data) => {
 			const list = (data.records || []).filter((item) => !courseId || item.courseId === courseId)

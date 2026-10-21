@@ -15,6 +15,7 @@ import { Modal, message } from 'ant-design-vue'
 import sysConfig from '@/config/index'
 import tool from '@/utils/tool'
 import { convertUrl } from './apiAdaptive'
+import { isForbidden, setForbidden } from '@/utils/forbidden'
 
 // 以下这些code需要重新登录
 const reloadCodes = [401, 1011007, 1011008]
@@ -105,6 +106,18 @@ service.interceptors.response.use(
 		}
 		if (code !== 200) {
 			const customErrorMessage = response.config.customErrorMessage
+			// 403：越权访问。弹提示 + 标记全局无权限，由布局层渲染「无权访问」页，避免白屏
+			if (code === 403) {
+				// skipForbidden：辅助型接口（如首页卡片）无权限时静默失败，不触发全局「无权访问」页
+				if (!response.config.skipForbidden) {
+					// 只有首次 403 才提示，避免一个页面多个受限接口时刷屏
+					if (!isForbidden()) {
+						message.warning(customErrorMessage || '当前账号无权访问该功能，请联系管理员分配角色')
+					}
+					setForbidden(true)
+				}
+				return Promise.reject(data)
+			}
 			message.error(customErrorMessage || data.msg)
 			return Promise.reject(data)
 			// 自定义错误提示，覆盖后端返回的message

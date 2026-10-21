@@ -208,6 +208,7 @@
 	import reportApi from '@/api/report/reportApi'
 	import financeApi from '@/api/finance/financeApi'
 	import courseApi from '@/api/course/courseApi'
+	import { payChannelText } from '@/utils/payChannel'
 	import downloadUtil from '@/utils/downloadUtil'
 
 	const router = useRouter()
@@ -303,7 +304,7 @@
 			trendChart.render()
 		}
 
-		const channelData = channelList.value.map((item) => ({ type: item.channel, value: money(item.paidAmount) }))
+		const channelData = channelList.value.map((item) => ({ type: payChannelText(item.channel), value: money(item.paidAmount) }))
 		if (channelData.length) {
 			channelChart = new Pie('financeChannelChart', {
 				data: channelData,
@@ -506,7 +507,7 @@
 		{ title: '学员', dataIndex: 'studentName' },
 		{ title: '课包', dataIndex: 'packageName' },
 		{ title: '实收', dataIndex: 'paidAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
-		{ title: '渠道', dataIndex: 'payChannel' },
+		{ title: '渠道', dataIndex: 'payChannel', customRender: ({ text }) => payChannelText(text) },
 		{ title: '支付时间', dataIndex: 'payTime' },
 		{ title: '状态', dataIndex: 'status' }
 	]

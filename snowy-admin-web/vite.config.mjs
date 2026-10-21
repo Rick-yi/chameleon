@@ -187,6 +187,9 @@ export default defineConfig(({ command, mode }) => {
 			__VUE_PROD_HYDRATION_MISMATCH_DETAILS__: true
 		},
 		build: {
+			// 不做降级转译：目标浏览器（Chrome 87+/Edge 88+ 等）已原生支持所用语法。
+			// 同时规避 Windows 上 esbuild 转译产物临时文件无法删除导致构建失败的问题。
+			target: 'esnext',
 			// 生产环境移除console
 			minify: 'terser',
 			terserOptions: {

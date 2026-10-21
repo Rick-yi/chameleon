@@ -26,9 +26,9 @@ export default {
 	logDetail(data) {
 		return request('detail', data, 'get')
 	},
-	// 获取访问日志折线图数据
+	// 获取访问日志折线图数据（平台运营专属，租户超管调用时静默失败）
 	logVisLineChartData(data) {
-		return request('vis/lineChartData', data, 'get')
+		return request('vis/lineChartData', data, 'get', { skipForbidden: true })
 	},
 	// 获取访问日志饼状图数据
 	logVisPieChartData(data) {

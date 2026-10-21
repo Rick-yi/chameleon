@@ -43,6 +43,16 @@
 				<template v-if="column.dataIndex === 'courseId'">
 					{{ courseName(record.courseId) }}
 				</template>
+				<template v-if="column.dataIndex === 'teacherId'">
+					{{ teacherName(record.teacherId) }}
+				</template>
+				<template v-if="column.dataIndex === 'studentCount'">
+					<a-tag :color="record.studentCount > 0 ? 'blue' : 'default'">{{ record.studentCount || 0 }}</a-tag>
+				</template>
+				<template v-if="column.dataIndex === 'weekTemplateJson'">
+					<span v-if="templateSummary(record)">{{ templateSummary(record) }}</span>
+					<span v-else style="color: rgba(0,0,0,.45)">未设置</span>
+				</template>
 				<template v-if="column.dataIndex === 'status'">
 					<a-tag :color="record.status === 'ENABLE' ? 'green' : 'red'">
 						{{ record.status === 'ENABLE' ? '启用' : '停用' }}
@@ -188,9 +198,11 @@
 	const columns = [
 		{ title: '班级名称', dataIndex: 'name' },
 		{ title: '课程', dataIndex: 'courseId' },
-		{ title: '教室', dataIndex: 'classroom' },
-		{ title: '容量', dataIndex: 'capacity' },
-		{ title: '状态', dataIndex: 'status' },
+		{ title: '授课教师', dataIndex: 'teacherId', width: 120 },
+		{ title: '教室', dataIndex: 'classroom', width: 110 },
+		{ title: '学员', dataIndex: 'studentCount', width: 90 },
+		{ title: '固定课表', dataIndex: 'weekTemplateJson' },
+		{ title: '状态', dataIndex: 'status', width: 90 },
 		{ title: '操作', dataIndex: 'action', align: 'center', fixed: 'right' }
 	]
 	const studentColumns = [
@@ -214,6 +226,9 @@
 		courseApi.classPage({ current: 1, size: 200 }).then((data) => {
 			classRecords.value = data.records || []
 		})
+		courseApi.teacherOptions({}).then((data) => {
+			teacherOptions.value = data || []
+		})
 	}
 	const loadStudents = () => {
 		studentApi.studentPage({ current: 1, size: 100 }).then((data) => {
@@ -223,6 +238,24 @@
 	const courseName = (id) => {
 		const item = courseOptions.value.find((i) => i.value === id)
 		return item ? item.label : '-'
+	}
+	const teacherName = (id) => {
+		const item = teacherOptions.value.find((i) => i.value === id)
+		return item ? item.label : '未指定'
+	}
+	// 固定课表摘要：周二 09:00-10:30 等
+	const templateSummary = (record) => {
+		if (!record.weekTemplateJson) return ''
+		try {
+			const list = typeof record.weekTemplateJson === 'string' ? JSON.parse(record.weekTemplateJson) : record.weekTemplateJson
+			if (!Array.isArray(list) || !list.length) return ''
+			const names = '一二三四五六日'
+			return list
+				.map((item) => `周${names[item.dayOfWeek - 1]} ${item.startTime}-${item.endTime}`)
+				.join('、')
+		} catch (e) {
+			return ''
+		}
 	}
 	const studentName = (id) => {
 		const item = studentOptions.value.find((i) => i.value === id)

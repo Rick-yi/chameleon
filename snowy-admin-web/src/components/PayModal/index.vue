@@ -24,6 +24,7 @@
 <script setup name="PayModal">
 	import { message } from 'ant-design-vue'
 	import studentApi from '@/api/student/studentApi'
+	import { PAY_CHANNEL_OPTIONS } from '@/utils/payChannel'
 
 	// 线下收款登记弹窗（报名 / 转学员 / 续费 共用）
 	const props = defineProps({
@@ -34,10 +35,7 @@
 	const visible = ref(false)
 	const formRef = ref()
 	const formData = ref({})
-	const payChannelOptions = [
-		{ value: 'OFFLINE', label: '线下转账' },
-		{ value: 'CASH', label: '现金' }
-	]
+	const payChannelOptions = PAY_CHANNEL_OPTIONS
 	const orderLabel = computed(() => {
 		const order = props.order || {}
 		return `${order.studentName || ''} · ${order.packageName || ''}`

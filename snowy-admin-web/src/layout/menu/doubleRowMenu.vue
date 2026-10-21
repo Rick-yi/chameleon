@@ -82,7 +82,18 @@
 					<div :class="displayLayout ? 'main-content-wrapper' : 'main-content-wrapper main-content-wrapper-max'">
 						<div id="admin-ui-main" class="admin-ui-main">
 							<page-bar />
-							<router-view v-slot="{ Component }">
+								<a-result
+						v-if="forbidden"
+						status="403"
+						title="无权访问"
+						sub-title="当前账号没有该功能的访问权限，请联系管理员分配角色或切换账号"
+						class="ent-forbidden"
+					>
+						<template #extra>
+							<a-button type="primary" @click="backHome">返回首页</a-button>
+						</template>
+					</a-result>
+					<router-view v-else v-slot="{ Component }">
 								<keep-alive :include="kStore.keepLiveRoute">
 									<component :is="Component" v-if="kStore.routeShow" :key="route.name" />
 								</keep-alive>
@@ -102,7 +113,8 @@
 </template>
 
 <script setup>
-	import { useRoute } from 'vue-router'
+	import { useRoute, useRouter } from 'vue-router'
+	import { forbidden, setForbidden } from '@/utils/forbidden'
 	import UserBar from '@/layout/components/userbar.vue'
 	import Tags from '@/layout/components/tags.vue'
 	import PageBar from '@/layout/components/pageBar.vue'
@@ -134,6 +146,18 @@
 	const emit = defineEmits(['onSelect', 'switchModule', 'showMenu', 'displayLayoutChange'])
 	const displayLayout = ref(true)
 	const route = useRoute()
+	const router = useRouter()
+	// 切换页面时复位无权限状态
+	watch(
+		() => route.path,
+		() => {
+			setForbidden(false)
+		}
+	)
+	const backHome = () => {
+		setForbidden(false)
+		router.push('/')
+	}
 	watch(route, () => {
 		nextTick(() => {
 			displayLayout.value = displayLayoutResult()

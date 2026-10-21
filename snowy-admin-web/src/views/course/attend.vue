@@ -31,14 +31,23 @@
 		</a-card>
 
 		<a-card :bordered="false">
-		<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid #f0f0f0; padding-bottom: 12px">
-			<a-select v-model:value="scheduleId" placeholder="选择上课节次" :options="scheduleOptions" style="width: 320px" @change="loadAttendPage" />
+		<div class="attend-current">
+			<template v-if="currentSchedule">
+				<span class="attend-current-title">{{ currentSchedule.className || '未命名班级' }}</span>
+				<span class="attend-current-meta">
+					{{ (currentSchedule.scheduleDate || '').slice(0, 10) }}
+					{{ currentSchedule.startTime }}-{{ currentSchedule.endTime }}
+					{{ currentSchedule.classroom ? '· ' + currentSchedule.classroom : '' }}
+				</span>
+				<a-button type="link" size="small" @click="scheduleId = undefined">换一节</a-button>
+			</template>
+			<span v-else style="color: rgba(0,0,0,.45); font-size: 13px">请在上方点击要点的课节</span>
 			<div style="margin-left: auto">
 				<span v-if="scheduleId" style="color: rgba(0,0,0,.45); font-size: 12px">点击状态按钮标记出勤，到课/缺勤将按课程规则扣课时</span>
 			</div>
 		</div>
 		<div style="padding: 16px 0">
-			<div v-if="!scheduleId" class="ent-empty">请先选择上面的上课节次</div>
+			<div v-if="!scheduleId" class="ent-empty">点击上方课节卡片开始点名</div>
 			<template v-else>
 				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap">
 					<span style="font-weight: 500">
@@ -177,6 +186,11 @@
 			})
 			.catch(() => (balanceMap.value = {}))
 	}
+	// 当前选中的课节（用于表头展示，避免再放一个重复的下拉）
+	const currentSchedule = computed(() => {
+		const item = scheduleList.value.find((s) => s.id === scheduleId.value)
+		return item || null
+	})
 	const loadAttendPage = () => {
 		if (!scheduleId.value) return
 		Promise.all([
@@ -237,6 +251,27 @@
 	loadStudents()
 	loadSchedules()
 </script>
+
+<style lang="less" scoped>
+	.attend-current {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		flex-wrap: wrap;
+		padding-bottom: 12px;
+		border-bottom: 1px solid #f0f1f3;
+		margin-bottom: 4px;
+	}
+	.attend-current-title {
+		font-size: 15px;
+		font-weight: 600;
+		color: #1d2129;
+	}
+	.attend-current-meta {
+		font-size: 13px;
+		color: #4e5969;
+	}
+</style>
 
 <style lang="less" scoped>
 	.attend-slot {

@@ -35,8 +35,14 @@ import vip.xiaonuo.course.modular.courseclass.param.CourseClassPageParam;
 import vip.xiaonuo.course.modular.courseclass.service.CourseClassService;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import jakarta.annotation.Resource;
 import vip.xiaonuo.auth.core.util.StpDataScopeUtil;
 import vip.xiaonuo.common.util.CommonSqlUtil;
+import vip.xiaonuo.course.modular.courseclassstudent.entity.CourseClassStudent;
+import vip.xiaonuo.course.modular.courseclassstudent.enums.CourseClassStudentStatusEnum;
+import vip.xiaonuo.course.modular.courseclassstudent.mapper.CourseClassStudentMapper;
 
 /**
  * 班级Service接口实现类
@@ -46,6 +52,9 @@ import vip.xiaonuo.common.util.CommonSqlUtil;
  **/
 @Service
 public class CourseClassServiceImpl extends ServiceImpl<CourseClassMapper, CourseClass> implements CourseClassService {
+
+    @Resource
+    private CourseClassStudentMapper courseClassStudentMapper;
 
     @Override
     public Page<CourseClass> page(CourseClassPageParam courseClassPageParam) {
@@ -72,7 +81,26 @@ public class CourseClassServiceImpl extends ServiceImpl<CourseClassMapper, Cours
         } else {
             queryWrapper.lambda().orderByDesc(CourseClass::getCreateTime);
         }
-        return this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        Page<CourseClass> page = this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        fillStudentCount(page.getRecords());
+        return page;
+    }
+
+    /**
+     * 回填在读学员数（批量统计，避免逐个查询）
+     */
+    private void fillStudentCount(List<CourseClass> classList) {
+        if (ObjectUtil.isEmpty(classList)) {
+            return;
+        }
+        List<String> classIdList = classList.stream().map(CourseClass::getId).collect(Collectors.toList());
+        Map<String, Long> countMap = courseClassStudentMapper.selectList(new LambdaQueryWrapper<CourseClassStudent>()
+                        .in(CourseClassStudent::getClassId, classIdList)
+                        .eq(CourseClassStudent::getStatus, CourseClassStudentStatusEnum.STUDYING.getValue()))
+                .stream().collect(Collectors.groupingBy(CourseClassStudent::getClassId, Collectors.counting()));
+        for (CourseClass courseClass : classList) {
+            courseClass.setStudentCount(countMap.getOrDefault(courseClass.getId(), 0L).intValue());
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)

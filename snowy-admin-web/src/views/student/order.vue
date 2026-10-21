@@ -171,6 +171,7 @@
 <script setup name="studentOrder">
 	import { useRoute, useRouter } from 'vue-router'
 	import studentApi from '@/api/student/studentApi'
+	import { payChannelText } from '@/utils/payChannel'
 	const route = useRoute()
 	const router = useRouter()
 	const loading = ref(false)
@@ -204,7 +205,7 @@
 		{ title: '课包', dataIndex: 'packageName' },
 		{ title: '应收', dataIndex: 'amount', width: 110 },
 		{ title: '实收', dataIndex: 'paidAmount', width: 110 },
-		{ title: '渠道', dataIndex: 'payChannel', width: 90 },
+		{ title: '渠道', dataIndex: 'payChannel', width: 90, customRender: ({ text }) => payChannelText(text) },
 		{ title: '下单时间', dataIndex: 'createTime', width: 170 },
 		{ title: '状态', dataIndex: 'status', width: 100 },
 		{ title: '操作', dataIndex: 'action', align: 'center', width: 220 }

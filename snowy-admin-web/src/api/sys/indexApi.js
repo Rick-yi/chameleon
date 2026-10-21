@@ -50,17 +50,17 @@ export default {
 	indexOpLogList(data) {
 		return request('opLog/list', data, 'get')
 	},
-	// 获取基础系统业务数据
+	// 获取基础系统业务数据（超管专属，无权限时静默失败，不影响首页其它卡片）
 	indexBizDataCount(data) {
-		return request('bizDataCount', data, 'get')
+		return request('bizDataCount', data, 'get', { skipForbidden: true })
 	},
-	// 获取运维一览数据
+	// 获取运维一览数据（超管专属）
 	indexOpDataCount(data) {
-		return request('opDataCount', data, 'get')
+		return request('opDataCount', data, 'get', { skipForbidden: true })
 	},
-	// 获取基础工具数据
+	// 获取基础工具数据（超管专属）
 	indexToolDataCount(data) {
-		return request('toolDataCount', data, 'get')
+		return request('toolDataCount', data, 'get', { skipForbidden: true })
 	},
 	// 获取系统运行信息
 	indexSysInfo(data) {
