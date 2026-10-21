@@ -1,5 +1,6 @@
 <template>
 	<div>
+		<page-header title="招生报表" desc="线索漏斗、来源渠道、跟进排行与试听转化" />
 		<a-card :bordered="false" class="report-filter">
 			<a-form layout="inline">
 				<a-form-item label="时间">

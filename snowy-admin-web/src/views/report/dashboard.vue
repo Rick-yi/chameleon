@@ -1,46 +1,55 @@
 <template>
 	<div>
+		<page-header title="经营看板" desc="机构经营概览：收款、退费、课消与学员情况" />
 		<a-spin :spinning="loading">
-			<a-row :gutter="16">
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="report-kpi kpi-link" @click="drillFinance('payment')">
-						<a-statistic title="本月收款" :value="summary.paidAmount" :precision="2" prefix="¥" />
-					</a-card>
+			<a-row :gutter="12">
+				<a-col :xs="12" :sm="12" :md="8" :xl="6">
+					<div class="ent-stat kpi-link" @click="drillFinance('payment')">
+						<div class="ent-stat-label">本月收款</div>
+						<div class="ent-stat-value">¥{{ fmt(summary.paidAmount) }}</div>
+					</div>
 				</a-col>
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="report-kpi kpi-link" @click="drillFinance('refund')">
-						<a-statistic title="本月退费" :value="summary.refundAmount" :precision="2" prefix="¥" :value-style="{ color: '#fa541c' }" />
-					</a-card>
+				<a-col :xs="12" :sm="12" :md="8" :xl="6">
+					<div class="ent-stat kpi-link" @click="drillFinance('refund')">
+						<div class="ent-stat-label">本月退费</div>
+						<div class="ent-stat-value" style="color: #e5484d">¥{{ fmt(summary.refundAmount) }}</div>
+					</div>
 				</a-col>
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="report-kpi kpi-link" @click="drillFinance('payment')">
-						<a-statistic title="净营收" :value="summary.netAmount" :precision="2" prefix="¥" :value-style="{ color: '#52c41a' }" />
-					</a-card>
+				<a-col :xs="12" :sm="12" :md="8" :xl="6">
+					<div class="ent-stat kpi-link" @click="drillFinance('payment')">
+						<div class="ent-stat-label">净营收</div>
+						<div class="ent-stat-value" style="color: #2ba471">¥{{ fmt(summary.netAmount) }}</div>
+					</div>
 				</a-col>
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="report-kpi kpi-link" @click="drillAcademic()">
-						<a-statistic title="课消课时" :value="summary.attendLessons" :precision="2" suffix="课时" />
-					</a-card>
+				<a-col :xs="12" :sm="12" :md="8" :xl="6">
+					<div class="ent-stat kpi-link" @click="drillAcademic()">
+						<div class="ent-stat-label">课消课时</div>
+						<div class="ent-stat-value">{{ fmt(summary.attendLessons) }} <span style="font-size: 13px; color: #86909c">课时</span></div>
+					</div>
 				</a-col>
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="report-kpi kpi-link" @click="drillAcademic()">
-						<a-statistic title="课消金额" :value="summary.recognizedAmount" :precision="2" prefix="¥" />
-					</a-card>
+				<a-col :xs="12" :sm="12" :md="8" :xl="6">
+					<div class="ent-stat kpi-link" @click="drillAcademic()">
+						<div class="ent-stat-label">课消金额</div>
+						<div class="ent-stat-value">¥{{ fmt(summary.recognizedAmount) }}</div>
+					</div>
 				</a-col>
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="report-kpi kpi-link" @click="drillStudent('STUDYING')">
-						<a-statistic title="本月新增学员" :value="summary.newStudentCount" suffix="人" />
-					</a-card>
+				<a-col :xs="12" :sm="12" :md="8" :xl="6">
+					<div class="ent-stat kpi-link" @click="drillStudent('STUDYING')">
+						<div class="ent-stat-label">本月新增学员</div>
+						<div class="ent-stat-value">{{ summary.newStudentCount || 0 }}</div>
+					</div>
 				</a-col>
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="report-kpi kpi-link" @click="drillStudent('STUDYING')">
-						<a-statistic title="在读学员" :value="summary.studyingStudentCount" suffix="人" />
-					</a-card>
+				<a-col :xs="12" :sm="12" :md="8" :xl="6">
+					<div class="ent-stat kpi-link" @click="drillStudent('STUDYING')">
+						<div class="ent-stat-label">在读学员</div>
+						<div class="ent-stat-value">{{ summary.studyingStudentCount || 0 }}</div>
+					</div>
 				</a-col>
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="report-kpi kpi-link" @click="drillRenewWarn()">
-						<a-statistic title="待续费预警" :value="summary.renewWarnCount" suffix="条" :value-style="{ color: '#faad14' }" />
-					</a-card>
+				<a-col :xs="12" :sm="12" :md="8" :xl="6">
+					<div class="ent-stat kpi-link" @click="drillRenewWarn()">
+						<div class="ent-stat-label">待续费预警</div>
+						<div class="ent-stat-value" style="color: #d89614">{{ summary.renewWarnCount || 0 }}</div>
+					</div>
 				</a-col>
 			</a-row>
 
@@ -111,6 +120,11 @@
 
 	const router = useRouter()
 	const loading = ref(false)
+	// 金额/数字统一格式（千分位 + 两位小数）
+	const fmt = (value) => {
+		const num = Number(value || 0)
+		return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+	}
 	const summary = ref({
 		paidAmount: 0,
 		refundAmount: 0,
@@ -167,7 +181,7 @@
 				yField: 'value',
 				seriesField: 'series',
 				height: 300,
-				color: ['#1677ff', '#fa541c', '#52c41a'],
+				color: ['#1668dc', '#e5484d', '#2ba471'],
 				legend: { position: 'top' },
 				smooth: true,
 				appendPadding: [8, 0, 0, 0]
@@ -199,7 +213,7 @@
 				xField: 'amount',
 				yField: 'name',
 				height: 300,
-				color: '#1677ff',
+				color: '#1668dc',
 				label: { position: 'right' }
 			})
 			rankChart.render()
@@ -215,7 +229,7 @@
 				xField: 'period',
 				yField: 'value',
 				height: 300,
-				color: '#722ed1',
+				color: '#6f5bd8',
 				smooth: true,
 				appendPadding: [8, 0, 0, 0]
 			})
@@ -232,7 +246,7 @@
 				xField: 'amount',
 				yField: 'name',
 				height: 300,
-				color: '#13c2c2',
+				color: '#2ba8b8',
 				label: { position: 'right' }
 			})
 			campusChart.render()

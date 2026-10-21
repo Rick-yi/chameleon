@@ -1,5 +1,6 @@
 <template>
 	<div>
+		<page-header title="财务报表" desc="收款、退费、课消与收入确认口径分析" />
 		<a-card :bordered="false" class="report-filter">
 			<a-form layout="inline">
 				<a-form-item label="时间">
@@ -268,7 +269,7 @@
 				yField: 'value',
 				seriesField: 'series',
 				height: 300,
-				color: ['#1677ff', '#fa541c', '#52c41a'],
+				color: ['#1668dc', '#e5484d', '#2ba471'],
 				legend: { position: 'top' },
 				smooth: true
 			})
@@ -299,7 +300,7 @@
 				xField: 'period',
 				yField: 'value',
 				height: 300,
-				color: '#722ed1',
+				color: '#6f5bd8',
 				smooth: true,
 				appendPadding: [8, 0, 0, 0]
 			})

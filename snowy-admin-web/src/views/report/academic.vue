@@ -1,5 +1,6 @@
 <template>
 	<div>
+		<page-header title="教务报表" desc="出勤、满班率、教师工作量与学员课时进度" />
 		<a-card :bordered="false" class="report-filter">
 			<a-form layout="inline">
 				<a-form-item label="时间">

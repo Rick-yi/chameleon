@@ -1,33 +1,36 @@
 <template>
-	<xn-panel>
-		<a-form ref="searchFormRef" :model="searchFormState">
-			<a-row :gutter="10">
-				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-					<a-form-item label="课包名称" name="searchKey">
-						<a-input v-model:value="searchFormState.searchKey" placeholder="请输入课包名称" allow-clear />
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-					<a-form-item label="课程" name="courseId">
-						<a-select v-model:value="searchFormState.courseId" placeholder="请选择课程" :options="courseOptions" allow-clear />
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-					<a-form-item>
-						<a-space>
-							<a-button type="primary" @click="tableRef.refresh(true)">
-								<template #icon><SearchOutlined /></template>
-								查询
-							</a-button>
-							<a-button @click="reset">
-								<template #icon><redo-outlined /></template>
-								重置
-							</a-button>
-						</a-space>
-					</a-form-item>
-				</a-col>
-			</a-row>
-		</a-form>
+	<div>
+		<page-header title="课包管理" desc="售卖课包、课时数、赠课与有效期">
+			<template #extra>
+				<a-button type="primary" @click="onOpenAdd">
+					<template #icon><plus-outlined /></template>
+					新增课包
+				</a-button>
+			</template>
+		</page-header>
+		<div class="ent-toolbar">
+			<a-form layout="inline" :model="searchFormState">
+				<a-form-item label="课包名称">
+					<a-input v-model:value="searchFormState.searchKey" placeholder="请输入课包名称" allow-clear style="width: 220px" />
+				</a-form-item>
+				<a-form-item label="课程">
+					<a-select v-model:value="searchFormState.courseId" placeholder="全部课程" :options="courseOptions" allow-clear style="width: 200px" />
+				</a-form-item>
+				<a-form-item>
+					<a-space>
+						<a-button type="primary" @click="tableRef.refresh(true)">
+							<template #icon><SearchOutlined /></template>
+							查询
+						</a-button>
+						<a-button @click="reset">
+							<template #icon><redo-outlined /></template>
+							重置
+						</a-button>
+					</a-space>
+				</a-form-item>
+			</a-form>
+		</div>
+		<div class="ent-body">
 		<s-table
 			ref="tableRef"
 			:columns="columns"
@@ -62,7 +65,8 @@
 				</template>
 			</template>
 		</s-table>
-	</xn-panel>
+		</div>
+	</div>
 
 	<a-modal v-model:open="open" :title="formData.id ? '编辑课包' : '新增课包'" :width="600" :destroy-on-close="true" @ok="onSubmit">
 		<a-form ref="formRef" :model="formData" layout="vertical">

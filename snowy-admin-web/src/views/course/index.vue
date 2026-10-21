@@ -1,33 +1,40 @@
 <template>
-	<xn-panel>
-		<a-form ref="searchFormRef" :model="searchFormState">
-			<a-row :gutter="10">
-				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-					<a-form-item label="课程名称" name="searchKey">
-						<a-input v-model:value="searchFormState.searchKey" placeholder="请输入课程名称" allow-clear />
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-					<a-form-item label="课程大类" name="categoryId">
-						<a-select v-model:value="searchFormState.categoryId" placeholder="请选择课程大类" :options="categoryOptions" allow-clear />
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-					<a-form-item>
-						<a-space>
-							<a-button type="primary" @click="tableRef.refresh(true)">
-								<template #icon><SearchOutlined /></template>
-								查询
-							</a-button>
-							<a-button @click="reset">
-								<template #icon><redo-outlined /></template>
-								重置
-							</a-button>
-						</a-space>
-					</a-form-item>
-				</a-col>
-			</a-row>
-		</a-form>
+	<div>
+		<page-header title="课程管理" desc="课程、课程大类与扣课规则配置">
+			<template #extra>
+				<a-button @click="onOpenAddCategory">
+					<template #icon><plus-outlined /></template>
+					新增大类
+				</a-button>
+				<a-button type="primary" @click="onOpenAdd">
+					<template #icon><plus-outlined /></template>
+					新增课程
+				</a-button>
+			</template>
+		</page-header>
+		<div class="ent-toolbar">
+			<a-form layout="inline" :model="searchFormState">
+				<a-form-item label="课程名称">
+					<a-input v-model:value="searchFormState.searchKey" placeholder="请输入课程名称" allow-clear style="width: 220px" />
+				</a-form-item>
+				<a-form-item label="课程大类">
+					<a-select v-model:value="searchFormState.categoryId" placeholder="全部大类" :options="categoryOptions" allow-clear style="width: 180px" />
+				</a-form-item>
+				<a-form-item>
+					<a-space>
+						<a-button type="primary" @click="tableRef.refresh(true)">
+							<template #icon><SearchOutlined /></template>
+							查询
+						</a-button>
+						<a-button @click="reset">
+							<template #icon><redo-outlined /></template>
+							重置
+						</a-button>
+					</a-space>
+				</a-form-item>
+			</a-form>
+		</div>
+		<div class="ent-body">
 		<s-table
 			ref="tableRef"
 			:columns="columns"
@@ -36,18 +43,6 @@
 			:row-key="(record) => record.id"
 			:scroll="{ x: 'max-content' }"
 		>
-			<template #operator>
-				<a-space>
-					<a-button type="primary" @click="onOpenAdd">
-						<template #icon><plus-outlined /></template>
-						新增课程
-					</a-button>
-					<a-button @click="onOpenAddCategory">
-						<template #icon><plus-outlined /></template>
-						新增大类
-					</a-button>
-				</a-space>
-			</template>
 			<template #bodyCell="{ column, record }">
 				<template v-if="column.dataIndex === 'categoryId'">
 					{{ categoryName(record.categoryId) }}
@@ -71,7 +66,8 @@
 				</template>
 			</template>
 		</s-table>
-	</xn-panel>
+		</div>
+	</div>
 
 	<a-modal v-model:open="addOpen" :title="formData.id ? '编辑课程' : '新增课程'" :width="600" :destroy-on-close="true" @ok="onSubmit">
 		<a-form ref="formRef" :model="formData" layout="vertical">

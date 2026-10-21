@@ -1,33 +1,34 @@
 <template>
-	<xn-panel>
-		<a-form ref="searchFormRef" :model="searchFormState">
-			<a-row :gutter="10">
-				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-					<a-form-item label="学员" name="searchKey">
-						<a-input v-model:value="searchFormState.searchKey" placeholder="姓名或家长手机" allow-clear />
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-					<a-form-item label="状态" name="status">
-						<a-select v-model:value="searchFormState.status" placeholder="请选择状态" :options="statusOptions" allow-clear />
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-					<a-form-item>
-						<a-space>
-							<a-button type="primary" @click="tableRef.refresh(true)">
-								<template #icon><SearchOutlined /></template>
-								查询
-							</a-button>
-							<a-button @click="reset">
-								<template #icon><redo-outlined /></template>
-								重置
-							</a-button>
-						</a-space>
-					</a-form-item>
-				</a-col>
-			</a-row>
-		</a-form>
+	<div>
+		<page-header title="续费预警" desc="课时不足与课包到期提醒，可在此直接续费">
+			<template #extra>
+				<a-button @click="onScan">
+					<template #icon><thunderbolt-outlined /></template>
+					立即扫描
+				</a-button>
+			</template>
+		</page-header>
+		<div class="ent-toolbar">
+			<a-form layout="inline" :model="searchFormState">
+				<a-form-item label="学员">
+					<a-input v-model:value="searchFormState.searchKey" placeholder="姓名或家长手机" allow-clear style="width: 220px" />
+				</a-form-item>
+				<a-form-item label="状态">
+					<a-select v-model:value="searchFormState.status" placeholder="全部状态" :options="statusOptions" allow-clear style="width: 140px" />
+				</a-form-item>
+				<a-form-item>
+					<a-space>
+						<a-button type="primary" @click="tableRef.refresh(true)">
+							<template #icon><SearchOutlined /></template>
+							查询
+						</a-button>
+						<a-button @click="reset">
+							<template #icon><redo-outlined /></template>
+							重置
+						</a-button>
+					</a-space>
+				</a-form-item>
+			</a-form>
 		<s-table
 			ref="tableRef"
 			:columns="columns"
@@ -36,12 +37,6 @@
 			:row-key="(record) => record.id"
 			:scroll="{ x: 'max-content' }"
 		>
-			<template #operator>
-				<a-button type="primary" @click="onScan">
-					<template #icon><thunderbolt-outlined /></template>
-					立即扫描
-				</a-button>
-			</template>
 			<template #bodyCell="{ column, record }">
 				<template v-if="column.dataIndex === 'warnReason'">
 					<a-tag :color="record.warnReason === 'LESSON_LOW' ? 'red' : 'orange'">
@@ -64,7 +59,8 @@
 				</template>
 			</template>
 		</s-table>
-	</xn-panel>
+		</div>
+	</div>
 
 	<a-modal v-model:open="renewOpen" title="学员续费" :width="480" :destroy-on-close="true" @ok="onSubmitRenew">
 		<a-form ref="renewFormRef" :model="renewFormData" layout="vertical">

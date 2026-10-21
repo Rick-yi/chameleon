@@ -1,33 +1,36 @@
 <template>
-	<xn-panel>
-		<a-form ref="searchFormRef" :model="searchFormState">
-			<a-row :gutter="10">
-				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-					<a-form-item label="班级名称" name="searchKey">
-						<a-input v-model:value="searchFormState.searchKey" placeholder="请输入班级名称" allow-clear />
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-					<a-form-item label="课程" name="courseId">
-						<a-select v-model:value="searchFormState.courseId" placeholder="请选择课程" :options="courseOptions" allow-clear />
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-					<a-form-item>
-						<a-space>
-							<a-button type="primary" @click="tableRef.refresh(true)">
-								<template #icon><SearchOutlined /></template>
-								查询
-							</a-button>
-							<a-button @click="reset">
-								<template #icon><redo-outlined /></template>
-								重置
-							</a-button>
-						</a-space>
-					</a-form-item>
-				</a-col>
-			</a-row>
-		</a-form>
+	<div>
+		<page-header title="班级管理" desc="班级、授课教师与每周固定课表">
+			<template #extra>
+				<a-button type="primary" @click="onOpenAdd">
+					<template #icon><plus-outlined /></template>
+					新增班级
+				</a-button>
+			</template>
+		</page-header>
+		<div class="ent-toolbar">
+			<a-form layout="inline" :model="searchFormState">
+				<a-form-item label="班级名称">
+					<a-input v-model:value="searchFormState.searchKey" placeholder="请输入班级名称" allow-clear style="width: 220px" />
+				</a-form-item>
+				<a-form-item label="课程">
+					<a-select v-model:value="searchFormState.courseId" placeholder="全部课程" :options="courseOptions" allow-clear style="width: 200px" />
+				</a-form-item>
+				<a-form-item>
+					<a-space>
+						<a-button type="primary" @click="tableRef.refresh(true)">
+							<template #icon><SearchOutlined /></template>
+							查询
+						</a-button>
+						<a-button @click="reset">
+							<template #icon><redo-outlined /></template>
+							重置
+						</a-button>
+					</a-space>
+				</a-form-item>
+			</a-form>
+		</div>
+		<div class="ent-body">
 		<s-table
 			ref="tableRef"
 			:columns="columns"
@@ -36,12 +39,6 @@
 			:row-key="(record) => record.id"
 			:scroll="{ x: 'max-content' }"
 		>
-			<template #operator>
-				<a-button type="primary" @click="onOpenAdd">
-					<template #icon><plus-outlined /></template>
-					新增班级
-				</a-button>
-			</template>
 			<template #bodyCell="{ column, record }">
 				<template v-if="column.dataIndex === 'courseId'">
 					{{ courseName(record.courseId) }}
@@ -66,7 +63,8 @@
 				</template>
 			</template>
 		</s-table>
-	</xn-panel>
+		</div>
+	</div>
 
 	<a-modal v-model:open="open" :title="formData.id ? '编辑班级' : '新增班级'" :width="700" :destroy-on-close="true" @ok="onSubmit">
 		<a-form ref="formRef" :model="formData" layout="vertical">

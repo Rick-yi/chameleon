@@ -1,7 +1,8 @@
 <template>
 	<div>
+		<page-header title="点名消课" desc="选择课节即可点名，按课包规则自动扣减课时" />
 		<!-- 今日/所选日期的课节：点一下直接进入点名 -->
-		<a-card :bordered="false" title="课节列表" style="margin-bottom: 16px">
+		<a-card :bordered="false" title="课节列表" style="margin-bottom: 12px">
 			<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px">
 				<a-date-picker v-model:value="date" value-format="YYYY-MM-DD" style="width: 160px" @change="loadSchedules" />
 				<a-select v-model:value="classId" placeholder="全部班级" :options="classOptions" style="width: 220px" allow-clear @change="loadSchedules" />
@@ -11,7 +12,7 @@
 				</a-button>
 				<span style="color: rgba(0,0,0,.45); font-size: 12px">点击课节即可点名消课</span>
 			</div>
-			<a-empty v-if="!scheduleList.length" description="该日期没有排课" />
+			<div v-if="!scheduleList.length" class="ent-empty">该日期没有排课</div>
 			<a-row v-else :gutter="12">
 				<a-col v-for="item in scheduleList" :key="item.id" :xs="24" :sm="12" :xl="8">
 					<div class="attend-slot" :class="{ done: item.attendStatus === 'DONE' }" @click="selectSchedule(item)">
@@ -37,7 +38,7 @@
 			</div>
 		</div>
 		<div style="padding: 16px 0">
-			<a-empty v-if="!scheduleId" description="请先选择上面的上课节次" />
+			<div v-if="!scheduleId" class="ent-empty">请先选择上面的上课节次</div>
 			<template v-else>
 				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px">
 					<span style="font-weight: 500">应到 {{ students.length }} 人</span>

@@ -1,33 +1,36 @@
 <template>
-	<xn-panel>
-		<a-form ref="searchFormRef" :model="searchFormState">
-			<a-row :gutter="10">
-				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-					<a-form-item label="姓名/手机" name="searchKey">
-						<a-input v-model:value="searchFormState.searchKey" placeholder="请输入姓名或家长手机" allow-clear />
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-					<a-form-item label="状态" name="status">
-						<a-select v-model:value="searchFormState.status" placeholder="请选择状态" :options="statusOptions" allow-clear />
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-					<a-form-item>
-						<a-space>
-							<a-button type="primary" @click="tableRef.refresh(true)">
-								<template #icon><SearchOutlined /></template>
-								查询
-							</a-button>
-							<a-button @click="reset">
-								<template #icon><redo-outlined /></template>
-								重置
-							</a-button>
-						</a-space>
-					</a-form-item>
-				</a-col>
-			</a-row>
-		</a-form>
+	<div>
+		<page-header title="学员管理" desc="学员档案、课时账户与报名入口">
+			<template #extra>
+				<a-button type="primary" @click="onOpenAdd">
+					<template #icon><plus-outlined /></template>
+					新增学员
+				</a-button>
+			</template>
+		</page-header>
+		<div class="ent-toolbar">
+			<a-form layout="inline" :model="searchFormState">
+				<a-form-item label="姓名/手机">
+					<a-input v-model:value="searchFormState.searchKey" placeholder="请输入姓名或家长手机" allow-clear style="width: 220px" />
+				</a-form-item>
+				<a-form-item label="状态">
+					<a-select v-model:value="searchFormState.status" placeholder="全部状态" :options="statusOptions" allow-clear style="width: 140px" />
+				</a-form-item>
+				<a-form-item>
+					<a-space>
+						<a-button type="primary" @click="tableRef.refresh(true)">
+							<template #icon><SearchOutlined /></template>
+							查询
+						</a-button>
+						<a-button @click="reset">
+							<template #icon><redo-outlined /></template>
+							重置
+						</a-button>
+					</a-space>
+				</a-form-item>
+			</a-form>
+		</div>
+		<div class="ent-body">
 		<s-table
 			ref="tableRef"
 			:columns="columns"
@@ -36,12 +39,6 @@
 			:row-key="(record) => record.id"
 			:scroll="{ x: 'max-content' }"
 		>
-			<template #operator>
-				<a-button type="primary" @click="onOpenAdd">
-					<template #icon><plus-outlined /></template>
-					新增学员
-				</a-button>
-			</template>
 			<template #bodyCell="{ column, record }">
 				<template v-if="column.dataIndex === 'status'">
 					<a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
@@ -61,7 +58,8 @@
 				</template>
 			</template>
 		</s-table>
-	</xn-panel>
+		</div>
+	</div>
 
 	<a-modal v-model:open="payOpen" title="线下收款登记" :width="480" :destroy-on-close="true" @ok="onSubmitPay">
 		<a-form ref="payFormRef" :model="payFormData" layout="vertical">

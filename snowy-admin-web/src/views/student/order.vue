@@ -1,17 +1,26 @@
 <template>
 	<div>
+		<page-header title="收款台" desc="订单收款、退费审批与订单查询">
+			<template #extra>
+				<a-button @click="loadStatusCount">
+					<template #icon><reload-outlined /></template>
+					刷新
+				</a-button>
+			</template>
+		</page-header>
+
 		<!-- 状态概览：点击即筛选 -->
-		<a-row :gutter="12" style="margin-bottom: 16px">
-			<a-col v-for="item in statusCards" :key="item.value" :xs="12" :sm="8" :md="4">
-				<a-card :bordered="false" class="status-card" :class="{ active: queryForm.status === item.value }" @click="pickStatus(item.value)">
-					<div class="status-card-label">{{ item.label }}</div>
-					<div class="status-card-value" :style="{ color: item.color }">{{ item.count ?? '-' }}</div>
-				</a-card>
+		<a-row :gutter="12" style="margin-bottom: 12px">
+			<a-col v-for="item in statusCards" :key="item.value" :xs="12" :sm="8" :md="6">
+				<div class="ent-stat status-card" :class="{ active: queryForm.status === item.value }" @click="pickStatus(item.value)">
+					<div class="ent-stat-label">{{ item.label }}</div>
+					<div class="ent-stat-value" :style="{ color: item.color }">{{ item.count ?? '-' }}</div>
+				</div>
 			</a-col>
 		</a-row>
 
-		<a-card :bordered="false">
-			<a-tabs v-model:activeKey="activeTab">
+		<div class="ent-toolbar" style="border-radius: 6px 6px 0 0">
+			<a-tabs v-model:activeKey="activeTab" :tabBarStyle="{ margin: 0 }">
 				<!-- 订单 -->
 				<a-tab-pane key="order" tab="订单">
 					<a-form layout="inline" style="margin-bottom: 12px">
@@ -107,7 +116,7 @@
 					</a-table>
 				</a-tab-pane>
 			</a-tabs>
-		</a-card>
+		</div>
 	</div>
 
 	<!-- 收款登记 -->
@@ -210,10 +219,10 @@
 		{ title: '操作', dataIndex: 'action', align: 'center', width: 200 }
 	]
 	const statusCards = ref([
-		{ value: 'UNPAID', label: '待收款', color: '#fa8c16', count: null },
-		{ value: 'PAID', label: '已收款', color: '#52c41a', count: null },
-		{ value: 'REFUNDED', label: '已退费', color: '#ff4d4f', count: null },
-		{ value: 'CANCELED', label: '已取消', color: '#8c8c8c', count: null }
+		{ value: 'UNPAID', label: '待收款', color: '#d89614', count: null },
+		{ value: 'PAID', label: '已收款', color: '#2ba471', count: null },
+		{ value: 'REFUNDED', label: '已退费', color: '#e5484d', count: null },
+		{ value: 'CANCELED', label: '已取消', color: '#86909c', count: null }
 	])
 
 	const orderStatusText = (s) => ({ UNPAID: '待支付', PAID: '已支付', REFUNDED: '已退费', CANCELED: '已取消' }[s] || s)
@@ -392,22 +401,13 @@
 <style lang="less" scoped>
 	.status-card {
 		cursor: pointer;
-		transition: all 0.2s;
-		border: 1px solid transparent;
+		transition: all 0.15s;
 		&:hover {
-			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+			border-color: #9dc2f4;
 		}
 		&.active {
-			border-color: #1677ff;
+			border-color: #1668dc;
+			box-shadow: 0 0 0 1px #1668dc;
 		}
-	}
-	.status-card-label {
-		font-size: 13px;
-		color: rgba(0, 0, 0, 0.45);
-	}
-	.status-card-value {
-		font-size: 22px;
-		font-weight: 600;
-		margin-top: 4px;
 	}
 </style>

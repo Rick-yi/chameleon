@@ -1,38 +1,39 @@
 <template>
-	<xn-panel>
-		<a-form ref="searchFormRef" :model="searchFormState">
-			<a-row :gutter="10">
-				<a-col :xs="24" :sm="24" :md="24" :lg="6" :xl="6">
-					<a-form-item label="姓名/手机" name="searchKey">
-						<a-input v-model:value="searchFormState.searchKey" placeholder="请输入姓名或家长手机" allow-clear />
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="24" :md="24" :lg="6" :xl="6">
-					<a-form-item label="状态" name="status">
-						<a-select v-model:value="searchFormState.status" placeholder="请选择状态" :options="statusOptions" allow-clear />
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="24" :md="24" :lg="6" :xl="6">
-					<a-form-item label="来源" name="source">
-						<a-select v-model:value="searchFormState.source" placeholder="请选择来源" :options="sourceOptions" allow-clear />
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="24" :md="24" :lg="6" :xl="6">
-					<a-form-item>
-						<a-space>
-							<a-button type="primary" @click="tableRef.refresh(true)">
-								<template #icon><SearchOutlined /></template>
-								查询
-							</a-button>
-							<a-button @click="reset">
-								<template #icon><redo-outlined /></template>
-								重置
-							</a-button>
-						</a-space>
-					</a-form-item>
-				</a-col>
-			</a-row>
-		</a-form>
+	<div>
+		<page-header title="招生线索" desc="线索录入、跟进记录、试听预约与转学员">
+			<template #extra>
+				<a-button type="primary" @click="onOpenAdd">
+					<template #icon><plus-outlined /></template>
+					新增线索
+				</a-button>
+			</template>
+		</page-header>
+		<div class="ent-toolbar">
+			<a-form layout="inline" :model="searchFormState">
+				<a-form-item label="姓名/手机">
+					<a-input v-model:value="searchFormState.searchKey" placeholder="请输入姓名或家长手机" allow-clear style="width: 220px" />
+				</a-form-item>
+				<a-form-item label="状态">
+					<a-select v-model:value="searchFormState.status" placeholder="全部状态" :options="statusOptions" allow-clear style="width: 140px" />
+				</a-form-item>
+				<a-form-item label="来源">
+					<a-select v-model:value="searchFormState.source" placeholder="全部来源" :options="sourceOptions" allow-clear style="width: 140px" />
+				</a-form-item>
+				<a-form-item>
+					<a-space>
+						<a-button type="primary" @click="tableRef.refresh(true)">
+							<template #icon><SearchOutlined /></template>
+							查询
+						</a-button>
+						<a-button @click="reset">
+							<template #icon><redo-outlined /></template>
+							重置
+						</a-button>
+					</a-space>
+				</a-form-item>
+			</a-form>
+		</div>
+		<div class="ent-body">
 		<a-alert
 			v-if="searchFormState.excludeStatus"
 			type="warning"
@@ -50,12 +51,6 @@
 			:row-key="(record) => record.id"
 			:scroll="{ x: 'max-content' }"
 		>
-			<template #operator>
-				<a-button type="primary" @click="onOpenAdd">
-					<template #icon><plus-outlined /></template>
-					新增线索
-				</a-button>
-			</template>
 			<template #bodyCell="{ column, record }">
 				<template v-if="column.dataIndex === 'intentCourseId'">
 					{{ courseName(record.intentCourseId) }}
@@ -86,7 +81,8 @@
 				</template>
 			</template>
 		</s-table>
-	</xn-panel>
+		</div>
+	</div>
 
 	<!-- 线索表单 -->
 	<a-modal v-model:open="open" :title="formData.id ? '编辑线索' : '新增线索'" :width="600" :destroy-on-close="true" @ok="onSubmit">

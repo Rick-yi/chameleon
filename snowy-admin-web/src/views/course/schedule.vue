@@ -1,7 +1,27 @@
 <template>
-	<xn-panel>
+	<div>
+		<page-header title="排课课表" desc="周视图 / 日视图 / 教师视角，可批量生成、导出课表">
+			<template #extra>
+				<a-button @click="onExport">
+					<template #icon><file-text-outlined /></template>
+					导出课表
+				</a-button>
+				<a-button @click="onOpenTemplate">
+					<template #icon><profile-outlined /></template>
+					课表模板
+				</a-button>
+				<a-button @click="onOpenGenerate">
+					<template #icon><thunderbolt-outlined /></template>
+					批量生成
+				</a-button>
+				<a-button type="primary" @click="onOpenAdd">
+					<template #icon><plus-outlined /></template>
+					手动排课
+				</a-button>
+			</template>
+		</page-header>
 		<!-- 工具栏 -->
-		<div style="padding: 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid #f0f0f0">
+		<div class="ent-toolbar">
 			<a-radio-group v-model:value="viewMode" button-style="solid">
 				<a-radio-button value="week">周视图</a-radio-button>
 				<a-radio-button value="day">日视图</a-radio-button>
@@ -20,14 +40,9 @@
 			<a-select v-model:value="searchFormState.classId" placeholder="全部班级" :options="classOptions" allow-clear style="width: 200px" @change="loadWeek" />
 			<a-select v-model:value="searchFormState.teacherId" placeholder="全部教师" :options="teacherOptions" allow-clear style="width: 160px" show-search option-filter-prop="label" @change="loadWeek" />
 			<a-input v-model:value="searchFormState.classroom" placeholder="教室" allow-clear style="width: 120px" @pressEnter="loadWeek" />
-			<div style="margin-left: auto; display: flex; gap: 8px">
-				<a-button @click="onExport">📄 导出课表</a-button>
-				<a-button @click="onOpenTemplate">📝 课表模板</a-button>
-				<a-button @click="onOpenGenerate">⚙ 批量生成</a-button>
-				<a-button type="primary" @click="onOpenAdd">＋ 手动排课</a-button>
-			</div>
 		</div>
 
+		<div class="ent-body" style="padding: 0">
 		<!-- 周视图 -->
 		<div v-if="viewMode === 'week'" style="padding: 16px; overflow-x: auto">
 			<div style="display: grid; grid-template-columns: 80px repeat(7, 1fr); min-width: 980px; border: 1px solid #f0f0f0; border-radius: 6px; overflow: hidden">
@@ -43,7 +58,8 @@
 						<div
 							v-for="s in scheduleMap[d.date + '|' + slot.start] || []"
 							:key="s.id"
-							:style="cardStyle(s)"
+							class="ent-schedule-card"
+							:class="{ 'is-conflict': conflictIdSet.has(s.id) }"
 							@click="onOpenChange(s)"
 						>
 							<div style="display: flex; align-items: center; gap: 4px">
@@ -60,14 +76,9 @@
 					</div>
 				</template>
 			</div>
-			<a-alert v-if="conflictTip" type="error" show-icon :message="conflictTip" style="margin-top: 12px" />
-			<a-alert
-				v-else-if="!loading"
-				type="info"
-				show-icon
-				:message="`本周共 ${scheduleList.length} 节课${conflictIdSet.size ? '，存在 ' + conflictIdSet.size + ' 节冲突（教室或教师撞课）' : ''}`"
-				style="margin-top: 12px"
-			/>
+			<div class="ent-note" :class="{ 'is-error': conflictIdSet.size }">
+				{{ conflictTip || `本周共 ${scheduleList.length} 节课${conflictIdSet.size ? '，存在 ' + conflictIdSet.size + ' 节冲突（教室或教师撞课）' : ''}` }}
+			</div>
 		</div>
 
 		<!-- 日视图 -->
@@ -75,7 +86,7 @@
 			<div v-if="classroomUsage.length" style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap">
 				<a-tag v-for="item in classroomUsage" :key="item.name" color="blue">{{ item.name }} {{ item.count }} 节</a-tag>
 			</div>
-			<a-empty v-if="!dayScheduleList.length" description="当天没有排课" />
+			<div v-if="!dayScheduleList.length" class="ent-empty">当天没有排课</div>
 			<a-table
 				v-else
 				:columns="dayColumns"
@@ -112,7 +123,7 @@
 
 		<!-- 教师视图 -->
 		<div v-else style="padding: 16px">
-			<a-empty v-if="!teacherGroups.length" description="本周没有排课" />
+			<div v-if="!teacherGroups.length" class="ent-empty">本周没有排课</div>
 			<a-row v-else :gutter="12">
 				<a-col v-for="group in teacherGroups" :key="group.key" :xs="24" :sm="12" :xl="8">
 					<a-card size="small" style="margin-bottom: 12px">
@@ -124,8 +135,9 @@
 							<div
 								v-for="s in day.list"
 								:key="s.id"
-								style="display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 4px; margin-bottom: 4px; cursor: pointer"
-								:style="[cardStyle(s), { marginBottom: '4px' }]"
+								class="ent-schedule-card"
+								:class="{ 'is-conflict': conflictIdSet.has(s.id) }"
+								style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px"
 								@click="onOpenChange(s)"
 							>
 								<span style="font-size: 12px; color: #1677ff; width: 96px">
@@ -140,7 +152,8 @@
 				</a-col>
 			</a-row>
 		</div>
-	</xn-panel>
+		</div>
+	</div>
 
 	<!-- 手动排课 -->
 	<a-modal v-model:open="addOpen" title="手动排课" :width="560" :destroy-on-close="true" @ok="onSubmitAdd">
@@ -294,6 +307,7 @@
 <script setup name="courseSchedule">
 	import { useRoute, useRouter } from 'vue-router'
 	import { message } from 'ant-design-vue'
+	import { FileTextOutlined, ProfileOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
 	import courseApi from '@/api/course/courseApi'
 	import downloadUtil from '@/utils/downloadUtil'
 	const router = useRouter()
@@ -431,14 +445,6 @@
 			}
 		}
 		return ids
-	})
-	const cardStyle = (s) => ({
-		background: conflictIdSet.value.has(s.id) ? '#fff1f0' : '#e6f4ff',
-		border: `1px solid ${conflictIdSet.value.has(s.id) ? '#ffa39e' : '#91caff'}`,
-		borderRadius: '6px',
-		padding: '6px 8px',
-		marginBottom: '6px',
-		cursor: 'pointer'
 	})
 
 	// 日视图数据
