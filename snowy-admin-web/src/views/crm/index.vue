@@ -200,6 +200,7 @@
 <script setup name="crmLead">
 	import { useRoute } from 'vue-router'
 	import crmApi from '@/api/crm/crmApi'
+	import { CRM_SOURCE_OPTIONS, crmSourceText, crmSourceColor } from '@/utils/crmSource'
 	import courseApi from '@/api/course/courseApi'
 	import studentApi from '@/api/student/studentApi'
 	const searchFormState = ref({})
@@ -231,12 +232,7 @@
 		{ value: 'ENROLLED', label: '已报名' },
 		{ value: 'LOST', label: '已流失' }
 	]
-	const sourceOptions = [
-		{ value: 'GROUND', label: '地推' },
-		{ value: 'REFERRAL', label: '转介绍' },
-		{ value: 'ONLINE', label: '线上' },
-		{ value: 'VISIT', label: '自然到访' }
-	]
+	const sourceOptions = CRM_SOURCE_OPTIONS
 	const followTypeOptions = [
 		{ value: 'PHONE', label: '电话' },
 		{ value: 'WECHAT', label: '微信' },
@@ -293,8 +289,8 @@
 	}
 	const statusText = (s) => (statusOptions.find((i) => i.value === s) || {}).label || s
 	const statusColor = (s) => ({ NEW: 'blue', FOLLOWED: 'cyan', TRIALED: 'orange', ENROLLED: 'green', LOST: 'red' }[s] || 'default')
-	const sourceText = (s) => (sourceOptions.find((i) => i.value === s) || {}).label || s
-	const sourceColor = (s) => ({ GROUND: 'blue', REFERRAL: 'green', ONLINE: 'purple', VISIT: 'default' }[s] || 'default')
+	const sourceText = crmSourceText
+	const sourceColor = crmSourceColor
 	const followTypeText = (t) => (followTypeOptions.find((i) => i.value === t) || {}).label || t
 	// 下次跟进已过期：标红提示今天必须跟进
 	const overdueStyle = (nextFollowTime) => {

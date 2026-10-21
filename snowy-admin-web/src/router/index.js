@@ -83,6 +83,36 @@ router.beforeEach(async (to, from, next) => {
 		return false
 	}
 
+	// ========== 移动端 App（/app）：独立登录与跳转，不依赖 PC 菜单 ==========
+	if (to.path.startsWith('/app')) {
+		let appToken = tool.data.get('TOKEN')
+		// App 壳注入的 token（?token=xxx）：首次进入时落地为登录态，并从地址栏移除
+		const shellToken = to.query.token
+		if (shellToken && !appToken) {
+			tool.data.set('TOKEN', shellToken)
+			appToken = shellToken
+			const query = { ...to.query }
+			delete query.token
+			next({ path: to.path, query, replace: true })
+			return false
+		}
+		if (to.path === '/app/login') {
+			// 已登录时直接进首页
+			if (appToken) {
+				next({ path: '/app/home' })
+				return false
+			}
+			next()
+			return false
+		}
+		if (!appToken) {
+			next({ path: '/app/login', query: { redirect: to.fullPath } })
+			return false
+		}
+		next()
+		return false
+	}
+
 	// ========== iframe嵌入免登：检测URL中的第三方accessToken ==========
 	const thirdAccessToken = to.query.accessToken
 	if (thirdAccessToken && !tool.data.get('TOKEN')) {
@@ -198,6 +228,9 @@ router.afterEach((to, from) => {
  */
 function trackPageView(to) {
 	if (!to || !to.meta || !to.path || to.path === '/login' || to.path === '/') return
+	// 未登录时不上报：埋点接口需要登录态，匿名上报会触发 401 弹窗
+	if (!tool.data.get('TOKEN')) return
+	if (to.path.startsWith('/app/login')) return
 	if (to.path.startsWith('/biz/event')) return
 	try {
 		eventApi.track({

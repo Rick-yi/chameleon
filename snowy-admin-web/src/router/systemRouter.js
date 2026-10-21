@@ -61,6 +61,67 @@ const routes = [
 		meta: {
 			title: '三方登录回调'
 		}
+	},
+	// 移动端 App（H5）：独立外壳，不走 PC 布局与动态菜单
+	{
+		path: '/app/login',
+		component: () => import('@/views/app/login/index.vue'),
+		meta: {
+			title: '登录',
+			fullpage: true
+		}
+	},
+	{
+		path: '/app',
+		component: () => import('@/views/app/layout/index.vue'),
+		redirect: '/app/home',
+		children: [
+			{
+				path: 'home',
+				component: () => import('@/views/app/home/index.vue'),
+				meta: { title: '今日概览' }
+			},
+			{
+				path: 'mine',
+				component: () => import('@/views/app/mine.vue'),
+				meta: { title: '我的' }
+			},
+			{
+				path: 'teach/schedule',
+				component: () => import('@/views/app/teach/schedule.vue'),
+				meta: { title: '我的课表' }
+			},
+			{
+				path: 'teach/attend',
+				component: () => import('@/views/app/teach/attend.vue'),
+				meta: { title: '点名消课' }
+			},
+			{
+				path: 'teach/students',
+				component: () => import('@/views/app/teach/students.vue'),
+				meta: { title: '学员名册' }
+			},
+			{
+				path: 'enroll/leads',
+				component: () => import('@/views/app/enroll/leads.vue'),
+				meta: { title: '我的线索' }
+			},
+			{
+				path: 'enroll/lead',
+				component: () => import('@/views/app/enroll/lead.vue'),
+				meta: { title: '线索详情' }
+			},
+			{
+				path: 'cashier/orders',
+				component: () => import('@/views/app/cashier/orders.vue'),
+				meta: { title: '收款台' }
+			},
+			{
+				path: 'report',
+				component: () => import('@/views/app/report/index.vue'),
+				meta: { title: '经营报表' }
+			}
+		]
 	}
 ]
 

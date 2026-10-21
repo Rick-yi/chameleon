@@ -45,6 +45,11 @@ public class CourseClassStudent extends CommonEntity {
     @Schema(description = "学员id(引用STUDENT)")
     private String studentId;
 
+    /** 学员姓名（列表填充，非数据库字段） */
+    @Schema(description = "学员姓名")
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String studentName;
+
     /** 状态 */
     @Schema(description = "状态(在读/退班)")
     private String status;

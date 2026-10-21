@@ -40,6 +40,7 @@ import vip.xiaonuo.student.api.enums.StudentStatusEnum;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.Map;
 
 /**
@@ -68,7 +69,31 @@ public class CourseClassStudentServiceImpl extends ServiceImpl<CourseClassStuden
         QueryWrapper<CourseClassStudent> queryWrapper = new QueryWrapper<CourseClassStudent>().checkSqlInjection();
         queryWrapper.lambda().eq(CourseClassStudent::getClassId, courseClassStudentPageParam.getClassId())
                 .orderByDesc(CourseClassStudent::getCreateTime);
-        return this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        Page<CourseClassStudent> page = this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        fillStudentName(page.getRecords());
+        return page;
+    }
+
+    /**
+     * 回填学员姓名（移动端点名、学员名册直接展示，避免前端再查一遍学员列表）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/22 10:00
+     **/
+    private void fillStudentName(List<CourseClassStudent> recordList) {
+        if (ObjectUtil.isEmpty(recordList)) {
+            return;
+        }
+        List<String> studentIdList = recordList.stream().map(CourseClassStudent::getStudentId)
+                .filter(ObjectUtil::isNotEmpty).distinct().collect(Collectors.toList());
+        if (studentIdList.isEmpty()) {
+            return;
+        }
+        Map<String, String> nameMap = new HashMap<>();
+        for (StudentBriefDTO brief : studentApi.listStudentBrief(studentIdList)) {
+            nameMap.put(brief.getId(), brief.getName());
+        }
+        recordList.forEach(item -> item.setStudentName(nameMap.get(item.getStudentId())));
     }
 
     @Override
