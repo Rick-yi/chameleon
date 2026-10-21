@@ -53,16 +53,21 @@
 		<div class="ent-body" style="padding: 0">
 		<!-- 周视图 -->
 		<div v-if="viewMode === 'week'" style="padding: 16px; overflow-x: auto">
-			<div style="display: grid; grid-template-columns: 80px repeat(7, 1fr); min-width: 980px; border: 1px solid #f0f0f0; border-radius: 6px; overflow: hidden">
-				<div style="background: #fafafa; text-align: center; padding: 10px 4px; font-weight: 500; border-right: 1px solid #f0f0f0; border-bottom: 1px solid #f0f0f0">时间</div>
-				<div v-for="d in weekDays" :key="d.date" :style="weekHeadStyle(d)">
+			<div class="sched-grid">
+				<div class="sched-corner">时间</div>
+				<div v-for="d in weekDays" :key="d.date" class="sched-head" :class="{ 'is-today': d.date === fmtToday() }">
 					{{ d.label }}
 				</div>
 				<template v-for="slot in timeSlots" :key="slot.start">
-					<div style="background: #fafafa; color: rgba(0,0,0,.45); font-size: 12px; text-align: center; padding: 10px 2px; border-right: 1px solid #f0f0f0; border-bottom: 1px solid #f0f0f0">
+					<div class="sched-time">
 						{{ slot.start }}<br />{{ slot.end }}
 					</div>
-					<div v-for="d in weekDays" :key="d.date + slot.start" style="min-height: 80px; border-right: 1px solid #f0f0f0; border-bottom: 1px solid #f0f0f0; padding: 6px">
+					<div
+						v-for="d in weekDays"
+						:key="d.date + slot.start"
+						class="sched-cell"
+						:class="{ 'is-today': d.date === fmtToday() }"
+					>
 						<div
 							v-for="s in scheduleMap[d.date + '|' + slot.start] || []"
 							:key="s.id"
@@ -70,16 +75,16 @@
 							:class="{ 'is-conflict': conflictIdSet.has(s.id) }"
 							@click="onOpenChange(s)"
 						>
-							<div style="display: flex; align-items: center; gap: 4px">
-								<span style="font-size: 13px; font-weight: 500; color: #1677ff">{{ s.className || className(s.classId) }}</span>
-								<a-tag v-if="conflictIdSet.has(s.id)" color="red" style="margin-left: auto; font-size: 11px; line-height: 16px; padding: 0 4px">冲突</a-tag>
-								<a-tag v-else :color="attendColor(s.attendStatus)" style="margin-left: auto; font-size: 11px; line-height: 16px; padding: 0 4px">
+							<div class="sched-card-head">
+								<span class="sched-card-title">{{ s.className || className(s.classId) }}</span>
+								<a-tag v-if="conflictIdSet.has(s.id)" color="red" class="sched-card-tag">冲突</a-tag>
+								<a-tag v-else :color="attendColor(s.attendStatus)" class="sched-card-tag">
 									{{ attendText(s.attendStatus) }}
 								</a-tag>
 							</div>
-							<div style="font-size: 11px; color: rgba(0,0,0,.65)">{{ s.classroom || '未设教室' }}</div>
-							<div v-if="s.teacherName" style="font-size: 11px; color: rgba(0,0,0,.45)">{{ s.teacherName }}</div>
-							<a-button type="link" size="small" style="padding: 0; font-size: 12px" @click.stop="goAttend(s)">点名 ›</a-button>
+							<div class="sched-card-sub">{{ s.classroom || '未设教室' }}</div>
+							<div v-if="s.teacherName" class="sched-card-sub2">{{ s.teacherName }}</div>
+							<a-button type="link" size="small" class="sched-card-link" @click.stop="goAttend(s)">点名 ›</a-button>
 						</div>
 					</div>
 				</template>
@@ -148,11 +153,11 @@
 								style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px"
 								@click="onOpenChange(s)"
 							>
-								<span style="font-size: 12px; color: #1677ff; width: 96px">
+								<span class="sched-teacher-time">
 									{{ (s.startTime || '').slice(0, 5) }}-{{ (s.endTime || '').slice(0, 5) }}
 								</span>
 								<span style="font-size: 12px">{{ s.className || className(s.classId) }}</span>
-								<span style="font-size: 11px; color: rgba(0,0,0,.45)">{{ s.classroom || '未设教室' }}</span>
+								<span class="sched-card-sub2">{{ s.classroom || '未设教室' }}</span>
 								<a-tag v-if="conflictIdSet.has(s.id)" color="red" style="margin-left: auto; font-size: 11px; line-height: 16px; padding: 0 4px">冲突</a-tag>
 							</div>
 						</div>
@@ -779,19 +784,6 @@
 		m.setDate(m.getDate() + 7 * n)
 		monday.value = m
 		buildWeek()
-	}
-
-	const weekHeadStyle = (d) => {
-		const today = fmtToday()
-		return {
-			background: '#fafafa',
-			textAlign: 'center',
-			padding: '10px 4px',
-			fontWeight: 500,
-			borderRight: '1px solid #f0f0f0',
-			borderBottom: '1px solid #f0f0f0',
-			color: d.date === today ? '#1677ff' : undefined
-		}
 	}
 
 	const onOpenAdd = () => {

@@ -13,6 +13,9 @@
 							转化 {{ node.rate }}%
 						</div>
 						<div v-else class="funnel-rate">起点</div>
+						<div class="funnel-bar">
+							<span :style="{ width: funnelWidth(index) }"></span>
+						</div>
 					</div>
 				</a-col>
 			</a-row>
@@ -124,6 +127,15 @@
 			.catch(() => message.error('埋点统计加载失败'))
 	}
 
+	// 漏斗条宽度：以第一个环节为基准
+	const funnelWidth = (index) => {
+		const list = summary.value.funnelList || []
+		const first = list.length ? Number(list[0].count || 0) : 0
+		if (!first) return '0%'
+		const current = Number(list[index]?.count || 0)
+		return `${Math.max(Math.round((current / first) * 100), current > 0 ? 4 : 0)}%`
+	}
+
 	// 事件码 → 中文名（图例用）
 	const eventNameMap = computed(() => {
 		const map = {}
@@ -201,6 +213,21 @@
 		margin-top: 2px;
 		font-size: 12px;
 		color: #4e5969;
+	}
+	/* 漏斗条：直观看出各环节的留存宽度 */
+	.funnel-bar {
+		margin-top: 8px;
+		height: 4px;
+		border-radius: 2px;
+		background: var(--background-color-base);
+		overflow: hidden;
+		span {
+			display: block;
+			height: 100%;
+			border-radius: 2px;
+			background: var(--primary-6);
+			transition: width 0.3s;
+		}
 	}
 	.zero-count {
 		color: #c9cdd4;

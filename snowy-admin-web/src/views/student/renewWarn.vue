@@ -29,6 +29,7 @@
 					</a-space>
 				</a-form-item>
 			</a-form>
+		</div>
 		<s-table
 			ref="tableRef"
 			:columns="columns"
@@ -59,7 +60,6 @@
 				</template>
 			</template>
 		</s-table>
-		</div>
 	</div>
 
 	<a-modal v-model:open="renewOpen" title="学员续费" :width="480" :destroy-on-close="true" @ok="onSubmitRenew">

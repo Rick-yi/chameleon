@@ -49,11 +49,7 @@
 						<a-divider type="vertical" />
 						<a @click="onOpenSignup(record)">报名</a>
 						<a-divider type="vertical" />
-						<a @click="onOpenEdit(record)">编辑</a>
-						<a-divider type="vertical" />
-						<a-popconfirm title="确定要删除吗？" @confirm="onDelete(record)">
-							<a-button type="link" danger size="small">删除</a-button>
-						</a-popconfirm>
+						<table-more :actions="studentMoreActions" @select="(action) => onStudentMore(action, record)" />
 					</a-space>
 				</template>
 			</template>
@@ -246,6 +242,18 @@
 	}
 	const onDelete = (record) => {
 		studentApi.studentDelete([{ id: record.id }]).then(() => tableRef.value.refresh())
+	}
+	// 操作列：次要操作收进「更多」下拉
+	const studentMoreActions = [
+		{ key: 'edit', label: '编辑' },
+		{ key: 'delete', label: '删除', danger: true, confirmTitle: '确定删除该学员吗？', confirmContent: '删除后该学员不再出现在列表中。' }
+	]
+	const onStudentMore = (action, record) => {
+		if (action.key === 'edit') {
+			onOpenEdit(record)
+		} else if (action.key === 'delete') {
+			onDelete(record)
+		}
 	}
 	// 详情抽屉
 	const detailOpen = ref(false)

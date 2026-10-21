@@ -12,7 +12,7 @@
 		<!-- 状态概览：点击即筛选 -->
 		<a-row :gutter="12" style="margin-bottom: 12px">
 			<a-col v-for="item in statusCards" :key="item.value" :xs="12" :sm="8" :md="6">
-				<div class="ent-stat status-card" :class="{ active: queryForm.status === item.value }" @click="pickStatus(item.value)">
+				<div class="ent-stat status-card" :class="{ active: isCardActive(item) }" @click="pickStatus(item)">
 					<div class="ent-stat-label">{{ item.label }}</div>
 					<div class="ent-stat-value" :style="{ color: item.color }">{{ item.count ?? '-' }}</div>
 				</div>
@@ -219,11 +219,12 @@
 		{ title: '创建时间', dataIndex: 'createTime', width: 170 },
 		{ title: '操作', dataIndex: 'action', align: 'center', width: 200 }
 	]
+	// 统计卡：订单与退费单是两张表，指标要分别取，否则「已退费」永远是 0
 	const statusCards = ref([
-		{ value: 'UNPAID', label: '待收款', color: '#d89614', count: null },
-		{ value: 'PAID', label: '已收款', color: '#2ba471', count: null },
-		{ value: 'REFUNDED', label: '已退费', color: '#e5484d', count: null },
-		{ value: 'CANCELED', label: '已取消', color: '#86909c', count: null }
+		{ scope: 'order', value: 'UNPAID', label: '待收款订单', color: '#d89614', count: null },
+		{ scope: 'order', value: 'PAID', label: '已收款订单', color: '#2ba471', count: null },
+		{ scope: 'refund', value: 'PENDING', label: '待审批退费', color: '#e5484d', count: null },
+		{ scope: 'refund', value: 'REFUNDED', label: '已退费单', color: '#86909c', count: null }
 	])
 
 	const orderStatusText = (s) => ({ UNPAID: '待支付', PAID: '已支付', REFUNDED: '已退费', CANCELED: '已取消' }[s] || s)
@@ -233,8 +234,20 @@
 	const refundStatusColor = (s) =>
 		s === 'REFUNDED' ? 'green' : s === 'PENDING' ? 'orange' : s === 'REJECTED' || s === 'CANCELLED' ? 'red' : 'blue'
 
-	const pickStatus = (value) => {
-		queryForm.value.status = queryForm.value.status === value ? undefined : value
+	const isCardActive = (card) => {
+		return card.scope === 'order'
+			? queryForm.value.status === card.value
+			: activeTab.value === 'refund' && refundQuery.value.status === card.value
+	}
+	const pickStatus = (card) => {
+		if (card.scope === 'refund') {
+			activeTab.value = 'refund'
+			refundQuery.value.status = refundQuery.value.status === card.value ? undefined : card.value
+			refundPage.value.current = 1
+			loadRefund()
+			return
+		}
+		queryForm.value.status = queryForm.value.status === card.value ? undefined : card.value
 		orderPage.value.current = 1
 		loadOrder()
 	}
@@ -274,17 +287,20 @@
 	}
 	const loadStatusCount = () => {
 		Promise.all(
-			statusCards.value.map((item) =>
-				studentApi
-					.orderPage({ current: 1, size: 1, status: item.value })
-					.then((data) => ({ key: item.value, total: data.total || 0 }))
-					.catch(() => ({ key: item.value, total: 0 }))
-			)
+			statusCards.value.map((item) => {
+				const request =
+					item.scope === 'refund'
+						? studentApi.refundPage({ current: 1, size: 1, status: item.value })
+						: studentApi.orderPage({ current: 1, size: 1, status: item.value })
+				return request
+					.then((data) => ({ key: `${item.scope}-${item.value}`, total: data.total || 0 }))
+					.catch(() => ({ key: `${item.scope}-${item.value}`, total: 0 }))
+			})
 		).then((list) => {
 			const map = {}
 			for (const item of list) map[item.key] = item.total
 			statusCount.value = map
-			statusCards.value.forEach((item) => (item.count = map[item.value]))
+			statusCards.value.forEach((item) => (item.count = map[`${item.scope}-${item.value}`]))
 		})
 	}
 	const reload = () => {

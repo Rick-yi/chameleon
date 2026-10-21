@@ -10,10 +10,41 @@
 			</template>
 		</page-header>
 
+		<!-- 关键指标 -->
+		<a-row :gutter="12" class="wb-kpi">
+			<a-col :xs="12" :sm="12" :md="6" :xl="6">
+				<div class="ent-stat kpi-link" @click="go({ path: '/student/order' })">
+					<div class="ent-stat-label">今日收款</div>
+					<div class="ent-stat-value">¥{{ fmtMoney(todayPaid) }}</div>
+				</div>
+			</a-col>
+			<a-col :xs="12" :sm="12" :md="6" :xl="6">
+				<div class="ent-stat kpi-link" @click="go({ path: '/report/dashboard' })">
+					<div class="ent-stat-label">本月收款</div>
+					<div class="ent-stat-value">¥{{ fmtMoney(monthSummary.paidAmount) }}</div>
+				</div>
+			</a-col>
+			<a-col :xs="12" :sm="12" :md="6" :xl="6">
+				<div class="ent-stat kpi-link" @click="go({ path: '/student/order', query: { status: 'UNPAID' } })">
+					<div class="ent-stat-label">待收款订单</div>
+					<div class="ent-stat-value" :style="{ color: unpaid.total > 0 ? '#d89614' : undefined }">
+						{{ unpaid.total || 0 }}
+						<span style="font-size: 13px; color: #86909c">笔</span>
+					</div>
+				</div>
+			</a-col>
+			<a-col :xs="12" :sm="12" :md="6" :xl="6">
+				<div class="ent-stat kpi-link" @click="go({ path: '/student' })">
+					<div class="ent-stat-label">在读学员</div>
+					<div class="ent-stat-value">{{ monthSummary.studyingStudentCount || 0 }}</div>
+				</div>
+			</a-col>
+		</a-row>
+
 		<!-- 快捷入口 -->
 		<div class="ent-shortcut" style="margin-bottom: 12px">
 			<div v-for="item in shortcuts" :key="item.key" class="ent-shortcut-item" @click="go(item)">
-				<div class="ent-shortcut-icon">
+				<div class="ent-shortcut-icon" :style="{ background: item.color }">
 					<component :is="item.icon" />
 				</div>
 				<div class="ent-shortcut-text">{{ item.text }}</div>
@@ -28,7 +59,7 @@
 						<template #title>
 							<div class="ent-card-title">
 								<span>待收款订单</span>
-								<a-tag :color="unpaid.total > 0 ? 'orange' : 'green'">{{ unpaid.total || 0 }}</a-tag>
+								<a-tag :color="unpaid.total > 0 ? 'orange' : 'default'">{{ unpaid.total || 0 }}</a-tag>
 							</div>
 						</template>
 						<template #extra>
@@ -56,7 +87,7 @@
 						<template #title>
 							<div class="ent-card-title">
 								<span>今日课节</span>
-								<a-tag :color="todaySchedule.length ? 'blue' : 'green'">{{ todaySchedule.length }}</a-tag>
+								<a-tag :color="todaySchedule.length ? 'blue' : 'default'">{{ todaySchedule.length }}</a-tag>
 							</div>
 						</template>
 						<template #extra>
@@ -86,7 +117,7 @@
 						<template #title>
 							<div class="ent-card-title">
 								<span>待审批退费</span>
-								<a-tag :color="pendingRefund.total > 0 ? 'red' : 'green'">{{ pendingRefund.total || 0 }}</a-tag>
+								<a-tag :color="pendingRefund.total > 0 ? 'red' : 'default'">{{ pendingRefund.total || 0 }}</a-tag>
 							</div>
 						</template>
 						<template #extra>
@@ -114,7 +145,7 @@
 						<template #title>
 							<div class="ent-card-title">
 								<span>待跟进线索</span>
-								<a-tag :color="leadFollow.total > 0 ? 'purple' : 'green'">{{ leadFollow.total || 0 }}</a-tag>
+								<a-tag :color="leadFollow.total > 0 ? 'purple' : 'default'">{{ leadFollow.total || 0 }}</a-tag>
 							</div>
 						</template>
 						<template #extra>
@@ -141,7 +172,7 @@
 						<template #title>
 							<div class="ent-card-title">
 								<span>续费预警</span>
-								<a-tag :color="renewWarn.total > 0 ? 'gold' : 'green'">{{ renewWarn.total || 0 }}</a-tag>
+								<a-tag :color="renewWarn.total > 0 ? 'gold' : 'default'">{{ renewWarn.total || 0 }}</a-tag>
 							</div>
 						</template>
 						<template #extra>
@@ -209,6 +240,7 @@
 	import studentApi from '@/api/student/studentApi'
 	import courseApi from '@/api/course/courseApi'
 	import crmApi from '@/api/crm/crmApi'
+	import reportApi from '@/api/report/reportApi'
 	const router = useRouter()
 	const loading = ref(false)
 
@@ -219,14 +251,16 @@
 	const todaySchedule = ref([])
 	const todayPaidList = ref([])
 	const todayPaid = ref(0)
+	// 本月经营概览（财务看板汇总，取不到时降级为空）
+	const monthSummary = ref({})
 
 	const shortcuts = [
-		{ key: 'order', text: '报名购课', icon: ShoppingCartOutlined, path: '/student' },
-		{ key: 'pay', text: '收款台', icon: WalletOutlined, path: '/student/order' },
-		{ key: 'schedule', text: '排课表', icon: CalendarOutlined, path: '/course/schedule' },
-		{ key: 'attend', text: '点名消课', icon: CheckSquareOutlined, path: '/course/attend' },
-		{ key: 'lead', text: '招生线索', icon: PhoneOutlined, path: '/crm' },
-		{ key: 'report', text: '经营看板', icon: BarChartOutlined, path: '/report/dashboard' }
+		{ key: 'order', text: '报名购课', icon: ShoppingCartOutlined, path: '/student', color: '#eaf2fd' },
+		{ key: 'pay', text: '收款台', icon: WalletOutlined, path: '/student/order', color: '#e8f7f0' },
+		{ key: 'schedule', text: '排课表', icon: CalendarOutlined, path: '/course/schedule', color: '#f3edfd' },
+		{ key: 'attend', text: '点名消课', icon: CheckSquareOutlined, path: '/course/attend', color: '#fdf3e6' },
+		{ key: 'lead', text: '招生线索', icon: PhoneOutlined, path: '/crm', color: '#e8f4f8' },
+		{ key: 'report', text: '经营看板', icon: BarChartOutlined, path: '/report/dashboard', color: '#fdedf0' }
 	]
 
 	const go = (item) => {
@@ -250,6 +284,10 @@
 		if (!time) return '-'
 		return String(time).slice(5, 16).replace('T', ' ')
 	}
+	const fmtMoney = (value) => {
+		const num = Number(value || 0)
+		return num.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+	}
 	const attendText = (status) => ({ NONE: '待点名', PARTIAL: '部分点名', DONE: '已点名' }[status] || '待点名')
 	const attendColor = (status) => ({ NONE: 'orange', PARTIAL: 'gold', DONE: 'green' }[status] || 'default')
 
@@ -261,6 +299,9 @@
 		const todayStr = today()
 		const dayStart = `${todayStr} 00:00:00`
 		const dayEnd = `${todayStr} 23:59:59`
+		// 本月区间（用于本月收款、在读学员等指标）
+		const now = new Date()
+		const monthStart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`
 		Promise.all([
 			safe(studentApi.orderPage({ current: 1, size: 5, status: 'UNPAID' }), { total: 0, records: [] }),
 			safe(studentApi.refundPage({ current: 1, size: 5, status: 'PENDING' }), { total: 0, records: [] }),
@@ -275,9 +316,10 @@
 				{ total: 0, records: [] }
 			),
 			safe(courseApi.scheduleWeek({ startDate: dayStart, endDate: dayEnd }), []),
-			safe(studentApi.orderPage({ current: 1, size: 5, status: 'PAID' }), { total: 0, records: [] })
+			safe(studentApi.orderPage({ current: 1, size: 5, status: 'PAID' }), { total: 0, records: [] }),
+			safe(reportApi.dashboard({ startDate: monthStart, endDate: todayStr }), {})
 		])
-			.then(([order, refund, warn, lead, schedule, paid]) => {
+			.then(([order, refund, warn, lead, schedule, paid, dashboard]) => {
 				unpaid.value = { total: order.total || 0, list: order.records || [] }
 				pendingRefund.value = { total: refund.total || 0, list: refund.records || [] }
 				renewWarn.value = { total: warn.total || 0, list: warn.records || [] }
@@ -285,6 +327,7 @@
 				todaySchedule.value = schedule || []
 				todayPaidList.value = (paid.records || []).filter((item) => item.payTime && String(item.payTime).slice(0, 10) === todayStr)
 				todayPaid.value = todayPaidList.value.reduce((sum, item) => sum + Number(item.paidAmount || 0), 0)
+				monthSummary.value = dashboard?.summary || {}
 			})
 			.finally(() => (loading.value = false))
 	}
@@ -296,5 +339,14 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
+	}
+	/* 空态与列表左对齐，避免卡片里出现居中的孤零零一句话 */
+	.ent-card :deep(.ent-empty) {
+		text-align: left;
+		padding: 10px 0;
+		color: var(--text-color-secondary);
+	}
+	.wb-kpi {
+		margin-bottom: 12px;
 	}
 </style>

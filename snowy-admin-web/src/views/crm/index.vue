@@ -68,15 +68,7 @@
 					<a-space>
 						<a @click="onOpenFollow(record)">跟进</a>
 						<a-divider type="vertical" />
-						<a @click="onOpenTrial(record)">试听</a>
-						<a-divider type="vertical" />
-						<a @click="onOpenConvert(record)">转学员</a>
-						<a-divider type="vertical" />
-						<a @click="onOpenEdit(record)">编辑</a>
-						<a-divider type="vertical" />
-						<a-popconfirm title="确定删除该线索吗？" @confirm="onDelete(record)">
-							<a-button type="link" danger size="small">删除</a-button>
-						</a-popconfirm>
+						<table-more :actions="leadMoreActions" @select="(action) => onLeadMore(action, record)" />
 					</a-space>
 				</template>
 			</template>
@@ -331,6 +323,24 @@
 	}
 	const onDelete = (record) => {
 		crmApi.leadDelete([{ id: record.id }]).then(() => tableRef.value.refresh())
+	}
+	// 操作列：次要操作收进「更多」下拉
+	const leadMoreActions = [
+		{ key: 'trial', label: '安排试听' },
+		{ key: 'convert', label: '转为学员' },
+		{ key: 'edit', label: '编辑' },
+		{ key: 'delete', label: '删除', danger: true, confirmTitle: '确定删除该线索吗？', confirmContent: '删除后线索及其跟进记录将不再展示。' }
+	]
+	const onLeadMore = (action, record) => {
+		if (action.key === 'trial') {
+			onOpenTrial(record)
+		} else if (action.key === 'convert') {
+			onOpenConvert(record)
+		} else if (action.key === 'edit') {
+			onOpenEdit(record)
+		} else if (action.key === 'delete') {
+			onDelete(record)
+		}
 	}
 	const onOpenFollow = (record) => {
 		currentLead.value = record

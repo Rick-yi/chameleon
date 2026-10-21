@@ -10,12 +10,16 @@
 					<template #icon><reload-outlined /></template>
 					刷新
 				</a-button>
-				<span style="color: rgba(0,0,0,.45); font-size: 12px">点击课节即可点名消课</span>
+				<span style="color: rgba(0,0,0,.45); font-size: 12px">点击课节卡片即可进入点名</span>
 			</div>
 			<div v-if="!scheduleList.length" class="ent-empty">该日期没有排课</div>
 			<a-row v-else :gutter="12">
 				<a-col v-for="item in scheduleList" :key="item.id" :xs="24" :sm="12" :xl="8">
-					<div class="attend-slot" :class="{ done: item.attendStatus === 'DONE' }" @click="selectSchedule(item)">
+					<div
+						class="attend-slot"
+						:class="{ done: item.attendStatus === 'DONE', active: item.id === scheduleId }"
+						@click="selectSchedule(item)"
+					>
 						<div class="attend-slot-title">{{ item.className || '未命名班级' }}</div>
 						<div class="attend-slot-sub">
 							{{ item.startTime }} - {{ item.endTime }} · {{ item.classroom || '未定教室' }}
@@ -41,13 +45,13 @@
 				</span>
 				<a-button type="link" size="small" @click="scheduleId = undefined">换一节</a-button>
 			</template>
-			<span v-else style="color: rgba(0,0,0,.45); font-size: 13px">请在上方点击要点的课节</span>
+			<span v-else style="color: rgba(0,0,0,.45); font-size: 13px">尚未选择课节</span>
 			<div style="margin-left: auto">
 				<span v-if="scheduleId" style="color: rgba(0,0,0,.45); font-size: 12px">点击状态按钮标记出勤，到课/缺勤将按课程规则扣课时</span>
 			</div>
 		</div>
 		<div style="padding: 16px 0">
-			<div v-if="!scheduleId" class="ent-empty">点击上方课节卡片开始点名</div>
+			<div v-if="!scheduleId" class="ent-empty">请在上方选择要点的课节，选中后这里会列出该课节的学员名单</div>
 			<template v-else>
 				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap">
 					<span style="font-weight: 500">
@@ -111,7 +115,13 @@
 	import studentApi from '@/api/student/studentApi'
 	const route = useRoute()
 	const classId = ref()
-	const date = ref(new Date().toISOString().slice(0, 10))
+	// 默认今天（按本地时区计算，避免 toISOString 在东八区凌晨回退到昨天）
+	const pad = (n) => String(n).padStart(2, '0')
+	const todayText = () => {
+		const d = new Date()
+		return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+	}
+	const date = ref(todayText())
 	const scheduleId = ref()
 	const classOptions = ref([])
 	const classRecords = ref([])
@@ -138,6 +148,8 @@
 			classOptions.value = classRecords.value.map((item) => ({ value: item.id, label: item.name }))
 		})
 	}
+	// 今天没排课时回溯最近 7 天，自动定位到最近有课的那天（只回溯一次）
+	const recentFallbackUsed = ref(false)
 	const loadSchedules = () => {
 		const dayStart = `${date.value} 00:00:00`
 		const dayEnd = `${date.value} 23:59:59`
@@ -155,7 +167,34 @@
 					const target = scheduleList.value.find((item) => item.id === targetId)
 					if (target) {
 						selectSchedule(target)
+						return
 					}
+				}
+				// 该日期没有排课：回溯最近 7 天，定位到最近有课的日期
+				if (!scheduleList.value.length && !route.query.scheduleId && !recentFallbackUsed.value) {
+					recentFallbackUsed.value = true
+					const end = new Date(`${date.value} 00:00:00`)
+					const start = new Date(end)
+					start.setDate(start.getDate() - 7)
+					courseApi
+						.scheduleWeek({
+							classId: classId.value,
+							startDate: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())} 00:00:00`,
+							endDate: `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())} 23:59:59`
+						})
+						.then((recent) => {
+							const dateList = [...new Set((recent || []).map((item) => String(item.scheduleDate || '').slice(0, 10)).filter(Boolean))].sort()
+							if (dateList.length) {
+								date.value = dateList[dateList.length - 1]
+								loadSchedules()
+							}
+						})
+						.catch(() => {})
+					return
+				}
+				// 否则默认选中第一个课节，少一次点击
+				if (!scheduleId.value && scheduleList.value.length) {
+					selectSchedule(scheduleList.value[0])
 				}
 			})
 	}
@@ -259,35 +298,42 @@
 		gap: 10px;
 		flex-wrap: wrap;
 		padding-bottom: 12px;
-		border-bottom: 1px solid #f0f1f3;
+		border-bottom: 1px solid var(--border-color-split);
 		margin-bottom: 4px;
 	}
 	.attend-current-title {
 		font-size: 15px;
 		font-weight: 600;
-		color: #1d2129;
+		color: var(--text-color);
 	}
 	.attend-current-meta {
 		font-size: 13px;
-		color: #4e5969;
+		color: var(--text-color-secondary);
 	}
-</style>
-
-<style lang="less" scoped>
 	.attend-slot {
-		border: 1px solid #f0f0f0;
-		border-radius: 8px;
+		border: 1px solid var(--border-color-base);
+		border-radius: var(--radius-card);
 		padding: 10px 12px;
 		margin-bottom: 12px;
 		cursor: pointer;
 		transition: all 0.2s;
 		&:hover {
-			border-color: #1677ff;
-			box-shadow: 0 2px 8px rgba(22, 119, 255, 0.12);
+			border-color: var(--primary-4);
+			box-shadow: 0 2px 8px rgba(22, 104, 220, 0.12);
+		}
+		/* 选中的课节：明确高亮，用户一眼知道正在点哪一节 */
+		&.active {
+			background: var(--primary-1);
+			border-color: var(--primary-6);
+			box-shadow: 0 0 0 2px rgba(22, 104, 220, 0.12);
 		}
 		&.done {
-			background: #f6ffed;
+			background: #f2fbf6;
 			border-color: #b7eb8f;
+		}
+		&.done.active {
+			background: var(--primary-1);
+			border-color: var(--primary-6);
 		}
 	}
 	.attend-slot-title {
@@ -296,7 +342,7 @@
 	}
 	.attend-slot-sub {
 		font-size: 12px;
-		color: rgba(0, 0, 0, 0.45);
+		color: var(--text-color-secondary);
 		margin: 4px 0 6px;
 	}
 	.attend-slot-tag {

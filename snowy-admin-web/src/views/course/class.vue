@@ -64,11 +64,7 @@
 						<a-divider type="vertical" />
 						<a @click="goSchedule(record)">排课</a>
 						<a-divider type="vertical" />
-						<a @click="onOpenEdit(record)">编辑</a>
-						<a-divider type="vertical" />
-						<a-popconfirm title="确定要删除吗？" @confirm="onDelete(record)">
-							<a-button type="link" danger size="small">删除</a-button>
-						</a-popconfirm>
+						<table-more :actions="classMoreActions" @select="(action) => onClassMore(action, record)" />
 					</a-space>
 				</template>
 			</template>
@@ -308,6 +304,18 @@
 	}
 	const onDelete = (record) => {
 		courseApi.classDelete([{ id: record.id }]).then(() => tableRef.value.refresh())
+	}
+	// 操作列：次要操作收进「更多」下拉
+	const classMoreActions = [
+		{ key: 'edit', label: '编辑' },
+		{ key: 'delete', label: '删除', danger: true, confirmTitle: '确定删除该班级吗？', confirmContent: '删除后班内学员与点名记录会保留，但不再出现在班级列表。' }
+	]
+	const onClassMore = (action, record) => {
+		if (action.key === 'edit') {
+			onOpenEdit(record)
+		} else if (action.key === 'delete') {
+			onDelete(record)
+		}
 	}
 	const goSchedule = (record) => {
 		router.push({ path: '/course/schedule', query: { classId: record.id } })

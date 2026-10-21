@@ -579,12 +579,16 @@ html {
 
 /* ---------- 18. 课表卡片：中性底 + 细边框 ---------- */
 .ent-schedule-card {
-	background: #f7faff;
-	border: 1px solid #c8dcf9;
+	background: var(--primary-1);
+	border: 1px solid var(--primary-2);
 	border-radius: var(--radius-control);
 	padding: 6px 8px;
 	margin-bottom: 6px;
 	cursor: pointer;
+	transition: border-color 0.2s;
+}
+.ent-schedule-card:hover {
+	border-color: var(--primary-4);
 }
 .ent-schedule-card.is-conflict {
 	background: #fef0f0;
@@ -624,4 +628,94 @@ html {
 	border-radius: var(--radius-card);
 	box-shadow: 0 1px 2px rgba(29, 33, 41, 0.04);
 	padding: 48px 24px;
+}
+
+/* ---------- 21. 排课课表（周视图网格） ---------- */
+.sched-grid {
+	display: grid;
+	grid-template-columns: 80px repeat(7, 1fr);
+	min-width: 980px;
+	border: 1px solid var(--border-color-base);
+	border-radius: var(--radius-card);
+	overflow: hidden;
+	background: #fff;
+}
+.sched-corner,
+.sched-head {
+	background: var(--background-color-light);
+	text-align: center;
+	padding: 10px 4px;
+	font-weight: 500;
+	border-right: 1px solid var(--border-color-split);
+	border-bottom: 1px solid var(--border-color-split);
+}
+.sched-head.is-today {
+	background: var(--primary-1);
+	color: var(--primary-6);
+}
+.sched-time {
+	background: var(--background-color-light);
+	color: var(--text-color-secondary);
+	font-size: 12px;
+	text-align: center;
+	padding: 10px 2px;
+	border-right: 1px solid var(--border-color-split);
+	border-bottom: 1px solid var(--border-color-split);
+}
+.sched-cell {
+	min-height: 80px;
+	padding: 6px;
+	border-right: 1px solid var(--border-color-split);
+	border-bottom: 1px solid var(--border-color-split);
+}
+.sched-cell.is-today {
+	background: rgba(22, 104, 220, 0.03);
+}
+.sched-card-head {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+.sched-card-title {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--primary-6);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.sched-card-tag {
+	margin-left: auto;
+	font-size: 11px;
+	line-height: 16px;
+	padding: 0 4px;
+}
+.sched-card-sub {
+	font-size: 11px;
+	color: var(--text-color-secondary);
+}
+.sched-card-sub2 {
+	font-size: 11px;
+	color: #86909c;
+}
+.sched-card-link {
+	padding: 0;
+	height: auto;
+	font-size: 12px;
+}
+.sched-teacher-time {
+	font-size: 12px;
+	color: var(--primary-6);
+	width: 96px;
+	font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 22. KPI 卡片可点击态 ---------- */
+.kpi-link {
+	cursor: pointer;
+	transition: box-shadow 0.2s, border-color 0.2s;
+}
+.kpi-link:hover {
+	border-color: var(--primary-3);
+	box-shadow: 0 2px 10px rgba(29, 33, 41, 0.08);
 }

@@ -301,13 +301,6 @@
 	.report-kpi {
 		margin-bottom: 8px;
 	}
-	.kpi-link {
-		cursor: pointer;
-		transition: box-shadow 0.2s;
-	}
-	.kpi-link:hover {
-		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
-	}
 	.report-chart {
 		width: 100%;
 		min-height: 300px;

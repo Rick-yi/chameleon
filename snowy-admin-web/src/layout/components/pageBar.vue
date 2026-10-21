@@ -30,8 +30,10 @@
 		'/report/dashboard',
 		'/report/finance',
 		'/report/academic',
-		'/report/crm'
+		'/report/crm',
+		'/report/eventAnalysis'
 	]
+	// 注意：新增使用 <page-header> 的业务页，需把路径补进上面的列表，否则会出现双标题
 
 	// 页面说明（上游页面的补充文案）
 	const DESC_MAP = {
