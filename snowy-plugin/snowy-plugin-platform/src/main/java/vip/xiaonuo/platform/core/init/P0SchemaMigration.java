@@ -114,7 +114,7 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
               `USER_ID` varchar(20) NULL DEFAULT NULL COMMENT '操作人id',
               `USER_NAME` varchar(50) NULL DEFAULT NULL COMMENT '操作人姓名',
               `TARGET_TYPE` varchar(30) NULL DEFAULT NULL COMMENT '对象类型',
-              `TARGET_ID` varchar(20) NULL DEFAULT NULL COMMENT '对象id',
+              `TARGET_ID` varchar(100) NULL DEFAULT NULL COMMENT '对象id',
               `TARGET_NAME` varchar(100) NULL DEFAULT NULL COMMENT '对象名称',
               `PROPS` varchar(1000) NULL DEFAULT NULL COMMENT '业务属性(JSON)',
               `EVENT_TIME` datetime NULL DEFAULT NULL COMMENT '事件发生时间',

@@ -334,10 +334,10 @@ public class TenantInitService {
                             sysRelationService.saveRelationBatchWithAppend(roleId, targetIdList,
                                     SysRelationCategoryEnum.SYS_ROLE_HAS_RESOURCE.getValue(), extJsonList);
                         }
-                        copyTemplateApiPermissions(templateRole.getId(), roleId, newTenantId);
+                        copyTemplateApiPermissions(templateRole.getId(), roleId, newTenantId, templateTenant.getId());
                         return;
                     }
-                    copyTemplateApiPermissions(templateRole.getId(), roleId, newTenantId);
+                    copyTemplateApiPermissions(templateRole.getId(), roleId, newTenantId, templateTenant.getId());
                 }
             } finally {
                 TenantContext.setTenantId(newTenantId);
@@ -356,11 +356,18 @@ public class TenantInitService {
      * @author 会飞的猪
      * @date 2026/10/21 10:00
      **/
-    private void copyTemplateApiPermissions(String templateRoleId, String roleId, String newTenantId) {
+    private void copyTemplateApiPermissions(String templateRoleId, String roleId, String newTenantId, String templateTenantId) {
+        // 关键：读取模板租户的接口权限时必须切回模板租户上下文，
+        // 否则（前面已切到新租户）查出来的是新租户自己的空权限，新管理员会一个接口权限都拿不到
+        if (ObjectUtil.isNotEmpty(templateTenantId)) {
+            TenantContext.setTenantId(templateTenantId);
+        }
         List<SysRelation> permissionList = sysRelationService.list(new LambdaQueryWrapper<SysRelation>()
                 .eq(SysRelation::getObjectId, templateRoleId)
                 .eq(SysRelation::getCategory, SysRelationCategoryEnum.SYS_ROLE_HAS_PERMISSION.getValue()));
+        TenantContext.setTenantId(newTenantId);
         if (ObjectUtil.isEmpty(permissionList)) {
+            log.warn(">>> 租户[{}]初始化：模板租户未提供接口权限，新管理员仅拥有菜单权限", newTenantId);
             return;
         }
         List<String> apiUrlList = new ArrayList<>();

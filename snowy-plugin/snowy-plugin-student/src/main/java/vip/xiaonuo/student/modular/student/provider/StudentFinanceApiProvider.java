@@ -284,29 +284,39 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
         if (endTime != null) {
             orderWrapper.apply("COALESCE(PAY_TIME, CREATE_TIME) <= {0}", endTime);
         }
-        for (StudentOrder order : studentOrderMapper.selectList(orderWrapper)) {
-            FinanceStatDTO stat = statOf(statMap, order.getCourseId());
-            stat.setPaidAmount(stat.getPaidAmount().add(ObjectUtil.isNotEmpty(order.getPaidAmount())
-                    ? order.getPaidAmount() : BigDecimal.ZERO));
-            stat.setOrderCount(stat.getOrderCount() + 1);
-        }
+        List<StudentOrder> statOrderList = studentOrderMapper.selectList(orderWrapper);
         // 退费（已退款，按创建时间）
         LambdaQueryWrapper<StudentRefund> refundWrapper = new LambdaQueryWrapper<StudentRefund>()
                 .eq(StudentRefund::getStatus, StudentRefundStatusEnum.REFUNDED.getValue())
                 .ge(startTime != null, StudentRefund::getCreateTime, startTime)
                 .le(endTime != null, StudentRefund::getCreateTime, endTime);
-        for (StudentRefund refund : studentRefundMapper.selectList(refundWrapper)) {
-            FinanceStatDTO stat = statOf(statMap, refund.getCourseId());
-            stat.setRefundAmount(stat.getRefundAmount().add(ObjectUtil.isNotEmpty(refund.getRefundAmount())
-                    ? refund.getRefundAmount() : BigDecimal.ZERO));
-        }
+        List<StudentRefund> statRefundList = studentRefundMapper.selectList(refundWrapper);
         // 消课（点名消课流水，按创建时间）
         LambdaQueryWrapper<StudentLessonFlow> flowWrapper = new LambdaQueryWrapper<StudentLessonFlow>()
                 .eq(StudentLessonFlow::getFlowType, LessonFlowTypeEnum.ATTEND.getValue())
                 .ge(startTime != null, StudentLessonFlow::getCreateTime, startTime)
                 .le(endTime != null, StudentLessonFlow::getCreateTime, endTime);
-        for (StudentLessonFlow flow : studentLessonFlowMapper.selectList(flowWrapper)) {
-            FinanceStatDTO stat = statOf(statMap, flow.getCourseId());
+        List<StudentLessonFlow> statFlowList = studentLessonFlowMapper.selectList(flowWrapper);
+        // 课程名批量查（逐条查会 N+1）
+        List<String> statCourseIdList = new ArrayList<>();
+        statOrderList.forEach(item -> statCourseIdList.add(item.getCourseId()));
+        statRefundList.forEach(item -> statCourseIdList.add(item.getCourseId()));
+        statFlowList.forEach(item -> statCourseIdList.add(item.getCourseId()));
+        Map<String, String> statCourseNameMap = courseApi.listCourseNameMap(statCourseIdList.stream()
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList()));
+        for (StudentOrder order : statOrderList) {
+            FinanceStatDTO stat = statOf(statMap, order.getCourseId(), statCourseNameMap);
+            stat.setPaidAmount(stat.getPaidAmount().add(ObjectUtil.isNotEmpty(order.getPaidAmount())
+                    ? order.getPaidAmount() : BigDecimal.ZERO));
+            stat.setOrderCount(stat.getOrderCount() + 1);
+        }
+        for (StudentRefund refund : statRefundList) {
+            FinanceStatDTO stat = statOf(statMap, refund.getCourseId(), statCourseNameMap);
+            stat.setRefundAmount(stat.getRefundAmount().add(ObjectUtil.isNotEmpty(refund.getRefundAmount())
+                    ? refund.getRefundAmount() : BigDecimal.ZERO));
+        }
+        for (StudentLessonFlow flow : statFlowList) {
+            FinanceStatDTO stat = statOf(statMap, flow.getCourseId(), statCourseNameMap);
             stat.setAttendLessons(stat.getAttendLessons().add(ObjectUtil.isNotEmpty(flow.getLessons())
                     ? flow.getLessons().abs() : BigDecimal.ZERO));
         }
@@ -323,12 +333,14 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
      * @author 会飞的猪
      * @date 2026/10/20 10:00
      **/
-    private FinanceStatDTO statOf(Map<String, FinanceStatDTO> statMap, String courseId) {
+    private FinanceStatDTO statOf(Map<String, FinanceStatDTO> statMap, String courseId,
+                                  Map<String, String> courseNameMap) {
         String key = StrUtil.isEmpty(courseId) ? UNKNOWN_COURSE : courseId;
         return statMap.computeIfAbsent(key, k -> {
             FinanceStatDTO stat = new FinanceStatDTO();
             stat.setCourseId(k);
-            stat.setCourseName(UNKNOWN_COURSE.equals(k) ? "未关联课程" : courseApi.getCourseName(k));
+            stat.setCourseName(UNKNOWN_COURSE.equals(k) ? "未关联课程"
+                    : StrUtil.blankToDefault(courseNameMap.get(k), k));
             return stat;
         });
     }
@@ -516,17 +528,27 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
         Date start = parseStart(financeQueryParam.getStartTime());
         Date end = parseEnd(financeQueryParam.getEndTime());
         Map<String, FinanceCourseRankDTO> rankMap = new LinkedHashMap<>();
-        for (StudentOrder order : studentOrderMapper.selectList(paidOrderWrapper(financeQueryParam, start, end))) {
-            FinanceCourseRankDTO dto = rankOf(rankMap, order.getCourseId());
+        List<StudentOrder> rankOrderList = studentOrderMapper.selectList(paidOrderWrapper(financeQueryParam, start, end));
+        List<StudentRefund> rankRefundList = studentRefundMapper.selectList(refundWrapper(financeQueryParam, start, end));
+        List<StudentLessonFlow> rankFlowList = studentLessonFlowMapper.selectList(flowWrapper(financeQueryParam, start, end));
+        // 课程名批量查（逐条查会 N+1）
+        List<String> rankCourseIdList = new ArrayList<>();
+        rankOrderList.forEach(item -> rankCourseIdList.add(item.getCourseId()));
+        rankRefundList.forEach(item -> rankCourseIdList.add(item.getCourseId()));
+        rankFlowList.forEach(item -> rankCourseIdList.add(item.getCourseId()));
+        Map<String, String> rankCourseNameMap = courseApi.listCourseNameMap(rankCourseIdList.stream()
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList()));
+        for (StudentOrder order : rankOrderList) {
+            FinanceCourseRankDTO dto = rankOf(rankMap, order.getCourseId(), rankCourseNameMap);
             dto.setPaidAmount(dto.getPaidAmount().add(orderPaidAmount(order)));
             dto.setOrderCount(dto.getOrderCount() + 1);
         }
-        for (StudentRefund refund : studentRefundMapper.selectList(refundWrapper(financeQueryParam, start, end))) {
-            FinanceCourseRankDTO dto = rankOf(rankMap, refund.getCourseId());
+        for (StudentRefund refund : rankRefundList) {
+            FinanceCourseRankDTO dto = rankOf(rankMap, refund.getCourseId(), rankCourseNameMap);
             dto.setRefundAmount(dto.getRefundAmount().add(nvl(refund.getRefundAmount())));
         }
-        for (StudentLessonFlow flow : studentLessonFlowMapper.selectList(flowWrapper(financeQueryParam, start, end))) {
-            FinanceCourseRankDTO dto = rankOf(rankMap, flow.getCourseId());
+        for (StudentLessonFlow flow : rankFlowList) {
+            FinanceCourseRankDTO dto = rankOf(rankMap, flow.getCourseId(), rankCourseNameMap);
             dto.setAttendLessons(dto.getAttendLessons().add(flowLessons(flow)));
         }
         List<FinanceCourseRankDTO> resultList = new ArrayList<>(rankMap.values());
@@ -569,14 +591,16 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
             FinanceCampusRankDTO dto = campusRankOf(rankMap, campusId);
             dto.setRefundAmount(dto.getRefundAmount().add(nvl(refund.getRefundAmount())));
         }
-        Map<String, String> scheduleCampusCache = new HashMap<>();
-        for (StudentLessonFlow flow : studentLessonFlowMapper.selectList(flowWrapper(financeQueryParam, start, end))) {
+        List<StudentLessonFlow> attendFlowList = studentLessonFlowMapper.selectList(flowWrapper(financeQueryParam, start, end));
+        // 排课 → 校区批量查（逐条查会产生 N+1）
+        Map<String, String> scheduleCampusCache = courseApi.listScheduleCampusMap(attendFlowList.stream()
+                .map(StudentLessonFlow::getScheduleId).filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList()));
+        for (StudentLessonFlow flow : attendFlowList) {
             String campusId;
             if (StrUtil.isBlank(flow.getScheduleId())) {
                 campusId = UNKNOWN_CAMPUS;
             } else {
-                campusId = scheduleCampusCache.computeIfAbsent(flow.getScheduleId(),
-                        scheduleId -> StrUtil.blankToDefault(courseApi.getScheduleCampusId(scheduleId), UNKNOWN_CAMPUS));
+                campusId = StrUtil.blankToDefault(scheduleCampusCache.get(flow.getScheduleId()), UNKNOWN_CAMPUS);
             }
             FinanceCampusRankDTO dto = campusRankOf(rankMap, campusId);
             dto.setAttendLessons(dto.getAttendLessons().add(flowLessons(flow)));
@@ -745,14 +769,18 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
             studentIdSetMap.computeIfAbsent(key, k -> new java.util.LinkedHashSet<>()).add(flow.getStudentId());
         }
         List<FinanceConsumeDTO> resultList = new ArrayList<>(resultMap.values());
+        // 课程名、课包名一次性批量查（逐条查会产生 N+1）
+        Map<String, String> courseNameMap = courseApi.listCourseNameMap(resultList.stream()
+                .map(FinanceConsumeDTO::getCourseId).filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList()));
+        Map<String, String> packageNameMap = courseApi.listCoursePackageNameMap(resultList.stream()
+                .map(FinanceConsumeDTO::getCoursePackageId).filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList()));
         for (FinanceConsumeDTO dto : resultList) {
             String key = dto.getCourseId() + "|" + StrUtil.blankToDefault(dto.getCoursePackageId(), "");
             dto.setOrderCount((long) orderIdSetMap.getOrDefault(key, Set.of()).size());
             dto.setStudentCount((long) studentIdSetMap.getOrDefault(key, Set.of()).size());
-            dto.setCourseName(StrUtil.blankToDefault(courseApi.getCourseName(dto.getCourseId()), "未关联课程"));
+            dto.setCourseName(StrUtil.blankToDefault(courseNameMap.get(dto.getCourseId()), "未关联课程"));
             if (StrUtil.isNotBlank(dto.getCoursePackageId())) {
-                JSONObject packageInfo = courseApi.getCoursePackageInfo(dto.getCoursePackageId());
-                dto.setCoursePackageName(packageInfo == null ? null : packageInfo.getStr("name"));
+                dto.setCoursePackageName(packageNameMap.get(dto.getCoursePackageId()));
             }
         }
         resultList.sort((a, b) -> b.getRecognizedAmount().compareTo(a.getRecognizedAmount()));
@@ -1064,12 +1092,14 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
      * @author 会飞的猪
      * @date 2026/10/20 10:00
      **/
-    private FinanceCourseRankDTO rankOf(Map<String, FinanceCourseRankDTO> rankMap, String courseId) {
+    private FinanceCourseRankDTO rankOf(Map<String, FinanceCourseRankDTO> rankMap, String courseId,
+                                       Map<String, String> courseNameMap) {
         String key = StrUtil.blankToDefault(courseId, UNKNOWN_COURSE);
         return rankMap.computeIfAbsent(key, k -> {
             FinanceCourseRankDTO dto = new FinanceCourseRankDTO();
             dto.setCourseId(k);
-            dto.setCourseName(UNKNOWN_COURSE.equals(k) ? "未关联课程" : courseApi.getCourseName(k));
+            dto.setCourseName(UNKNOWN_COURSE.equals(k) ? "未关联课程"
+                    : StrUtil.blankToDefault(courseNameMap.get(k), k));
             return dto;
         });
     }

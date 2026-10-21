@@ -96,13 +96,16 @@ public class StudentReportApiProvider implements StudentReportApi {
         }
         Map<String, String> studentNameMap = loadStudentNameMap(accountList.stream()
                 .map(StudentLessonAccount::getStudentId).collect(Collectors.toList()));
+        // 课程名一次性批量查（逐条查会产生 N+1，800 个学员就是 800 次查询）
+        Map<String, String> courseNameMap = courseApi.listCourseNameMap(accountList.stream()
+                .map(StudentLessonAccount::getCourseId).filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList()));
         List<AcademicLessonProgressDTO> resultList = new ArrayList<>();
         for (StudentLessonAccount account : accountList) {
             AcademicLessonProgressDTO dto = new AcademicLessonProgressDTO();
             dto.setStudentId(account.getStudentId());
             dto.setStudentName(studentNameMap.get(account.getStudentId()));
             dto.setCourseId(account.getCourseId());
-            dto.setCourseName(resolveCourseName(account.getCourseId()));
+            dto.setCourseName(StrUtil.blankToDefault(courseNameMap.get(account.getCourseId()), account.getCourseId()));
             dto.setTotalLessons(nvl(account.getTotalLessons()));
             dto.setUsedLessons(nvl(account.getUsedLessons()));
             dto.setRemainLessons(nvl(account.getRemainLessons()));
@@ -126,6 +129,9 @@ public class StudentReportApiProvider implements StudentReportApi {
         }
         Map<String, Student> studentMap = loadStudentMap(studentIdList);
         Map<String, StudentLessonAccount> accountMap = loadFirstAccountMap(studentIdList, param.getCourseId());
+        // 课程名批量查（风险学员可能一次几百条，逐条查会拖慢报表）
+        Map<String, String> courseNameMap = courseApi.listCourseNameMap(accountMap.values().stream()
+                .map(StudentLessonAccount::getCourseId).filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList()));
         String riskType = StrUtil.blankToDefault(param.getType(), "LOW_LESSON");
         List<AcademicRiskStudentDTO> resultList = new ArrayList<>();
         if ("LOW_LESSON".equalsIgnoreCase(riskType)) {
@@ -139,7 +145,7 @@ public class StudentReportApiProvider implements StudentReportApi {
                 if (student != null && !StudentStatusEnum.STUDYING.getValue().equals(student.getStatus())) {
                     continue;
                 }
-                AcademicRiskStudentDTO dto = buildRiskDto(student, account);
+                AcademicRiskStudentDTO dto = buildRiskDto(student, account, courseNameMap);
                 dto.setRiskType("LOW_LESSON");
                 dto.setRiskDesc("剩余课时不足 " + LOW_LESSON_THRESHOLD + " 课时");
                 resultList.add(dto);
@@ -156,7 +162,7 @@ public class StudentReportApiProvider implements StudentReportApi {
                 if (days < NO_ATTEND_DAYS) {
                     continue;
                 }
-                AcademicRiskStudentDTO dto = buildRiskDto(student, accountMap.get(student.getId()));
+                AcademicRiskStudentDTO dto = buildRiskDto(student, accountMap.get(student.getId()), courseNameMap);
                 dto.setLastAttendTime(lastAttendTime);
                 dto.setDaysWithoutAttend(lastAttendTime == null ? null : days);
                 dto.setRiskType("NO_ATTEND");
@@ -168,7 +174,7 @@ public class StudentReportApiProvider implements StudentReportApi {
                 if (!StudentStatusEnum.STOP.getValue().equals(student.getStatus())) {
                     continue;
                 }
-                AcademicRiskStudentDTO dto = buildRiskDto(student, accountMap.get(student.getId()));
+                AcademicRiskStudentDTO dto = buildRiskDto(student, accountMap.get(student.getId()), courseNameMap);
                 dto.setRiskType("STOPPED");
                 dto.setRiskDesc("学员已停课");
                 resultList.add(dto);
@@ -302,7 +308,8 @@ public class StudentReportApiProvider implements StudentReportApi {
      * @author 会飞的猪
      * @date 2026/10/20 10:00
      **/
-    private AcademicRiskStudentDTO buildRiskDto(Student student, StudentLessonAccount account) {
+    private AcademicRiskStudentDTO buildRiskDto(Student student, StudentLessonAccount account,
+                                                 Map<String, String> courseNameMap) {
         AcademicRiskStudentDTO dto = new AcademicRiskStudentDTO();
         if (student != null) {
             dto.setStudentId(student.getId());
@@ -311,7 +318,7 @@ public class StudentReportApiProvider implements StudentReportApi {
         }
         if (account != null) {
             dto.setCourseId(account.getCourseId());
-            dto.setCourseName(resolveCourseName(account.getCourseId()));
+            dto.setCourseName(StrUtil.blankToDefault(courseNameMap.get(account.getCourseId()), account.getCourseId()));
             dto.setRemainLessons(nvl(account.getRemainLessons()));
             dto.setExpireTime(account.getExpireTime());
         }

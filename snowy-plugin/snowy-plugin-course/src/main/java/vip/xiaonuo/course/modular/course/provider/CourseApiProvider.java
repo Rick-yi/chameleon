@@ -13,6 +13,7 @@
 package vip.xiaonuo.course.modular.course.provider;
 
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -177,5 +178,47 @@ public class CourseApiProvider implements CourseApi {
         }
         CourseClass courseClass = courseClassMapper.selectById(courseSchedule.getClassId());
         return ObjectUtil.isEmpty(courseClass) ? null : courseClass.getCampusId();
+    }
+
+    @Override
+    public java.util.Map<String, String> listScheduleCampusMap(java.util.List<String> scheduleIdList) {
+        java.util.Map<String, String> campusMap = new java.util.HashMap<>();
+        if (ObjectUtil.isEmpty(scheduleIdList)) {
+            return campusMap;
+        }
+        // 1. 批量取排课（排课自带校区快照时直接用）
+        List<CourseSchedule> scheduleList = courseScheduleMapper.selectBatchIds(scheduleIdList);
+        // 2. 需要回退到班级校区的排课，批量取班级
+        List<String> needClassIdList = scheduleList.stream()
+                .filter(item -> StrUtil.isBlank(item.getCampusId()))
+                .map(CourseSchedule::getClassId)
+                .filter(StrUtil::isNotBlank).distinct().toList();
+        java.util.Map<String, String> classCampusMap = new java.util.HashMap<>();
+        if (!needClassIdList.isEmpty()) {
+            for (CourseClass courseClass : courseClassMapper.selectBatchIds(needClassIdList)) {
+                classCampusMap.put(courseClass.getId(), courseClass.getCampusId());
+            }
+        }
+        for (CourseSchedule schedule : scheduleList) {
+            String campusId = StrUtil.isNotBlank(schedule.getCampusId())
+                    ? schedule.getCampusId()
+                    : classCampusMap.get(schedule.getClassId());
+            if (StrUtil.isNotBlank(campusId)) {
+                campusMap.put(schedule.getId(), campusId);
+            }
+        }
+        return campusMap;
+    }
+
+    @Override
+    public java.util.Map<String, String> listCoursePackageNameMap(java.util.List<String> packageIdList) {
+        java.util.Map<String, String> nameMap = new java.util.HashMap<>();
+        if (ObjectUtil.isEmpty(packageIdList)) {
+            return nameMap;
+        }
+        for (CoursePackage coursePackage : coursePackageMapper.selectBatchIds(packageIdList)) {
+            nameMap.put(coursePackage.getId(), coursePackage.getName());
+        }
+        return nameMap;
     }
 }

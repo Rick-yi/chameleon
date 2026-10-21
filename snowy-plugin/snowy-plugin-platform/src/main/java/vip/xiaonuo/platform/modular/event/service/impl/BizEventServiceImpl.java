@@ -15,7 +15,6 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -99,19 +98,26 @@ public class BizEventServiceImpl extends ServiceImpl<BizEventMapper, BizEvent> i
 		int days = ObjectUtil.defaultIfNull(bizEventQueryParam.getDays(), 30);
 		Date startTime = DateUtil.beginOfDay(DateUtil.offsetDay(new Date(), -(days - 1)));
 		Date endTime = DateUtil.endOfDay(new Date());
-		List<BizEvent> eventList = this.list(new LambdaQueryWrapper<BizEvent>()
-				.between(BizEvent::getEventTime, startTime, endTime)
-				.orderByAsc(BizEvent::getEventTime));
 
 		BizEventSummaryDTO summary = new BizEventSummaryDTO();
 
-		// 1. 事件计数
+		// 1. 事件计数与按天趋势：全部下推到 SQL 聚合
+		//    （原来是把区间内所有明细拉到内存再统计，2 万条就要 4 秒，10 万条直接拖垮页面）
 		Map<String, Long> countMap = new LinkedHashMap<>();
 		Map<String, Long> dateCountMap = new LinkedHashMap<>();
-		for (BizEvent event : eventList) {
-			countMap.merge(event.getEventCode(), 1L, Long::sum);
-			String date = event.getEventTime() == null ? "" : DateUtil.formatDate(event.getEventTime());
-			dateCountMap.merge(date + "|" + event.getEventCode(), 1L, Long::sum);
+		for (Map<String, Object> row : countByCodeAndDate(startTime, endTime)) {
+			String eventCode = row.get("eventCode") == null ? null : String.valueOf(row.get("eventCode"));
+			Object totalObj = row.get("total");
+			long total = totalObj == null ? 0L : Long.parseLong(String.valueOf(totalObj));
+			Object dateObj = row.get("eventDate");
+			String eventDate = dateObj == null ? null : String.valueOf(dateObj);
+			if (eventCode == null) {
+				continue;
+			}
+			countMap.merge(eventCode, total, Long::sum);
+			if (StrUtil.isNotBlank(eventDate)) {
+				dateCountMap.merge(eventDate + "|" + eventCode, total, Long::sum);
+			}
 		}
 		for (BizEventCodeEnum codeEnum : BizEventCodeEnum.values()) {
 			Long count = countMap.getOrDefault(codeEnum.getValue(), 0L);
@@ -146,5 +152,19 @@ public class BizEventServiceImpl extends ServiceImpl<BizEventMapper, BizEvent> i
 		}
 		summary.setTrendList(trendList);
 		return summary;
+	}
+
+	/**
+	 * 按事件码 + 日期聚合事件量（SQL 侧完成，避免把明细全部拉进内存）
+	 *
+	 * @author 会飞的猪
+	 * @date 2026/10/22 10:00
+	 **/
+	private List<Map<String, Object>> countByCodeAndDate(Date startTime, Date endTime) {
+		QueryWrapper<BizEvent> queryWrapper = new QueryWrapper<BizEvent>().checkSqlInjection();
+		queryWrapper.select("EVENT_CODE as eventCode", "DATE(EVENT_TIME) as eventDate", "count(*) as total")
+				.between("EVENT_TIME", startTime, endTime)
+				.groupBy("EVENT_CODE", "DATE(EVENT_TIME)");
+		return this.listMaps(queryWrapper);
 	}
 }

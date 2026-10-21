@@ -95,4 +95,20 @@ public interface CourseApi {
      * @date 2026/10/20 10:00
      **/
     String getScheduleCampusId(String scheduleId);
+
+    /**
+     * 批量查询排课所属校区（避免报表里逐条查询造成 N+1）
+     *
+     * @param scheduleIdList 排课id集合
+     * @return 排课id → 校区id
+     */
+    java.util.Map<String, String> listScheduleCampusMap(java.util.List<String> scheduleIdList);
+
+    /**
+     * 批量查询课包名称（避免报表里逐条查询造成 N+1）
+     *
+     * @param packageIdList 课包id集合
+     * @return 课包id → 课包名称
+     */
+    java.util.Map<String, String> listCoursePackageNameMap(java.util.List<String> packageIdList);
 }
