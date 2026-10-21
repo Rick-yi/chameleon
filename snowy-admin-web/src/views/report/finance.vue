@@ -38,37 +38,64 @@
 		</a-card>
 
 		<a-spin :spinning="loading">
-			<a-row :gutter="16" style="margin-top: 16px">
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="kpi-link" @click="activeTab = 'payment'"><a-statistic title="收款" :value="summary.paidAmount" :precision="2" prefix="¥" /></a-card>
+			<a-row :gutter="12" style="margin-top: 12px">
+				<a-col :xs="12" :sm="8" :md="8" :xl="8">
+					<div class="ent-stat kpi-link" @click="activeTab = 'payment'">
+						<div class="ent-stat-label">收款</div>
+						<div class="ent-stat-value">¥{{ money(summary.paidAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+					</div>
 				</a-col>
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="kpi-link" @click="activeTab = 'refund'"><a-statistic title="退费" :value="summary.refundAmount" :precision="2" prefix="¥" :value-style="{ color: '#fa541c' }" /></a-card>
+				<a-col :xs="12" :sm="8" :md="8" :xl="8">
+					<div class="ent-stat kpi-link" @click="activeTab = 'refund'">
+						<div class="ent-stat-label">退费</div>
+						<div class="ent-stat-value" style="color: #e5484d">¥{{ money(summary.refundAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+					</div>
 				</a-col>
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="净营收" :value="summary.netAmount" :precision="2" prefix="¥" :value-style="{ color: '#52c41a' }" /></a-card>
+				<a-col :xs="12" :sm="8" :md="8" :xl="8">
+					<div class="ent-stat">
+						<div class="ent-stat-label">净营收</div>
+						<div class="ent-stat-value" style="color: #2ba471">¥{{ money(summary.netAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+					</div>
 				</a-col>
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="kpi-link" @click="router.push('/report/academic')"><a-statistic title="课消金额" :value="summary.recognizedAmount" :precision="2" prefix="¥" /></a-card>
+				<a-col :xs="12" :sm="8" :md="8" :xl="8">
+					<div class="ent-stat kpi-link" @click="router.push('/report/academic')">
+						<div class="ent-stat-label">课消金额</div>
+						<div class="ent-stat-value">¥{{ money(summary.recognizedAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+					</div>
 				</a-col>
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="kpi-link" @click="activeTab = 'payment'"><a-statistic title="订单数" :value="summary.orderCount" suffix="笔" /></a-card>
+				<a-col :xs="12" :sm="8" :md="8" :xl="8">
+					<div class="ent-stat kpi-link" @click="activeTab = 'payment'">
+						<div class="ent-stat-label">订单数</div>
+						<div class="ent-stat-value">{{ summary.orderCount }}笔</div>
+					</div>
 				</a-col>
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="客单价" :value="summary.avgOrderAmount" :precision="2" prefix="¥" /></a-card>
+				<a-col :xs="12" :sm="8" :md="8" :xl="8">
+					<div class="ent-stat">
+						<div class="ent-stat-label">客单价</div>
+						<div class="ent-stat-value">¥{{ money(summary.avgOrderAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+					</div>
 				</a-col>
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="生均收入" :value="summary.perStudentRevenue" :precision="2" prefix="¥" /></a-card>
+				<a-col :xs="12" :sm="8" :md="8" :xl="8">
+					<div class="ent-stat">
+						<div class="ent-stat-label">生均收入</div>
+						<div class="ent-stat-value">¥{{ money(summary.perStudentRevenue).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+					</div>
 				</a-col>
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="退费率" :value="summary.refundRate" :precision="2" suffix="%" /></a-card>
+				<a-col :xs="12" :sm="8" :md="8" :xl="8">
+					<div class="ent-stat">
+						<div class="ent-stat-label">退费率</div>
+						<div class="ent-stat-value">{{ summary.refundRate }}%</div>
+					</div>
 				</a-col>
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="实收率" :value="summary.collectionRate" :precision="2" suffix="%" /></a-card>
+				<a-col :xs="12" :sm="8" :md="8" :xl="8">
+					<div class="ent-stat">
+						<div class="ent-stat-label">实收率</div>
+						<div class="ent-stat-value">{{ summary.collectionRate }}%</div>
+					</div>
 				</a-col>
 			</a-row>
 
-			<a-row :gutter="16" style="margin-top: 16px">
+			<a-row :gutter="12" style="margin-top: 12px">
 				<a-col :xs="24" :xl="16">
 					<a-card title="收支趋势" :bordered="false">
 						<div id="financeTrendChart" class="report-chart"></div>
@@ -81,7 +108,7 @@
 				</a-col>
 			</a-row>
 
-			<a-row :gutter="16" style="margin-top: 16px">
+			<a-row :gutter="12" style="margin-top: 12px">
 				<a-col :xs="24" :xl="16">
 					<a-card title="近 30 天课消趋势" :bordered="false">
 						<div id="financeAttendChart" class="report-chart"></div>
@@ -282,6 +309,7 @@
 				data: channelData,
 				angleField: 'value',
 				colorField: 'type',
+				color: ['#1668dc', '#2ba471', '#d89614', '#6f5bd8', '#2ba8b8', '#e5484d'],
 				height: 300,
 				radius: 0.8,
 				label: { type: 'outer', content: '{name} {percentage}' },

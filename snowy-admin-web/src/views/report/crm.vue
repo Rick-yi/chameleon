@@ -31,7 +31,7 @@
 
 		<a-spin :spinning="loading">
 			<a-row :gutter="16" style="margin-top: 16px">
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
+				<a-col :xs="12" :sm="8" :md="8" :xl="6">
 					<a-card :bordered="false" class="kpi-link" @click="router.push({ path: '/crm', query: { status: 'NEW' } })"><a-statistic title="线索量" :value="leadCount" suffix="条" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
@@ -162,6 +162,7 @@
 				data: sourceData,
 				angleField: 'value',
 				colorField: 'type',
+				color: ['#1668dc', '#2ba471', '#d89614', '#6f5bd8', '#2ba8b8', '#e5484d'],
 				height: 320,
 				radius: 0.8,
 				label: { type: 'outer', content: '{name} {percentage}' },

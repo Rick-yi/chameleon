@@ -9,8 +9,17 @@
 					@click="handleLink"
 				>
 					<img :alt="systemName" :src="sysBaseConfig.SNOWY_SYS_LOGO" />
-					<label style="color: var(--primary-color);font-weight: bold">{{ systemName }}</label>
+					<label>{{ systemName }}</label>
 				</a>
+			</div>
+			<div class="login_adv">
+				<h2>教培机构一体化运营平台</h2>
+				<p>招生、报名收款、排课点名、课时账务与经营分析，一套系统跑通日常经营。</p>
+				<ul>
+					<li>学员与班级、课时账户全链路打通</li>
+					<li>多租户 SaaS，套餐限额与功能开关可控</li>
+					<li>待办工作台驱动，每天打开就知道该做什么</li>
+				</ul>
 			</div>
 			<div class="version">
 				<p>{{ sysBaseConfig.SNOWY_SYS_DEFAULT_DESCRRIPTION }}</p>
@@ -37,9 +46,10 @@
 				</a-dropdown>
 			</div>
 			<div class="login-form">
-				<a-card>
+				<a-card :bordered="false">
 					<div class="login-header">
 						<h2>{{ $t('login.signInTitle') }}</h2>
+						<p class="login-header-sub">请使用机构管理员分配的账号登录</p>
 					</div>
 					<div style="margin-bottom: 16px">
 						<a-input

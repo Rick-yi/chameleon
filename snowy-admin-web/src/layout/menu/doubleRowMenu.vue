@@ -81,6 +81,7 @@
 					<Tags v-if="!isMobile && layoutTagsOpen" v-show="displayLayout" />
 					<div :class="displayLayout ? 'main-content-wrapper' : 'main-content-wrapper main-content-wrapper-max'">
 						<div id="admin-ui-main" class="admin-ui-main">
+							<page-bar />
 							<router-view v-slot="{ Component }">
 								<keep-alive :include="kStore.keepLiveRoute">
 									<component :is="Component" v-if="kStore.routeShow" :key="route.name" />
@@ -104,6 +105,7 @@
 	import { useRoute } from 'vue-router'
 	import UserBar from '@/layout/components/userbar.vue'
 	import Tags from '@/layout/components/tags.vue'
+	import PageBar from '@/layout/components/pageBar.vue'
 	import SideM from '@/layout/components/sideM.vue'
 	import NavMenu from '@/layout/components/NavMenu.vue'
 	import ModuleMenu from '@/layout/components/moduleMenu.vue'

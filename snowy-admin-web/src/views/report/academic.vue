@@ -41,7 +41,7 @@
 
 		<a-spin :spinning="loading">
 			<a-row :gutter="16" style="margin-top: 16px">
-				<a-col :xs="24" :sm="12" :md="8" :xl="4">
+				<a-col :xs="12" :sm="8" :md="8" :xl="6">
 					<a-card :bordered="false" class="kpi-link" @click="router.push('/course/attend')"><a-statistic title="到课人次" :value="attendance.attendCount" suffix="人次" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">

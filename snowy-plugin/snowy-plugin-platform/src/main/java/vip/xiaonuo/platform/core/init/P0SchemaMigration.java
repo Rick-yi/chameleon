@@ -207,6 +207,20 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
                 log.info(">>> 课务结构升级：COURSE_CLASS_ATTEND.REMARK 已添加");
             }
 
+            // 逻辑删除 + 唯一索引冲突修复（点名记录 / 班级学员）
+            if (!columnExists("COURSE_CLASS_ATTEND", "ACTIVE_FLAG")) {
+                jdbcTemplate.execute("ALTER TABLE `COURSE_CLASS_ATTEND` ADD COLUMN `ACTIVE_FLAG` tinyint GENERATED ALWAYS AS (IF(`DELETE_FLAG` = 'NOT_DELETE', 1, NULL)) STORED COMMENT '有效记录标记(仅未删除参与唯一约束)'");
+                jdbcTemplate.execute("ALTER TABLE `COURSE_CLASS_ATTEND` DROP INDEX `UK_ATTEND`");
+                jdbcTemplate.execute("ALTER TABLE `COURSE_CLASS_ATTEND` ADD UNIQUE INDEX `UK_ATTEND_ACTIVE` (`SCHEDULE_ID`, `STUDENT_ID`, `ACTIVE_FLAG`)");
+                log.info(">>> 课务结构升级：COURSE_CLASS_ATTEND 唯一索引已改为 ACTIVE_FLAG 方案");
+            }
+            if (!columnExists("COURSE_CLASS_STUDENT", "ACTIVE_FLAG")) {
+                jdbcTemplate.execute("ALTER TABLE `COURSE_CLASS_STUDENT` ADD COLUMN `ACTIVE_FLAG` tinyint GENERATED ALWAYS AS (IF(`DELETE_FLAG` = 'NOT_DELETE', 1, NULL)) STORED COMMENT '有效记录标记(仅未删除参与唯一约束)'");
+                jdbcTemplate.execute("ALTER TABLE `COURSE_CLASS_STUDENT` DROP INDEX `UK_CLASS_STUDENT`");
+                jdbcTemplate.execute("ALTER TABLE `COURSE_CLASS_STUDENT` ADD UNIQUE INDEX `UK_CLASS_STUDENT_ACTIVE` (`CLASS_ID`, `STUDENT_ID`, `ACTIVE_FLAG`)");
+                log.info(">>> 课务结构升级：COURSE_CLASS_STUDENT 唯一索引已改为 ACTIVE_FLAG 方案");
+            }
+
             // 定时任务归属租户
             if (!columnExists("DEV_JOB", "TENANT_ID")) {
                 jdbcTemplate.execute("ALTER TABLE `DEV_JOB` ADD COLUMN `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '归属租户id(平台任务为0)' AFTER `SORT_CODE`");

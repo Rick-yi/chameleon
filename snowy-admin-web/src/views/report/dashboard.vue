@@ -195,6 +195,7 @@
 				data: channelData,
 				angleField: 'value',
 				colorField: 'type',
+				color: ['#1668dc', '#2ba471', '#d89614', '#6f5bd8', '#2ba8b8', '#e5484d'],
 				height: 300,
 				radius: 0.8,
 				label: { type: 'outer', content: '{name} {percentage}' },
