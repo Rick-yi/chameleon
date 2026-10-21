@@ -59,6 +59,10 @@ public class DevJob extends CommonEntity {
     @Schema(description = "任务状态")
     private String jobStatus;
 
+    /** 归属租户id（平台任务为 0，租户任务为对应租户） */
+    @Schema(description = "归属租户id")
+    private String tenantId;
+
     /** 排序码 */
     @Schema(description = "排序码")
     private Integer sortCode;

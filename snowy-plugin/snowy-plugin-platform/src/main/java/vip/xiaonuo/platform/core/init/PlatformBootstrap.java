@@ -30,6 +30,7 @@ import vip.xiaonuo.dev.modular.config.service.DevConfigService;
 import vip.xiaonuo.dev.modular.job.entity.DevJob;
 import vip.xiaonuo.dev.modular.job.enums.DevJobCategoryEnum;
 import vip.xiaonuo.dev.modular.job.enums.DevJobStatusEnum;
+import vip.xiaonuo.dev.modular.dict.service.DevDictService;
 import vip.xiaonuo.dev.modular.job.service.DevJobService;
 import vip.xiaonuo.platform.modular.tenant.entity.Tenant;
 import vip.xiaonuo.platform.modular.tenant.enums.TenantStatusEnum;
@@ -103,6 +104,9 @@ public class PlatformBootstrap implements ApplicationListener<ApplicationStarted
     @Resource
     private DevJobService devJobService;
 
+    @Resource
+    private DevDictService devDictService;
+
     @Override
     public void onApplicationEvent(ApplicationStartedEvent event) {
         String originalTenantId = TenantContext.getTenantId();
@@ -122,6 +126,7 @@ public class PlatformBootstrap implements ApplicationListener<ApplicationStarted
             grantPlatformMenus(platformRole.getId());
             removePlatformMenusFromTenants();
             ensureJobs();
+            warmUpTenantDictCache();
             log.info(">>> 平台运营账号已就绪：租户编码 platform，账号 {}（首次登录请修改默认密码）", PLATFORM_ACCOUNT);
         } catch (Exception e) {
             log.error(">>> 平台运营账号初始化失败，请检查 chameleon_platform.sql 与 chameleon_menu.sql 是否已执行", e);
@@ -158,12 +163,27 @@ public class PlatformBootstrap implements ApplicationListener<ApplicationStarted
      * @author 会飞的猪
      * @date 2026/10/20 10:00
      **/
+    private void warmUpTenantDictCache() {
+        try {
+            for (Tenant tenant : tenantMapper.selectList(new LambdaQueryWrapper<Tenant>()
+                    .ne(Tenant::getId, PLATFORM_TENANT_ID))) {
+                TenantContext.setTenantId(tenant.getId());
+                devDictService.refreshTransCache();
+            }
+            TenantContext.setTenantId(PLATFORM_TENANT_ID);
+        } catch (Exception e) {
+            log.error(">>> 租户字典缓存预热失败", e);
+        }
+    }
+
     private void ensureJob(String name, String actionClass, String cronExpression) {
         DevJob job = devJobService.getOne(new LambdaQueryWrapper<DevJob>()
                 .eq(DevJob::getActionClass, actionClass).last("limit 1"));
         if (ObjectUtil.isEmpty(job)) {
             DevJob devJob = new DevJob();
             devJob.setName(name);
+            // 平台级任务：归属平台租户（任务内部再按租户遍历）
+            devJob.setTenantId(PLATFORM_TENANT_ID);
             devJob.setCode(RandomUtil.randomString(10));
             devJob.setCategory(DevJobCategoryEnum.BIZ.getValue());
             devJob.setActionClass(actionClass);

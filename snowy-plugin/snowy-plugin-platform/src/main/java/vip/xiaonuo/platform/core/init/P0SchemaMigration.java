@@ -177,6 +177,20 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
                 log.info(">>> 报表结构升级：FIN_DAILY_STAT.RECOGNIZED_AMOUNT 已添加");
             }
 
+            // 课包维度扣课规则
+            if (!columnExists("COURSE_PACKAGE", "LESSONS_PER_CLASS")) {
+                jdbcTemplate.execute("ALTER TABLE `COURSE_PACKAGE` ADD COLUMN `LESSONS_PER_CLASS` decimal(10,2) NULL DEFAULT NULL COMMENT '每课扣课时数(为空沿用课程配置)' AFTER `PRICE`");
+                jdbcTemplate.execute("ALTER TABLE `COURSE_PACKAGE` ADD COLUMN `LEAVE_DEDUCT` tinyint NULL DEFAULT NULL COMMENT '请假是否扣课(为空沿用课程配置)' AFTER `LESSONS_PER_CLASS`");
+                jdbcTemplate.execute("ALTER TABLE `COURSE_PACKAGE` ADD COLUMN `ABSENT_DEDUCT` tinyint NULL DEFAULT NULL COMMENT '缺勤是否扣课(为空沿用课程配置)' AFTER `LEAVE_DEDUCT`");
+                log.info(">>> 课务结构升级：COURSE_PACKAGE 扣课规则列已添加");
+            }
+            // 定时任务归属租户
+            if (!columnExists("DEV_JOB", "TENANT_ID")) {
+                jdbcTemplate.execute("ALTER TABLE `DEV_JOB` ADD COLUMN `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '归属租户id(平台任务为0)' AFTER `SORT_CODE`");
+                jdbcTemplate.update("UPDATE `DEV_JOB` SET `TENANT_ID` = '0' WHERE `TENANT_ID` IS NULL");
+                log.info(">>> 平台结构升级：DEV_JOB.TENANT_ID 已添加");
+            }
+
             if (!tableExists("FIN_EXPORT_TASK")) {
                 jdbcTemplate.execute(FIN_EXPORT_TASK_DDL);
                 log.info(">>> 报表结构升级：FIN_EXPORT_TASK 已创建");

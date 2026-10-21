@@ -111,7 +111,10 @@ public class CourseApiProvider implements CourseApi {
                 .set("lessons", coursePackage.getLessons())
                 .set("giftLessons", coursePackage.getGiftLessons())
                 .set("price", coursePackage.getPrice())
-                .set("validityDays", coursePackage.getValidityDays());
+                .set("validityDays", coursePackage.getValidityDays())
+                .set("lessonsPerClass", coursePackage.getLessonsPerClass())
+                .set("leaveDeduct", coursePackage.getLeaveDeduct())
+                .set("absentDeduct", coursePackage.getAbsentDeduct());
     }
 
     @Override

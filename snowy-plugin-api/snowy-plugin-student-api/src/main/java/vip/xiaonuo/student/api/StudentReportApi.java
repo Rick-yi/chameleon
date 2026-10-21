@@ -45,4 +45,24 @@ public interface StudentReportApi {
      * @date 2026/10/20 10:00
      **/
     List<AcademicRiskStudentDTO> riskStudents(AcademicReportQueryParam param);
+
+    /**
+     * 可见校区id（机构数据范围）
+     *
+     * @return null 表示不限制；空集合表示没有可见数据
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    List<String> visibleCampusIds();
+
+    /**
+     * 可见学员id（机构数据范围）
+     *
+     * @return null 表示不限制；空集合表示没有可见数据
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    List<String> visibleStudentIdList();
 }

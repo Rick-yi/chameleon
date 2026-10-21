@@ -26,6 +26,8 @@ import vip.xiaonuo.student.modular.studentlessonflow.param.StudentLessonFlowPage
 import vip.xiaonuo.student.modular.studentlessonflow.service.StudentLessonFlowService;
 
 import java.util.List;
+import vip.xiaonuo.student.core.service.StudentDataScopeService;
+import jakarta.annotation.Resource;
 
 /**
  * 课时流水Service接口实现类
@@ -36,6 +38,9 @@ import java.util.List;
 @Service
 public class StudentLessonFlowServiceImpl extends ServiceImpl<StudentLessonFlowMapper, StudentLessonFlow> implements StudentLessonFlowService {
 
+    @Resource
+    private StudentDataScopeService studentDataScopeService;
+
     @Override
     public Page<StudentLessonFlow> page(StudentLessonFlowPageParam studentLessonFlowPageParam) {
         QueryWrapper<StudentLessonFlow> queryWrapper = new QueryWrapper<StudentLessonFlow>().checkSqlInjection();
@@ -43,6 +48,15 @@ public class StudentLessonFlowServiceImpl extends ServiceImpl<StudentLessonFlowM
                 .eq(ObjectUtil.isNotEmpty(studentLessonFlowPageParam.getStudentId()), StudentLessonFlow::getStudentId, studentLessonFlowPageParam.getStudentId())
                 .eq(ObjectUtil.isNotEmpty(studentLessonFlowPageParam.getCourseId()), StudentLessonFlow::getCourseId, studentLessonFlowPageParam.getCourseId())
                 .orderByDesc(StudentLessonFlow::getCreateTime);
+        // 数据范围：仅可见校区的学员流水
+        List<String> visibleStudentIds = studentDataScopeService.visibleStudentIdList();
+        if (visibleStudentIds != null) {
+            if (visibleStudentIds.isEmpty()) {
+                queryWrapper.lambda().eq(StudentLessonFlow::getId, StudentDataScopeService.NO_DATA_ID);
+            } else {
+                queryWrapper.lambda().in(StudentLessonFlow::getStudentId, visibleStudentIds);
+            }
+        }
         return this.page(CommonPageRequest.defaultPage(), queryWrapper);
     }
 

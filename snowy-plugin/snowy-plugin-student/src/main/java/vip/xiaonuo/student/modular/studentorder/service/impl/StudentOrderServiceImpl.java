@@ -42,6 +42,7 @@ import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPayCallbackPar
 import vip.xiaonuo.student.modular.studentorder.service.StudentOrderService;
 
 import java.util.List;
+import vip.xiaonuo.student.core.service.StudentDataScopeService;
 
 /**
  * 报名订单Service接口实现类
@@ -55,6 +56,9 @@ import java.util.List;
  **/
 @Service
 public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, StudentOrder> implements StudentOrderService {
+
+    @Resource
+    private StudentDataScopeService studentDataScopeService;
 
     @Resource
     private StudentService studentService;
@@ -71,6 +75,15 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
         queryWrapper.lambda()
                 .eq(ObjectUtil.isNotEmpty(studentOrderPageParam.getStudentId()), StudentOrder::getStudentId, studentOrderPageParam.getStudentId())
                 .eq(ObjectUtil.isNotEmpty(studentOrderPageParam.getStatus()), StudentOrder::getStatus, studentOrderPageParam.getStatus());
+        // 数据范围：仅可见校区的订单
+        List<String> visibleCampusIds = studentDataScopeService.visibleCampusIds();
+        if (visibleCampusIds != null) {
+            if (visibleCampusIds.isEmpty()) {
+                queryWrapper.lambda().eq(StudentOrder::getId, StudentDataScopeService.NO_DATA_ID);
+            } else {
+                queryWrapper.lambda().in(StudentOrder::getCampusId, visibleCampusIds);
+            }
+        }
         if (ObjectUtil.isAllNotEmpty(studentOrderPageParam.getSortField(), studentOrderPageParam.getSortOrder())) {
             CommonSortOrderEnum.validate(studentOrderPageParam.getSortOrder());
             queryWrapper.orderBy(true, studentOrderPageParam.getSortOrder().equals(CommonSortOrderEnum.ASC.getValue()),

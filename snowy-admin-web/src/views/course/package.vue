@@ -98,6 +98,21 @@
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
+					<a-form-item label="每课扣课时数" name="lessonsPerClass">
+						<a-input-number v-model:value="formData.lessonsPerClass" :min="0.5" :step="0.5" placeholder="沿用课程配置" style="width: 100%" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="请假是否扣课" name="leaveDeduct">
+						<a-switch v-model:value="formData.leaveDeduct" checked-children="扣课" un-checked-children="不扣" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="缺勤是否扣课" name="absentDeduct">
+						<a-switch v-model:value="formData.absentDeduct" checked-children="扣课" un-checked-children="不扣" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
 					<a-form-item label="状态" name="status">
 						<a-radio-group v-model:value="formData.status" :options="statusOptions" />
 					</a-form-item>
@@ -150,7 +165,11 @@
 		open.value = true
 	}
 	const onOpenEdit = (record) => {
-		formData.value = { ...record }
+		formData.value = {
+			...record,
+			leaveDeduct: record.leaveDeduct === true,
+			absentDeduct: record.absentDeduct === null || record.absentDeduct === undefined ? true : record.absentDeduct
+		}
 		open.value = true
 	}
 	const onSubmit = () => {

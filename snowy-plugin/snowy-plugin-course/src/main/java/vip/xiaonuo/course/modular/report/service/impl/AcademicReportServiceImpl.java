@@ -14,6 +14,7 @@ package vip.xiaonuo.course.modular.report.service.impl;
 
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.date.DateUtil;
+import vip.xiaonuo.auth.core.util.StpDataScopeUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
@@ -369,6 +370,11 @@ public class AcademicReportServiceImpl implements AcademicReportService {
      **/
     private List<CourseClass> queryClassList(AcademicReportQueryParam param) {
         String scope = teacherScope();
+        List<String> visibleCampusIds = StpDataScopeUtil.visibleOrgIds();
+        if (visibleCampusIds != null && visibleCampusIds.isEmpty()) {
+            // 数据范围内没有可见校区
+            return new ArrayList<>();
+        }
         return courseClassMapper.selectList(new LambdaQueryWrapper<CourseClass>()
                 .eq(StrUtil.isNotBlank(param.getCampusId()), CourseClass::getCampusId, param.getCampusId())
                 .eq(StrUtil.isNotBlank(param.getCourseId()), CourseClass::getCourseId, param.getCourseId())
@@ -376,6 +382,8 @@ public class AcademicReportServiceImpl implements AcademicReportService {
                 .eq(StrUtil.isNotBlank(param.getTeacherId()), CourseClass::getTeacherId, param.getTeacherId())
                 // 教师维度数据范围：非管理角色只能看自己带的班级
                 .eq(StrUtil.isNotBlank(scope), CourseClass::getTeacherId, scope)
+                // 机构数据范围：仅可见校区的班级
+                .in(visibleCampusIds != null, CourseClass::getCampusId, visibleCampusIds)
                 .orderByAsc(CourseClass::getName));
     }
 
@@ -413,26 +421,47 @@ public class AcademicReportServiceImpl implements AcademicReportService {
     }
 
     /**
-     * 给查询参数注入教师维度学员范围
+     * 给查询参数注入数据范围（教师维度 ∩ 机构数据范围）
      *
      * @author 会飞的猪
      * @date 2026/10/21 10:00
      **/
     private void applyTeacherScope(AcademicReportQueryParam param) {
+        List<String> studentIdList = null;
         String scope = teacherScope();
-        if (StrUtil.isBlank(scope)) {
-            return;
+        if (StrUtil.isNotBlank(scope)) {
+            studentIdList = teacherStudentIdList(scope);
         }
+        List<String> campusStudentIdList = studentReportApi.visibleStudentIdList();
+        if (campusStudentIdList != null) {
+            if (studentIdList == null) {
+                studentIdList = campusStudentIdList;
+            } else {
+                studentIdList = studentIdList.stream().filter(campusStudentIdList::contains)
+                        .collect(Collectors.toList());
+            }
+        }
+        if (studentIdList != null) {
+            param.setStudentIds(studentIdList);
+        }
+    }
+
+    /**
+     * 教师所带班级的学员id
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private List<String> teacherStudentIdList(String teacherId) {
         List<String> classIdList = courseClassMapper.selectList(new LambdaQueryWrapper<CourseClass>()
-                        .eq(CourseClass::getTeacherId, scope))
+                        .eq(CourseClass::getTeacherId, teacherId))
                 .stream().map(CourseClass::getId).collect(Collectors.toList());
         if (classIdList.isEmpty()) {
-            param.setStudentIds(List.of());
-            return;
+            return new ArrayList<>();
         }
-        param.setStudentIds(courseClassStudentMapper.selectList(new LambdaQueryWrapper<CourseClassStudent>()
+        return courseClassStudentMapper.selectList(new LambdaQueryWrapper<CourseClassStudent>()
                         .in(CourseClassStudent::getClassId, classIdList))
-                .stream().map(CourseClassStudent::getStudentId).distinct().collect(Collectors.toList()));
+                .stream().map(CourseClassStudent::getStudentId).distinct().collect(Collectors.toList());
     }
 
     /**

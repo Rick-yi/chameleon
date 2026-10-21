@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.course.modular.courseclass.entity.CourseClass;
+import vip.xiaonuo.course.modular.courseclass.mapper.CourseClassMapper;
 import vip.xiaonuo.course.modular.courseclass.service.CourseClassService;
 import vip.xiaonuo.course.modular.courseclassattend.entity.CourseClassAttend;
 import vip.xiaonuo.course.modular.courseclassattend.mapper.CourseClassAttendMapper;
@@ -56,6 +57,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import vip.xiaonuo.auth.core.util.StpDataScopeUtil;
 
 /**
  * 排课Service接口实现类
@@ -68,6 +70,9 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
 
     @Resource
     private CourseClassService courseClassService;
+
+    @Resource
+    private CourseClassMapper courseClassMapper;
 
     @Resource
     private CourseScheduleChangeService courseScheduleChangeService;
@@ -84,6 +89,8 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
     @Override
     public Page<CourseSchedule> page(CourseSchedulePageParam courseSchedulePageParam) {
         QueryWrapper<CourseSchedule> queryWrapper = new QueryWrapper<CourseSchedule>().checkSqlInjection();
+        // 数据范围：仅可见校区的排课
+        List<String> visibleClassIdList = visibleClassIdList();
         // GET 查询参数为字符串日期，解析后再比较
         Date startDate = ObjectUtil.isNotEmpty(courseSchedulePageParam.getStartDate())
                 ? cn.hutool.core.date.DateUtil.parse(courseSchedulePageParam.getStartDate()) : null;
@@ -91,11 +98,34 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                 ? cn.hutool.core.date.DateUtil.parse(courseSchedulePageParam.getEndDate()) : null;
         queryWrapper.lambda()
                 .eq(ObjectUtil.isNotEmpty(courseSchedulePageParam.getClassId()), CourseSchedule::getClassId, courseSchedulePageParam.getClassId())
+                .in(ObjectUtil.isNotEmpty(visibleClassIdList), CourseSchedule::getClassId, visibleClassIdList)
                 .ge(startDate != null, CourseSchedule::getScheduleDate, startDate)
                 .le(endDate != null, CourseSchedule::getScheduleDate, endDate)
                 .orderByAsc(CourseSchedule::getScheduleDate)
                 .orderByAsc(CourseSchedule::getStartTime);
         return this.page(CommonPageRequest.defaultPage(), queryWrapper);
+    }
+
+    /**
+     * 可见校区的班级id（机构数据范围）
+     *
+     * @return null 表示不限制；否则为可见班级id集合
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private List<String> visibleClassIdList() {
+        List<String> visibleCampusIds = StpDataScopeUtil.visibleOrgIds();
+        if (visibleCampusIds == null) {
+            return null;
+        }
+        if (visibleCampusIds.isEmpty()) {
+            return List.of("__NO_DATA__");
+        }
+        return courseClassMapper.selectList(new LambdaQueryWrapper<CourseClass>()
+                        .select(CourseClass::getId)
+                        .in(CourseClass::getCampusId, visibleCampusIds))
+                .stream().map(CourseClass::getId).collect(java.util.stream.Collectors.toList());
     }
 
     @Transactional(rollbackFor = Exception.class)

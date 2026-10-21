@@ -71,6 +71,9 @@ public class StudentReportApiProvider implements StudentReportApi {
     private StudentMapper studentMapper;
 
     @Resource
+    private vip.xiaonuo.student.core.service.StudentDataScopeService studentDataScopeService;
+
+    @Resource
     private CourseApi courseApi;
 
     @Override
@@ -327,6 +330,16 @@ public class StudentReportApiProvider implements StudentReportApi {
         }
         String courseName = courseApi.getCourseName(courseId);
         return StrUtil.blankToDefault(courseName, courseId);
+    }
+
+    @Override
+    public List<String> visibleCampusIds() {
+        return studentDataScopeService.visibleCampusIds();
+    }
+
+    @Override
+    public List<String> visibleStudentIdList() {
+        return studentDataScopeService.visibleStudentIdList();
     }
 
     private List<AcademicLessonProgressDTO> limitProgress(List<AcademicLessonProgressDTO> list, Integer limit) {

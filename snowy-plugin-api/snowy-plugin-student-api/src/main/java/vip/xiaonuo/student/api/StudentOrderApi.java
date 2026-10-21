@@ -10,25 +10,29 @@
  * 5.不可二次分发开源参与同类竞品，如有想法可联系团队xiaonuobase@qq.com商议合作。
  * 6.若您的项目无法满足以上几点，需要更多功能代码，获取Snowy商业授权许可，请在官网购买授权，地址为 https://www.xiaonuo.vip
  */
-package vip.xiaonuo;
+package vip.xiaonuo.student.api;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.SpringRunner;
+import vip.xiaonuo.student.api.dto.StudentOrderRefDTO;
+
+import java.util.List;
 
 /**
- * 主测试类
+ * 订单域查询API（跨插件调用）
+ * <p>
+ * 供课务域解析「学员所购课包」，用于按课包维度决定扣课规则。
+ * </p>
  *
- * @author xuyuxiang
- * @date 2022/9/17 17:09
- */
-@RunWith(SpringRunner.class)
-@SpringBootTest(classes = Application.class)
-public class MainTest {
+ * @author 会飞的猪
+ * @date 2026/10/21 10:00
+ **/
+public interface StudentOrderApi {
 
-    @Test
-    public void test() {
-
-    }
+    /**
+     * 查询学员的已支付订单引用（按下单时间倒序）
+     *
+     * @param studentIdList 学员id集合
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    List<StudentOrderRefDTO> listPaidOrderRefs(List<String> studentIdList);
 }

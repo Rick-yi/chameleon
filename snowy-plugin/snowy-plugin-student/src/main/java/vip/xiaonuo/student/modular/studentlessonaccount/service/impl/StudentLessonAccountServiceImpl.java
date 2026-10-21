@@ -48,6 +48,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
+import vip.xiaonuo.student.core.service.StudentDataScopeService;
 
 /**
  * 课时账户Service接口实现类
@@ -61,6 +62,9 @@ import java.util.List;
  **/
 @Service
 public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAccountMapper, StudentLessonAccount> implements StudentLessonAccountService {
+
+    @Resource
+    private StudentDataScopeService studentDataScopeService;
 
     @Resource
     private StudentLessonFlowService studentLessonFlowService;
@@ -84,6 +88,15 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
                 .eq(ObjectUtil.isNotEmpty(studentLessonAccountPageParam.getStudentId()), StudentLessonAccount::getStudentId, studentLessonAccountPageParam.getStudentId())
                 .eq(ObjectUtil.isNotEmpty(studentLessonAccountPageParam.getCourseId()), StudentLessonAccount::getCourseId, studentLessonAccountPageParam.getCourseId())
                 .orderByDesc(StudentLessonAccount::getUpdateTime);
+        // 数据范围：仅可见校区的学员账户
+        List<String> visibleStudentIds = studentDataScopeService.visibleStudentIdList();
+        if (visibleStudentIds != null) {
+            if (visibleStudentIds.isEmpty()) {
+                queryWrapper.lambda().eq(StudentLessonAccount::getId, StudentDataScopeService.NO_DATA_ID);
+            } else {
+                queryWrapper.lambda().in(StudentLessonAccount::getStudentId, visibleStudentIds);
+            }
+        }
         return this.page(CommonPageRequest.defaultPage(), queryWrapper);
     }
 

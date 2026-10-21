@@ -25,6 +25,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import vip.xiaonuo.auth.core.util.StpDataScopeUtil;
 import vip.xiaonuo.common.cache.CommonCacheOperator;
 import vip.xiaonuo.common.context.TenantContext;
 import vip.xiaonuo.common.exception.CommonException;
@@ -323,6 +324,10 @@ public class FinanceServiceImpl implements FinanceService {
         if ("REAL".equalsIgnoreCase(param.getSource())) {
             return null;
         }
+        // 日汇总是租户级数据，存在机构数据范围限制时必须走实时查询
+        if (StpDataScopeUtil.visibleOrgIds() != null) {
+            return null;
+        }
         String startDate = fullDayDate(param.getStartTime(), false);
         String endDate = fullDayDate(param.getEndTime(), true);
         if (startDate == null || endDate == null) {
@@ -406,6 +411,10 @@ public class FinanceServiceImpl implements FinanceService {
      **/
     private List<FinanceTrendDTO> fastTrend(FinanceQueryParam param) {
         if ("REAL".equalsIgnoreCase(param.getSource())) {
+            return null;
+        }
+        // 日汇总是租户级数据，存在机构数据范围限制时必须走实时查询
+        if (StpDataScopeUtil.visibleOrgIds() != null) {
             return null;
         }
         String startDate = fullDayDate(param.getStartTime(), false);

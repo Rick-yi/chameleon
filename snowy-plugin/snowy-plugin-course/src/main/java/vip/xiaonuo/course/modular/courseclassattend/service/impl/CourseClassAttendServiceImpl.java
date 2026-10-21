@@ -15,6 +15,8 @@ package vip.xiaonuo.course.modular.courseclassattend.service.impl;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -24,6 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
+import vip.xiaonuo.course.api.CourseApi;
+import vip.xiaonuo.course.core.util.AttendDeductRule;
 import vip.xiaonuo.course.modular.course.entity.Course;
 import vip.xiaonuo.course.modular.course.service.CourseService;
 import vip.xiaonuo.course.modular.courseclass.entity.CourseClass;
@@ -41,11 +45,15 @@ import vip.xiaonuo.course.modular.courseschedule.enums.CourseScheduleStatusEnum;
 import vip.xiaonuo.course.modular.courseschedule.service.CourseScheduleService;
 import vip.xiaonuo.student.api.StudentLessonApi;
 import vip.xiaonuo.student.api.StudentNotifyApi;
+import vip.xiaonuo.student.api.StudentOrderApi;
+import vip.xiaonuo.student.api.dto.StudentOrderRefDTO;
 import vip.xiaonuo.student.api.pojo.LessonDeductParam;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -64,6 +72,12 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
 
     @Resource
     private CourseScheduleService courseScheduleService;
+
+    @Resource
+    private StudentOrderApi studentOrderApi;
+
+    @Resource
+    private CourseApi courseApi;
 
     @Resource
     private CourseClassService courseClassService;
@@ -96,15 +110,21 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
         // 每课扣课时数（课程配置，默认1）
         CourseClass courseClass = courseClassService.queryEntity(schedule.getClassId());
         Course course = courseService.queryEntity(courseClass.getCourseId());
-        BigDecimal lessonsPerClass = ObjectUtil.isNotEmpty(course.getLessonsPerClass())
-                ? course.getLessonsPerClass() : BigDecimal.ONE;
         // 扣课规则（课程配置）：到课必扣；缺勤、请假是否扣课可配置
         boolean absentDeduct = course.getAbsentDeduct() == null || course.getAbsentDeduct();
         boolean leaveDeduct = Boolean.TRUE.equals(course.getLeaveDeduct());
+        BigDecimal lessonsPerClass = ObjectUtil.isNotEmpty(course.getLessonsPerClass())
+                ? course.getLessonsPerClass() : BigDecimal.ONE;
         String loginUserId = StpUtil.getLoginIdAsString();
         // 已点名学员（唯一索引幂等，跳过重复）
         List<String> itemStudentIdList = courseClassAttendConfirmParam.getAttendList().stream()
                 .map(CourseClassAttendItemParam::getStudentId).collect(Collectors.toList());
+        // 学员所购课包（课包维度的扣课规则优先于课程配置）
+        Map<String, String> studentPackageMap = new HashMap<>();
+        for (StudentOrderRefDTO orderRef : studentOrderApi.listPaidOrderRefs(itemStudentIdList)) {
+            studentPackageMap.putIfAbsent(orderRef.getStudentId() + "|" + orderRef.getCourseId(),
+                    orderRef.getCoursePackageId());
+        }
         List<String> existStudentIdList = this.list(new LambdaQueryWrapper<CourseClassAttend>()
                         .eq(CourseClassAttend::getScheduleId, schedule.getId())
                         .in(CourseClassAttend::getStudentId, itemStudentIdList))
@@ -115,27 +135,46 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
             if (existStudentIdList.contains(item.getStudentId())) {
                 continue;
             }
+            // 生效的扣课规则：课包优先，课程兜底
+            BigDecimal itemLessonsPerClass = lessonsPerClass;
+            boolean itemLeaveDeduct = leaveDeduct;
+            boolean itemAbsentDeduct = absentDeduct;
+            String packageId = studentPackageMap.get(item.getStudentId() + "|" + course.getId());
+            if (StrUtil.isNotBlank(packageId)) {
+                JSONObject packageInfo = courseApi.getCoursePackageInfo(packageId);
+                if (packageInfo != null) {
+                    BigDecimal packageLessons = packageInfo.getBigDecimal("lessonsPerClass");
+                    if (packageLessons != null) {
+                        itemLessonsPerClass = packageLessons;
+                    }
+                    Object leaveValue = packageInfo.get("leaveDeduct");
+                    if (leaveValue != null) {
+                        itemLeaveDeduct = Boolean.valueOf(leaveValue.toString());
+                    }
+                    Object absentValue = packageInfo.get("absentDeduct");
+                    if (absentValue != null) {
+                        itemAbsentDeduct = Boolean.valueOf(absentValue.toString());
+                    }
+                }
+            }
             CourseClassAttend attend = new CourseClassAttend();
             attend.setScheduleId(schedule.getId());
             attend.setStudentId(item.getStudentId());
             attend.setAttendStatus(item.getAttendStatus());
             attend.setAttendUser(loginUserId);
             attend.setAttendTime(new Date());
-            // 按课程配置决定是否扣课（到课必扣，缺勤/请假可配置）
-            boolean shouldDeduct = CourseAttendStatusEnum.ATTEND.getValue().equals(item.getAttendStatus())
-                    || (CourseAttendStatusEnum.ABSENT.getValue().equals(item.getAttendStatus()) && absentDeduct)
-                    || (CourseAttendStatusEnum.LEAVE.getValue().equals(item.getAttendStatus()) && leaveDeduct);
-            if (shouldDeduct) {
-                attend.setLessonsDeducted(lessonsPerClass);
+            // 按生效规则计算应扣课时（课包优先、课程兜底）
+            BigDecimal deductLessons = AttendDeductRule.deductLessons(itemLessonsPerClass, itemLeaveDeduct,
+                    itemAbsentDeduct, item.getAttendStatus());
+            attend.setLessonsDeducted(deductLessons);
+            if (deductLessons.compareTo(BigDecimal.ZERO) > 0) {
                 LessonDeductParam deductParam = new LessonDeductParam();
                 deductParam.setStudentId(item.getStudentId());
                 deductParam.setCourseId(course.getId());
                 deductParam.setScheduleId(schedule.getId());
-                deductParam.setLessons(lessonsPerClass);
+                deductParam.setLessons(deductLessons);
                 deductParam.setAttendStatus(item.getAttendStatus());
                 deductParamList.add(deductParam);
-            } else {
-                attend.setLessonsDeducted(BigDecimal.ZERO);
             }
             attendList.add(attend);
         }

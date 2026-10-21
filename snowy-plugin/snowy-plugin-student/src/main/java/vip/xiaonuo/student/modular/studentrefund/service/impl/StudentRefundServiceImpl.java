@@ -51,6 +51,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Date;
 import java.util.List;
+import vip.xiaonuo.student.core.service.StudentDataScopeService;
 
 /**
  * 退费单Service接口实现类
@@ -64,6 +65,9 @@ import java.util.List;
  **/
 @Service
 public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, StudentRefund> implements StudentRefundService {
+
+    @Resource
+    private StudentDataScopeService studentDataScopeService;
 
     @Resource
     private StudentOrderService studentOrderService;
@@ -89,6 +93,15 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
         queryWrapper.lambda()
                 .eq(ObjectUtil.isNotEmpty(studentRefundPageParam.getStudentId()), StudentRefund::getStudentId, studentRefundPageParam.getStudentId())
                 .eq(ObjectUtil.isNotEmpty(studentRefundPageParam.getStatus()), StudentRefund::getStatus, studentRefundPageParam.getStatus());
+        // 数据范围：仅可见校区的退费单
+        List<String> visibleOrderIds = studentDataScopeService.visibleOrderIdList();
+        if (visibleOrderIds != null) {
+            if (visibleOrderIds.isEmpty()) {
+                queryWrapper.lambda().eq(StudentRefund::getId, StudentDataScopeService.NO_DATA_ID);
+            } else {
+                queryWrapper.lambda().in(StudentRefund::getOrderId, visibleOrderIds);
+            }
+        }
         if (ObjectUtil.isAllNotEmpty(studentRefundPageParam.getSortField(), studentRefundPageParam.getSortOrder())) {
             CommonSortOrderEnum.validate(studentRefundPageParam.getSortOrder());
             queryWrapper.orderBy(true, studentRefundPageParam.getSortOrder().equals(CommonSortOrderEnum.ASC.getValue()),

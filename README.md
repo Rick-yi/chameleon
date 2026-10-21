@@ -125,9 +125,10 @@ npm run dev
 | `snowy-admin-web/package.json` | 包名 `chameleon-admin-web`、描述 |
 | `snowy-web-app/.../application.properties` | `spring.application.name=chameleon`；JDBC 库名 `snowy`→`chameleon` |
 | `snowy-web-app/.../application-docker.yml` | `MYSQL_DB` 默认值 → `chameleon` |
-| `snowy-web-app/.../docker-compose.yml` | 服务/容器/网络名、库名 → `chameleon-*`（**注意：上游未提供根目录 Dockerfile，该文件的 build 段当前不可用**） |
+| `snowy-web-app/.../docker-compose.yml` | 服务/容器/网络名、库名 → `chameleon-*`（根目录已提供多阶段 `Dockerfile`，build 段可用） |
 | `snowy-web-app/.../_sql/snowy_mysql.sql` | `DEV_CONFIG` 中系统名称/版权/描述/默认密码的种子值；`SYS_USER` 中两个种子账号的密码哈希（SM3） |
-| `docs/*` | 新增环境准备、启动验证、改造说明三份文档 |
+| `docs/*` | 新增环境准备、启动验证、改造说明、方案与部署文档 |
+| `Dockerfile` | 新增多阶段构建（maven 编译 + JRE 运行），供 compose 部署 |
 
 **刻意保留、未改名的内容**
 
@@ -167,6 +168,7 @@ npm run dev
 - [docs/05-核心业务逻辑细化.md](docs/05-核心业务逻辑细化.md) —— 课时账务、排课、退费、续费预警的业务规则
 - [docs/06-P0完成说明.md](docs/06-P0完成说明.md) —— 多租户开通闭环、平台鉴权、退费修正、定时任务与 v1 支付范围
 - [docs/07-报表与看板规划.md](docs/07-报表与看板规划.md) —— 财务/教务/招生/平台看板的指标口径、页面、接口与里程碑
+- [docs/08-部署与运维.md](docs/08-部署与运维.md) —— 部署方式、数据库初始化顺序、环境变量、备份恢复与巡检
 
 ## 十、版权与出处
 

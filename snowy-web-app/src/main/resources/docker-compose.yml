@@ -1,4 +1,6 @@
-# 注意：上游 Snowy 仓库未提供根目录 Dockerfile，因此本文件的 build 段目前不可用。
+# chameleon 编排：后端 + MySQL + Redis
+# 使用：docker compose -f snowy-web-app/src/main/resources/docker-compose.yml up -d --build
+# 说明：根目录已提供多阶段 Dockerfile（maven 构建 + JRE 运行），build 段可直接使用。
 version: '3.8'
 
 services:
@@ -21,6 +23,9 @@ services:
       - REDIS_PORT=6379
       - REDIS_PWD=
       - REDIS_DB=1
+    volumes:
+      - app-data:/app/data
+      - app-logs:/app/logs
     depends_on:
       - chameleon-mysql
       - chameleon-redis
@@ -59,3 +64,5 @@ networks:
 volumes:
   mysql-data:
   redis-data:
+  app-data:
+  app-logs:

@@ -56,6 +56,18 @@ public class CoursePackageEditParam {
     @Schema(description = "价格(元)")
     private BigDecimal price;
 
+    /** 每课扣课时数（为空表示沿用课程配置） */
+    @Schema(description = "每课扣课时数")
+    private BigDecimal lessonsPerClass;
+
+    /** 请假是否扣课（为空表示沿用课程配置） */
+    @Schema(description = "请假是否扣课")
+    private Boolean leaveDeduct;
+
+    /** 缺勤是否扣课（为空表示沿用课程配置） */
+    @Schema(description = "缺勤是否扣课")
+    private Boolean absentDeduct;
+
     /** 有效期(天) */
     @Schema(description = "有效期(天)")
     private Integer validityDays;

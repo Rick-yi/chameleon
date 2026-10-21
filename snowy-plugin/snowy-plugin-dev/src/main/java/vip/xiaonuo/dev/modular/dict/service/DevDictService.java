@@ -30,6 +30,14 @@ import java.util.List;
 public interface DevDictService extends IService<DevDict> {
 
     /**
+     * 刷新当前租户的字典缓存（含租户维度缓存）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    void refreshTransCache();
+
+    /**
      * 获取字典分页
      *
      * @author xuyuxiang

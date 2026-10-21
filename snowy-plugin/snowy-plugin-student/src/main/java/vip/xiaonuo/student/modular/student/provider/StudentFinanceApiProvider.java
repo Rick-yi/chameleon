@@ -39,6 +39,7 @@ import vip.xiaonuo.student.api.dto.FinanceSummaryDTO;
 import vip.xiaonuo.student.api.dto.FinanceTrendDTO;
 import vip.xiaonuo.student.api.dto.ReportOptionDTO;
 import vip.xiaonuo.student.api.param.FinanceQueryParam;
+import vip.xiaonuo.student.core.service.StudentDataScopeService;
 import vip.xiaonuo.student.modular.student.entity.Student;
 import vip.xiaonuo.student.modular.student.enums.StudentStatusEnum;
 import vip.xiaonuo.student.modular.student.mapper.StudentMapper;
@@ -103,6 +104,9 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
 
     @Resource
     private StudentLessonAccountMapper studentLessonAccountMapper;
+
+    @Resource
+    private StudentDataScopeService studentDataScopeService;
 
     @Resource
     private CourseApi courseApi;
@@ -370,6 +374,7 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
                 .le(StudentOrder::getCreateTime, end)
                 .eq(StrUtil.isNotBlank(financeQueryParam.getCampusId()), StudentOrder::getCampusId, financeQueryParam.getCampusId())
                 .eq(StrUtil.isNotBlank(financeQueryParam.getCourseId()), StudentOrder::getCourseId, financeQueryParam.getCourseId());
+        applyCampusScope(unpaidWrapper, StudentOrder::getCampusId, StudentOrder::getId);
         List<StudentOrder> unpaidList = studentOrderMapper.selectList(unpaidWrapper);
         summary.setUnpaidOrderCount((long) unpaidList.size());
         summary.setUnpaidAmount(unpaidList.stream().map(item -> nvl(item.getAmount()))
@@ -379,11 +384,13 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
                 .ge(Student::getCreateTime, start)
                 .le(Student::getCreateTime, end)
                 .eq(StrUtil.isNotBlank(financeQueryParam.getCampusId()), Student::getCampusId, financeQueryParam.getCampusId());
+        applyCampusScope(newStudentWrapper, Student::getCampusId, Student::getId);
         summary.setNewStudentCount(studentMapper.selectCount(newStudentWrapper));
 
         LambdaQueryWrapper<Student> studyingWrapper = new LambdaQueryWrapper<Student>()
                 .eq(Student::getStatus, StudentStatusEnum.STUDYING.getValue())
                 .eq(StrUtil.isNotBlank(financeQueryParam.getCampusId()), Student::getCampusId, financeQueryParam.getCampusId());
+        applyCampusScope(studyingWrapper, Student::getCampusId, Student::getId);
         summary.setStudyingStudentCount(studentMapper.selectCount(studyingWrapper));
 
         List<StudentLessonFlow> flowList = studentLessonFlowMapper.selectList(flowWrapper(financeQueryParam, start, end));
@@ -661,6 +668,14 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
                 .le(StudentLessonFlow::getCreateTime, end)
                 .eq(StrUtil.isNotBlank(financeQueryParam.getCourseId()), StudentLessonFlow::getCourseId,
                         financeQueryParam.getCourseId());
+        List<String> scopeStudentIdList = studentDataScopeService.visibleStudentIdList();
+        if (scopeStudentIdList != null) {
+            if (scopeStudentIdList.isEmpty()) {
+                wrapper.apply("1 = 0");
+            } else {
+                wrapper.in(StudentLessonFlow::getStudentId, scopeStudentIdList);
+            }
+        }
         List<StudentLessonFlow> flowList = studentLessonFlowMapper.selectList(wrapper);
         if (ObjectUtil.isEmpty(flowList)) {
             return new ArrayList<>();
@@ -761,6 +776,12 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
                                 LessonFlowTypeEnum.RESTORE.getValue())));
         List<StudentLessonAccount> accountList = studentLessonAccountMapper.selectList(
                 new LambdaQueryWrapper<StudentLessonAccount>());
+        List<String> scopeStudentIdList = studentDataScopeService.visibleStudentIdList();
+        if (scopeStudentIdList != null) {
+            accountList = accountList.stream()
+                    .filter(account -> scopeStudentIdList.contains(account.getStudentId()))
+                    .collect(Collectors.toList());
+        }
         BigDecimal accountUsed = accountList.stream().map(item -> nvl(item.getUsedLessons()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -897,7 +918,7 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
      * @date 2026/10/20 10:00
      **/
     private LambdaQueryWrapper<StudentOrder> paidOrderWrapper(FinanceQueryParam param, Date start, Date end) {
-        return new LambdaQueryWrapper<StudentOrder>()
+        LambdaQueryWrapper<StudentOrder> wrapper = new LambdaQueryWrapper<StudentOrder>()
                 .in(StudentOrder::getStatus, StudentOrderStatusEnum.PAID.getValue(),
                         StudentOrderStatusEnum.REFUNDED.getValue())
                 .apply(start != null, "COALESCE(PAY_TIME, CREATE_TIME) >= {0}", start)
@@ -905,6 +926,28 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
                 .eq(StrUtil.isNotBlank(param.getCampusId()), StudentOrder::getCampusId, param.getCampusId())
                 .eq(StrUtil.isNotBlank(param.getCourseId()), StudentOrder::getCourseId, param.getCourseId())
                 .eq(StrUtil.isNotBlank(param.getChannel()), StudentOrder::getPayChannel, param.getChannel());
+        applyCampusScope(wrapper, StudentOrder::getCampusId, StudentOrder::getId);
+        return wrapper;
+    }
+
+    /**
+     * 应用校区数据范围
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private <T> void applyCampusScope(LambdaQueryWrapper<T> wrapper,
+                                      com.baomidou.mybatisplus.core.toolkit.support.SFunction<T, ?> campusColumn,
+                                      com.baomidou.mybatisplus.core.toolkit.support.SFunction<T, ?> idColumn) {
+        List<String> visibleCampusIds = studentDataScopeService.visibleCampusIds();
+        if (visibleCampusIds == null) {
+            return;
+        }
+        if (visibleCampusIds.isEmpty()) {
+            wrapper.apply("1 = 0");
+            return;
+        }
+        wrapper.in(campusColumn, visibleCampusIds);
     }
 
     /**
@@ -919,6 +962,14 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
                 .apply(start != null, "COALESCE(REFUND_TIME, APPROVE_TIME, UPDATE_TIME, CREATE_TIME) >= {0}", start)
                 .apply(end != null, "COALESCE(REFUND_TIME, APPROVE_TIME, UPDATE_TIME, CREATE_TIME) <= {0}", end)
                 .eq(StrUtil.isNotBlank(param.getCourseId()), StudentRefund::getCourseId, param.getCourseId());
+        List<String> scopeOrderIdList = studentDataScopeService.visibleOrderIdList();
+        if (scopeOrderIdList != null) {
+            if (scopeOrderIdList.isEmpty()) {
+                wrapper.apply("1 = 0");
+            } else {
+                wrapper.in(StudentRefund::getOrderId, scopeOrderIdList);
+            }
+        }
         if (StrUtil.isNotBlank(param.getCampusId())) {
             List<String> orderIdList = studentOrderMapper.selectList(new LambdaQueryWrapper<StudentOrder>()
                             .eq(StudentOrder::getCampusId, param.getCampusId()))
@@ -945,6 +996,14 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
                 .ge(start != null, StudentLessonFlow::getCreateTime, start)
                 .le(end != null, StudentLessonFlow::getCreateTime, end)
                 .eq(StrUtil.isNotBlank(param.getCourseId()), StudentLessonFlow::getCourseId, param.getCourseId());
+        List<String> scopeStudentIdList = studentDataScopeService.visibleStudentIdList();
+        if (scopeStudentIdList != null) {
+            if (scopeStudentIdList.isEmpty()) {
+                wrapper.apply("1 = 0");
+            } else {
+                wrapper.in(StudentLessonFlow::getStudentId, scopeStudentIdList);
+            }
+        }
         if (StrUtil.isNotBlank(param.getCampusId())) {
             List<String> scheduleIdList = courseApi.listScheduleIdsByCampus(param.getCampusId());
             if (scheduleIdList.isEmpty()) {

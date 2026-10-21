@@ -35,6 +35,8 @@ import vip.xiaonuo.course.modular.courseclass.param.CourseClassPageParam;
 import vip.xiaonuo.course.modular.courseclass.service.CourseClassService;
 
 import java.util.List;
+import vip.xiaonuo.auth.core.util.StpDataScopeUtil;
+import vip.xiaonuo.common.util.CommonSqlUtil;
 
 /**
  * 班级Service接口实现类
@@ -53,6 +55,15 @@ public class CourseClassServiceImpl extends ServiceImpl<CourseClassMapper, Cours
         }
         if (ObjectUtil.isNotEmpty(courseClassPageParam.getCourseId())) {
             queryWrapper.lambda().eq(CourseClass::getCourseId, courseClassPageParam.getCourseId());
+        }
+        // 数据范围：仅可见校区的班级
+        List<String> visibleCampusIds = StpDataScopeUtil.visibleOrgIds();
+        if (visibleCampusIds != null) {
+            if (visibleCampusIds.isEmpty()) {
+                queryWrapper.lambda().eq(CourseClass::getId, "__NO_DATA__");
+            } else {
+                CommonSqlUtil.safeIn(queryWrapper.lambda(), CourseClass::getCampusId, visibleCampusIds);
+            }
         }
         if (ObjectUtil.isAllNotEmpty(courseClassPageParam.getSortField(), courseClassPageParam.getSortOrder())) {
             CommonSortOrderEnum.validate(courseClassPageParam.getSortOrder());

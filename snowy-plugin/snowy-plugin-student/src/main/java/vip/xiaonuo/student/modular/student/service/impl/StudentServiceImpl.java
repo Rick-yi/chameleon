@@ -35,6 +35,8 @@ import vip.xiaonuo.student.modular.student.param.StudentPageParam;
 import vip.xiaonuo.student.modular.student.service.StudentService;
 
 import java.util.List;
+import vip.xiaonuo.student.core.service.StudentDataScopeService;
+import jakarta.annotation.Resource;
 
 /**
  * 学员Service接口实现类
@@ -45,6 +47,9 @@ import java.util.List;
 @Service
 public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> implements StudentService {
 
+    @Resource
+    private StudentDataScopeService studentDataScopeService;
+
     @Override
     public Page<Student> page(StudentPageParam studentPageParam) {
         QueryWrapper<Student> queryWrapper = new QueryWrapper<Student>().checkSqlInjection();
@@ -54,6 +59,15 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
         }
         if (ObjectUtil.isNotEmpty(studentPageParam.getCampusId())) {
             queryWrapper.lambda().eq(Student::getCampusId, studentPageParam.getCampusId());
+        }
+        // 数据范围：仅可见校区的学员
+        List<String> visibleCampusIds = studentDataScopeService.visibleCampusIds();
+        if (visibleCampusIds != null) {
+            if (visibleCampusIds.isEmpty()) {
+                queryWrapper.lambda().eq(Student::getId, StudentDataScopeService.NO_DATA_ID);
+            } else {
+                queryWrapper.lambda().in(Student::getCampusId, visibleCampusIds);
+            }
         }
         if (ObjectUtil.isNotEmpty(studentPageParam.getStatus())) {
             queryWrapper.lambda().eq(Student::getStatus, studentPageParam.getStatus());

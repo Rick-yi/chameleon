@@ -208,6 +208,20 @@ public class DevFileServiceImpl extends ServiceImpl<DevFileMapper, DevFile> impl
     }
 
     /**
+     * 租户存储桶前缀
+     *
+     * @author 会飞的猪
+     * @date 2026/10/21 10:00
+     **/
+    private String tenantBucketPrefix() {
+        String tenantId = vip.xiaonuo.common.context.TenantContext.getTenantId();
+        if (cn.hutool.core.util.StrUtil.isBlank(tenantId)) {
+            tenantId = "0";
+        }
+        return tenantId + "-";
+    }
+
+    /**
      * 存储文件
      *
      * @author xuyuxiang
@@ -223,7 +237,7 @@ public class DevFileServiceImpl extends ServiceImpl<DevFileMapper, DevFile> impl
         // 生成id
         String fileId = IdWorker.getIdStr();
 
-        // 存储桶名称
+        // 存储桶名称（按租户分桶：本地存储落到租户独立目录，云存储落到租户独立前缀）
         String bucketName;
 
         String fileKey = genFileKey(fileId, file);
@@ -231,36 +245,39 @@ public class DevFileServiceImpl extends ServiceImpl<DevFileMapper, DevFile> impl
         // 定义存储的url，本地文件返回文件实际路径，其他引擎返回网络地址
         String storageUrl;
 
+        // 租户维度：存储桶加租户前缀，避免多租户文件互相覆盖
+        String tenantPrefix = tenantBucketPrefix();
+
         // 根据引擎类型执行不同方法
         if(engine.equals(DevFileEngineTypeEnum.LOCAL.getValue())) {
 
             // 使用固定名称defaultBucketName
-            bucketName = "defaultBucketName";
+            bucketName = tenantPrefix + "defaultBucketName";
             storageUrl = DevFileLocalUtil.storageFileWithReturnUrl(bucketName, fileKey, file);
         } else if(engine.equals(DevFileEngineTypeEnum.ALIYUN.getValue())) {
 
             // 使用阿里云默认配置的bucketName
-            bucketName = DevFileAliyunUtil.getDefaultBucketName();
+            bucketName = tenantPrefix + DevFileAliyunUtil.getDefaultBucketName();
             storageUrl = DevFileAliyunUtil.storageFileWithReturnUrl(bucketName, fileKey, file);
         } else if(engine.equals(DevFileEngineTypeEnum.TENCENT.getValue())) {
 
             // 使用腾讯云默认配置的bucketName
-            bucketName = DevFileTencentUtil.getDefaultBucketName();
+            bucketName = tenantPrefix + DevFileTencentUtil.getDefaultBucketName();
             storageUrl = DevFileTencentUtil.storageFileWithReturnUrl(bucketName, fileKey, file);
         } else if(engine.equals(DevFileEngineTypeEnum.MINIO.getValue())) {
 
             // 使用MINIO默认配置的bucketName
-            bucketName = DevFileMinIoUtil.getDefaultBucketName();
+            bucketName = tenantPrefix + DevFileMinIoUtil.getDefaultBucketName();
             storageUrl = DevFileMinIoUtil.storageFileWithReturnUrl(bucketName, fileKey, file);
         } else if(engine.equals(DevFileEngineTypeEnum.RUSTFS.getValue())) {
 
             // 使用RUSTFS默认配置的bucketName
-            bucketName = DevFileRustFsUtil.getDefaultBucketName();
+            bucketName = tenantPrefix + DevFileRustFsUtil.getDefaultBucketName();
             storageUrl = DevFileRustFsUtil.storageFileWithReturnUrl(bucketName, fileKey, file);
         } else if(engine.equals(DevFileEngineTypeEnum.FTP.getValue())) {
 
             // 使用FTP默认配置的bucketName
-            bucketName = DevFileFtpUtil.getDefaultBucketName();
+            bucketName = tenantPrefix + DevFileFtpUtil.getDefaultBucketName();
             storageUrl = DevFileFtpUtil.storageFileWithReturnUrl(bucketName, fileKey, file);
         } else {
             throw new CommonException("不支持的文件引擎：{}", engine);

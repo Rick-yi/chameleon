@@ -39,6 +39,7 @@ import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.dev.modular.dict.entity.DevDict;
 import vip.xiaonuo.dev.modular.dict.enums.DevDictCategoryEnum;
 import vip.xiaonuo.dev.modular.dict.mapper.DevDictMapper;
+import vip.xiaonuo.dev.modular.dict.service.TenantDictService;
 import vip.xiaonuo.dev.modular.dict.param.*;
 import vip.xiaonuo.dev.modular.dict.service.DevDictService;
 
@@ -60,6 +61,9 @@ public class DevDictServiceImpl extends ServiceImpl<DevDictMapper, DevDict> impl
 
     @Resource
     private DictionaryTransService dictionaryTransService;
+
+    @Resource
+    private TenantDictService tenantDictService;
 
     @Override
     public Page<DevDict> page(DevDictPageParam devDictPageParam) {
@@ -216,7 +220,8 @@ public class DevDictServiceImpl extends ServiceImpl<DevDictMapper, DevDict> impl
      * @author xuyuxiang
      * @date 2022/9/26 15:33
      **/
-    private void refreshTransCache() {
+    @Override
+    public void refreshTransCache() {
         // 异步不阻塞主线程，不会 增加启动用时
         CompletableFuture.supplyAsync(() -> {
             // 使用redis能解决共享问题，但是性能没有直接取缓存的好。
@@ -229,8 +234,11 @@ public class DevDictServiceImpl extends ServiceImpl<DevDictMapper, DevDict> impl
                     .equals(dict.getParentId())).collect(Collectors.toMap(DevDict::getId, DevDict::getDictValue));
             for (String parentId : parentDictIdValMap.keySet()) {
                 if(devDictGroupByPIDMap.containsKey(parentId)){
-                    dictionaryTransService.refreshCache(parentDictIdValMap.get(parentId), devDictGroupByPIDMap.get(parentId).stream()
-                            .collect(Collectors.toMap(DevDict::getDictValue, DevDict::getDictLabel)));
+                    Map<String,String> itemMap = devDictGroupByPIDMap.get(parentId).stream()
+                            .collect(Collectors.toMap(DevDict::getDictValue, DevDict::getDictLabel));
+                    dictionaryTransService.refreshCache(parentDictIdValMap.get(parentId), itemMap);
+                    // 租户维度缓存：避免多租户同名字典互相覆盖
+                    tenantDictService.putCache(parentDictIdValMap.get(parentId), itemMap);
                 }
             }
             return null;
