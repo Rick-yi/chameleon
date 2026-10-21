@@ -33,7 +33,13 @@
 					</a-table>
 				</a-tab-pane>
 				<a-tab-pane key="flow" tab="课时流水">
-					<a-table :columns="flowColumns" :data-source="flows" :row-key="(r) => r.id" :pagination="false" bordered size="middle" />
+					<a-table :columns="flowColumns" :data-source="flows" :row-key="(r) => r.id" :pagination="false" bordered size="middle">
+						<template #bodyCell="{ column, record }">
+							<template v-if="column.dataIndex === 'courseId'">
+								{{ courseMap[record.courseId] || '-' }}
+							</template>
+						</template>
+					</a-table>
 				</a-tab-pane>
 				<a-tab-pane key="order" tab="报名订单">
 					<a-table :columns="orderColumns" :data-source="orders" :row-key="(r) => r.id" :pagination="false" bordered size="middle">
@@ -150,6 +156,7 @@
 	import { useRoute } from 'vue-router'
 	import studentApi from '@/api/student/studentApi'
 	import courseApi from '@/api/course/courseApi'
+	import { message } from 'ant-design-vue'
 	const route = useRoute()
 	const studentId = route.query.id
 	const loading = ref(false)
@@ -161,6 +168,7 @@
 	const activeTab = ref('account')
 	const courseMap = ref({})
 	const packageOptions = ref([])
+	const packageRaw = ref([])
 
 	const orderOpen = ref(false)
 	const orderFormRef = ref()
@@ -195,17 +203,18 @@
 		{ title: '操作', dataIndex: 'action', align: 'center' }
 	]
 	const flowColumns = [
-		{ title: '时间', dataIndex: 'createTime' },
-		{ title: '类型', dataIndex: 'flowType' },
-		{ title: '课时', dataIndex: 'lessons' },
+		{ title: '时间', dataIndex: 'createTime', width: 170 },
+		{ title: '类型', dataIndex: 'flowType', width: 110 },
+		{ title: '课程', dataIndex: 'courseId' },
+		{ title: '课时', dataIndex: 'lessons', width: 90 },
 		{ title: '备注', dataIndex: 'remark' }
 	]
 	const orderColumns = [
-		{ title: '订单号', dataIndex: 'id' },
 		{ title: '课包', dataIndex: 'packageName' },
-		{ title: '金额', dataIndex: 'amount' },
-		{ title: '实收', dataIndex: 'paidAmount' },
-		{ title: '状态', dataIndex: 'status' },
+		{ title: '金额', dataIndex: 'amount', width: 100 },
+		{ title: '实收', dataIndex: 'paidAmount', width: 100 },
+		{ title: '下单时间', dataIndex: 'createTime', width: 170 },
+		{ title: '状态', dataIndex: 'status', width: 100 },
 		{ title: '操作', dataIndex: 'action', align: 'center' }
 	]
 	const refundColumns = [
@@ -244,20 +253,47 @@
 			const cmap = {}
 			for (const c of course.records || []) cmap[c.id] = c.name
 			courseMap.value = cmap
-			packageOptions.value = (pkg.records || []).map((p) => ({ value: p.id, label: `${p.name}（${p.lessons}课时 ${p.price}元）` }))
+			packageRaw.value = pkg.records || []
+			packageOptions.value = packageRaw.value.map((p) => ({ value: p.id, label: `${p.name}（${p.lessons}课时 ${p.price}元）` }))
 		}).finally(() => (loading.value = false))
 	}
 
 	const onSubmitOrder = () => {
 		orderFormRef.value.validate().then(() => {
-			studentApi.orderAdd({ studentId, coursePackageId: orderFormData.value.coursePackageId, payChannel: orderFormData.value.payChannel || 'WECHAT' }).then(() => {
-				orderOpen.value = false
-				loadAll()
-			})
+			studentApi
+				.orderAdd({ studentId, coursePackageId: orderFormData.value.coursePackageId, payChannel: orderFormData.value.payChannel || 'WECHAT' })
+				.then((res) => {
+					orderOpen.value = false
+					message.success('下单成功，请登记收款')
+					// 下单 → 收款 一步完成
+					payFormData.value = {
+						orderId: res?.data,
+						studentName: student.value.name,
+						packageName: packageLabel(orderFormData.value.coursePackageId),
+						amount: packagePrice(orderFormData.value.coursePackageId)
+					}
+					payOpen.value = true
+					loadAll()
+				})
 		})
 	}
+	const packageLabel = (id) => {
+		const item = packageOptions.value.find((p) => p.value === id)
+		return item ? item.label : ''
+	}
+	const packagePrice = (id) => {
+		const item = packageRaw.value.find((p) => p.id === id)
+		return item ? item.price : 0
+	}
 	const onOpenPay = (record) => {
-		payFormData.value = { orderId: record.id, paidAmount: record.amount, payChannel: 'OFFLINE' }
+		payFormData.value = {
+			orderId: record.id,
+			studentName: record.studentName || student.value.name,
+			packageName: record.packageName,
+			amount: record.amount,
+			paidAmount: record.amount,
+			payChannel: 'OFFLINE'
+		}
 		payOpen.value = true
 	}
 	const onSubmitPay = () => {

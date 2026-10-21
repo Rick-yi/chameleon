@@ -34,7 +34,7 @@ public interface StudentOrderService {
     Page<StudentOrder> page(StudentOrderPageParam studentOrderPageParam);
 
     /** 报名下单（课包快照，防重复下单） */
-    void add(StudentOrderAddParam studentOrderAddParam);
+    String add(StudentOrderAddParam studentOrderAddParam);
 
     /** 支付回调（v1 对接微信支付后使用；当前仅保留联调入口） */
     void payCallback(StudentOrderPayCallbackParam studentOrderPayCallbackParam);

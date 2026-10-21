@@ -142,7 +142,7 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
 
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public void add(StudentOrderAddParam studentOrderAddParam) {
+    public String add(StudentOrderAddParam studentOrderAddParam) {
         Student student = studentService.queryEntity(studentOrderAddParam.getStudentId());
         JSONObject packageInfo = courseApi.getCoursePackageInfo(studentOrderAddParam.getCoursePackageId());
         if (ObjectUtil.isEmpty(packageInfo)) {
@@ -177,6 +177,7 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
             // 数据库唯一约束兜底：同一学员同课包只允许一张待支付订单
             throw new CommonException("学员【{}】已有该课包的待支付订单", student.getName());
         }
+        return order.getId();
     }
 
     @Transactional(rollbackFor = Exception.class)
