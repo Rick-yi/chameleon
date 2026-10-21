@@ -25,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 import vip.xiaonuo.common.enums.CommonSortOrderEnum;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
+import vip.xiaonuo.platform.api.BizEventApi;
+import vip.xiaonuo.platform.api.enums.BizEventCodeEnum;
 import vip.xiaonuo.student.modular.student.entity.Student;
 import vip.xiaonuo.student.api.enums.StudentStatusEnum;
 import vip.xiaonuo.student.modular.student.mapper.StudentMapper;
@@ -53,6 +55,9 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
 
     @Resource
     private TenantCapability tenantCapability;
+
+    @Resource
+    private BizEventApi bizEventApi;
 
     @Override
     public Page<Student> page(StudentPageParam studentPageParam) {
@@ -99,6 +104,7 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
             throw new CommonException("当前套餐最多可添加 {} 名学员，已达上限", studentLimit);
         }
         this.save(student);
+        bizEventApi.log(BizEventCodeEnum.STUDENT_CREATE.getValue(), "student", student.getId(), student.getName(), null);
         return student.getId();
     }
 

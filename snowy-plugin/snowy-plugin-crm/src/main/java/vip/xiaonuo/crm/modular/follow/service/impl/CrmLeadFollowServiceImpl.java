@@ -30,6 +30,9 @@ import vip.xiaonuo.crm.modular.follow.service.CrmLeadFollowService;
 import vip.xiaonuo.crm.modular.lead.entity.CrmLead;
 import vip.xiaonuo.crm.modular.lead.enums.CrmLeadStatusEnum;
 import vip.xiaonuo.crm.modular.lead.service.CrmLeadService;
+import vip.xiaonuo.platform.api.BizEventApi;
+import vip.xiaonuo.platform.api.enums.BizEventCodeEnum;
+import java.util.Map;
 
 /**
  * 线索跟进记录Service接口实现类
@@ -43,6 +46,9 @@ public class CrmLeadFollowServiceImpl extends ServiceImpl<CrmLeadFollowMapper, C
     @Resource
     private CrmLeadService crmLeadService;
 
+    @Resource
+    private BizEventApi bizEventApi;
+
     @Override
     public Page<CrmLeadFollow> page(CrmLeadFollowPageParam crmLeadFollowPageParam) {
         QueryWrapper<CrmLeadFollow> queryWrapper = new QueryWrapper<CrmLeadFollow>().checkSqlInjection();
@@ -55,6 +61,8 @@ public class CrmLeadFollowServiceImpl extends ServiceImpl<CrmLeadFollowMapper, C
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void add(CrmLeadFollowAddParam crmLeadFollowAddParam) {
+        bizEventApi.log(BizEventCodeEnum.LEAD_FOLLOW.getValue(), "lead", crmLeadFollowAddParam.getLeadId(), null,
+                Map.of("方式", String.valueOf(crmLeadFollowAddParam.getFollowType())));
         // 校验线索存在
         CrmLead crmLead = crmLeadService.queryEntity(crmLeadFollowAddParam.getLeadId());
         CrmLeadFollow follow = BeanUtil.toBean(crmLeadFollowAddParam, CrmLeadFollow.class);

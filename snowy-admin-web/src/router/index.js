@@ -14,6 +14,7 @@ import 'nprogress/nprogress.css'
 import systemRouter from './systemRouter'
 import clientBaseRouter, { validateClientAccess } from './clientBaseRouter'
 import { afterEach, beforeEach } from './scrollBehavior'
+import eventApi from '@/api/platform/eventApi'
 import whiteListRouters from './whiteList'
 import userRoutes from '@/config/route'
 import tool from '@/utils/tool'
@@ -188,7 +189,28 @@ router.afterEach((to, from) => {
 	afterEach(to, from)
 	NProgress.done()
 	window.nextLoading && NextLoading.done()
+	trackPageView(to)
 })
+
+/**
+ * 页面访问埋点（用于分析各功能真实使用情况）
+ * @param to 目标路由
+ */
+function trackPageView(to) {
+	if (!to || !to.meta || !to.path || to.path === '/login' || to.path === '/') return
+	if (to.path.startsWith('/biz/event')) return
+	try {
+		eventApi.track({
+			eventCode: 'PAGE_VIEW',
+			targetType: 'page',
+			targetId: to.path,
+			targetName: to.meta.title || to.name || to.path,
+			path: to.fullPath
+		})
+	} catch (e) {
+		// 埋点失败不影响使用
+	}
+}
 
 router.onError((error) => {
 	NProgress.done()

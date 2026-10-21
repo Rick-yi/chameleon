@@ -38,5 +38,11 @@
             <groupId>vip.xiaonuo</groupId>
             <artifactId>snowy-plugin-sys-api</artifactId>
         </dependency>
+
+        <!-- 业务埋点接口（跨插件打点） -->
+        <dependency>
+            <groupId>vip.xiaonuo</groupId>
+            <artifactId>snowy-plugin-platform-api</artifactId>
+        </dependency>
     </dependencies>
 </project>

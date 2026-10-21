@@ -29,6 +29,8 @@ import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.crm.modular.lead.entity.CrmLead;
 import vip.xiaonuo.crm.modular.lead.enums.CrmLeadStatusEnum;
 import vip.xiaonuo.crm.modular.lead.mapper.CrmLeadMapper;
+import vip.xiaonuo.platform.api.BizEventApi;
+import vip.xiaonuo.platform.api.enums.BizEventCodeEnum;
 import vip.xiaonuo.crm.modular.lead.param.CrmLeadAddParam;
 import vip.xiaonuo.crm.modular.lead.param.CrmLeadEditParam;
 import vip.xiaonuo.crm.modular.lead.param.CrmLeadIdParam;
@@ -53,6 +55,9 @@ public class CrmLeadServiceImpl extends ServiceImpl<CrmLeadMapper, CrmLead> impl
 
     @Resource
     private SysUserApi sysUserApi;
+
+    @Resource
+    private BizEventApi bizEventApi;
 
     @Override
     public Page<CrmLead> page(CrmLeadPageParam crmLeadPageParam) {
@@ -114,6 +119,8 @@ public class CrmLeadServiceImpl extends ServiceImpl<CrmLeadMapper, CrmLead> impl
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void add(CrmLeadAddParam crmLeadAddParam) {
+        bizEventApi.log(BizEventCodeEnum.LEAD_CREATE.getValue(), "lead", null, crmLeadAddParam.getName(),
+                Map.of("来源", String.valueOf(crmLeadAddParam.getSource())));
         CrmLead crmLead = BeanUtil.toBean(crmLeadAddParam, CrmLead.class);
         crmLead.setStatus(CrmLeadStatusEnum.NEW.getValue());
         this.save(crmLead);
@@ -122,6 +129,10 @@ public class CrmLeadServiceImpl extends ServiceImpl<CrmLeadMapper, CrmLead> impl
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void edit(CrmLeadEditParam crmLeadEditParam) {
+        if (CrmLeadStatusEnum.ENROLLED.getValue().equals(crmLeadEditParam.getStatus())) {
+            bizEventApi.log(BizEventCodeEnum.LEAD_CONVERT.getValue(), "lead", crmLeadEditParam.getId(),
+                    crmLeadEditParam.getName(), null);
+        }
         CrmLead crmLead = this.queryEntity(crmLeadEditParam.getId());
         BeanUtil.copyProperties(crmLeadEditParam, crmLead);
         this.updateById(crmLead);

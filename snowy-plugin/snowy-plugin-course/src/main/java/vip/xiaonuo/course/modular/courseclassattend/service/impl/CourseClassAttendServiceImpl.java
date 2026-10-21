@@ -38,6 +38,8 @@ import vip.xiaonuo.course.modular.courseclassattend.mapper.CourseClassAttendMapp
 import vip.xiaonuo.course.modular.courseclass.entity.CourseClass;
 import vip.xiaonuo.course.modular.courseclass.mapper.CourseClassMapper;
 import vip.xiaonuo.course.modular.courseschedule.entity.CourseSchedule;
+import vip.xiaonuo.platform.api.BizEventApi;
+import vip.xiaonuo.platform.api.enums.BizEventCodeEnum;
 import vip.xiaonuo.course.modular.courseschedule.mapper.CourseScheduleMapper;
 import vip.xiaonuo.course.modular.courseclassattend.param.CourseClassAttendConfirmParam;
 import vip.xiaonuo.course.modular.courseclassattend.param.CourseClassAttendIdParam;
@@ -67,10 +69,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -109,6 +107,9 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
 
     @Resource
     private CourseClassMapper courseClassMapper;
+
+    @Resource
+    private BizEventApi bizEventApi;
 
     @Resource
     private StudentApi studentApi;
@@ -311,6 +312,12 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
         if (ObjectUtil.isNotEmpty(deductParamList)) {
             studentLessonApi.deductLessons(deductParamList);
         }
+        // 埋点：点名消课
+        if (ObjectUtil.isNotEmpty(attendList)) {
+            bizEventApi.log(BizEventCodeEnum.ATTEND_CONFIRM.getValue(), "schedule", schedule.getId(),
+                    courseClass.getName(),
+                    Map.of("人数", String.valueOf(attendList.size()), "扣课人次", String.valueOf(deductParamList.size())));
+        }
         // 消课通知落库（v1 站内记录，家长端/订阅消息在 M4 消费）
         for (CourseClassAttend attend : attendList) {
             if (ObjectUtil.isNotEmpty(attend.getLessonsDeducted())
@@ -328,6 +335,8 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void cancel(CourseClassAttendIdParam courseClassAttendIdParam) {
+        CourseClassAttend cancelAttend = this.queryEntity(courseClassAttendIdParam.getId());
+        bizEventApi.log(BizEventCodeEnum.ATTEND_CANCEL.getValue(), "schedule", cancelAttend.getScheduleId(), null, null);
         CourseClassAttend attend = this.queryEntity(courseClassAttendIdParam.getId());
         // 扣过课时则回补
         if (ObjectUtil.isNotEmpty(attend.getLessonsDeducted())

@@ -28,6 +28,8 @@ import vip.xiaonuo.common.enums.CommonSortOrderEnum;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.course.api.CourseApi;
+import vip.xiaonuo.platform.api.BizEventApi;
+import vip.xiaonuo.platform.api.enums.BizEventCodeEnum;
 import vip.xiaonuo.student.modular.student.entity.Student;
 import vip.xiaonuo.student.modular.student.mapper.StudentMapper;
 import vip.xiaonuo.student.modular.student.service.StudentService;
@@ -75,6 +77,9 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
 
     @Resource
     private CourseApi courseApi;
+
+    @Resource
+    private BizEventApi bizEventApi;
 
     @Override
     public Page<StudentOrder> page(StudentOrderPageParam studentOrderPageParam) {
@@ -178,6 +183,8 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
             // 数据库唯一约束兜底：同一学员同课包只允许一张待支付订单
             throw new CommonException("学员【{}】已有该课包的待支付订单", student.getName());
         }
+        bizEventApi.log(BizEventCodeEnum.ORDER_CREATE.getValue(), "order", order.getId(), student.getName(),
+                Map.of("课包", order.getPackageName(), "金额", String.valueOf(order.getAmount())));
         return order.getId();
     }
 
@@ -198,6 +205,8 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
         // 线下流水号：续费单号 + 时间戳，保证同一订单只入账一次
         String tradeNo = "RENEW_" + orderId + "_" + System.currentTimeMillis();
         this.markPaid(orderId, tradeNo, studentOrderRenewParam.getPaidAmount(), studentOrderRenewParam.getPayChannel());
+        bizEventApi.log(BizEventCodeEnum.RENEW.getValue(), "order", orderId, null,
+                Map.of("实收金额", String.valueOf(studentOrderRenewParam.getPaidAmount())));
         return orderId;
     }
 
@@ -224,6 +233,10 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
         markPaid(studentOrderOfflinePayParam.getOrderId(),
                 "OFF" + IdUtil.getSnowflakeNextIdStr(),
                 studentOrderOfflinePayParam.getPaidAmount(), payChannel);
+        StudentOrder paidOrder = this.queryEntity(studentOrderOfflinePayParam.getOrderId());
+        bizEventApi.log(BizEventCodeEnum.ORDER_PAY.getValue(), "order", paidOrder.getId(),
+                paidOrder.getPackageName(),
+                Map.of("实收金额", String.valueOf(studentOrderOfflinePayParam.getPaidAmount()), "渠道", payChannel));
     }
 
     /**
@@ -276,6 +289,8 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void cancel(StudentOrderIdParam studentOrderIdParam) {
+        StudentOrder cancelOrder = this.queryEntity(studentOrderIdParam.getId());
+        bizEventApi.log(BizEventCodeEnum.ORDER_CANCEL.getValue(), "order", cancelOrder.getId(), cancelOrder.getPackageName(), null);
         StudentOrder order = this.queryEntity(studentOrderIdParam.getId());
         if (!StudentOrderStatusEnum.UNPAID.getValue().equals(order.getStatus())) {
             throw new CommonException("仅待支付订单可取消");

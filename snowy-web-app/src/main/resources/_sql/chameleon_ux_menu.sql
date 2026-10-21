@@ -39,7 +39,22 @@ WHERE r.`CODE` = 'superAdmin'
 DELETE FROM `SYS_RELATION` WHERE `TARGET_ID` = 'menu_finance_001' AND `CATEGORY` = 'SYS_ROLE_HAS_RESOURCE';
 DELETE FROM `SYS_RESOURCE` WHERE `ID` = 'menu_finance_001';
 
--- 5. 学员详情改为「学员管理」内的抽屉：移除独立菜单（前端 config/route.js 保留旧链接重定向）
+-- 5. 运营埋点菜单（报表中心）
+INSERT IGNORE INTO `SYS_RESOURCE` (`ID`, `PARENT_ID`, `TITLE`, `NAME`, `CODE`, `CATEGORY`, `MODULE`, `MENU_TYPE`, `PATH`, `COMPONENT`, `ICON`, `COLOR`, `VISIBLE`, `DISPLAY_LAYOUT`, `KEEP_LIVE`, `SORT_CODE`, `DELETE_FLAG`, `CREATE_TIME`, `CREATE_USER`) VALUES
+('menu_event_001', '0', '运营埋点', 'reportEventAnalysis', 'eventAnalysis', 'MENU', 'mod_report_001', 'MENU', '/report/eventAnalysis', 'report/eventAnalysis', 'deployment-unit-outlined', NULL, 'YES', 'YES', 'YES', 5, 'NOT_DELETE', NOW(), '1');
+
+INSERT IGNORE INTO `SYS_RELATION` (`ID`, `TENANT_ID`, `OBJECT_ID`, `TARGET_ID`, `CATEGORY`, `EXT_JSON`)
+SELECT CONCAT('rel_ux_event', LEFT(MD5(CONCAT(r.`ID`, 'menu_event_001')), 12)),
+       r.`TENANT_ID`, r.`ID`, 'menu_event_001', 'SYS_ROLE_HAS_RESOURCE',
+       JSON_OBJECT('menuId', 'menu_event_001', 'buttonInfo', JSON_ARRAY())
+FROM `SYS_ROLE` r
+WHERE r.`CODE` = 'superAdmin'
+  AND NOT EXISTS (
+      SELECT 1 FROM `SYS_RELATION` s
+      WHERE s.`OBJECT_ID` = r.`ID` AND s.`TARGET_ID` = 'menu_event_001' AND s.`CATEGORY` = 'SYS_ROLE_HAS_RESOURCE'
+  );
+
+-- 6. 学员详情改为「学员管理」内的抽屉：移除独立菜单（前端 config/route.js 保留旧链接重定向）
 DELETE FROM `SYS_RELATION` WHERE `TARGET_ID` = 'menu_detail_001';
 DELETE FROM `SYS_RESOURCE` WHERE `ID` = 'menu_detail_001';
 

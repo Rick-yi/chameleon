@@ -25,6 +25,8 @@ import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.crm.modular.lead.entity.CrmLead;
 import vip.xiaonuo.crm.modular.lead.enums.CrmLeadStatusEnum;
 import vip.xiaonuo.crm.modular.lead.service.CrmLeadService;
+import vip.xiaonuo.platform.api.BizEventApi;
+import vip.xiaonuo.platform.api.enums.BizEventCodeEnum;
 import vip.xiaonuo.crm.modular.trial.entity.CrmTrialAppointment;
 import vip.xiaonuo.crm.modular.trial.enums.CrmTrialStatusEnum;
 import vip.xiaonuo.crm.modular.trial.mapper.CrmTrialAppointmentMapper;
@@ -32,6 +34,7 @@ import vip.xiaonuo.crm.modular.trial.param.CrmTrialAppointmentAddParam;
 import vip.xiaonuo.crm.modular.trial.param.CrmTrialAppointmentIdParam;
 import vip.xiaonuo.crm.modular.trial.param.CrmTrialAppointmentPageParam;
 import vip.xiaonuo.crm.modular.trial.service.CrmTrialAppointmentService;
+import java.util.Map;
 
 /**
  * 试听预约Service接口实现类
@@ -44,6 +47,9 @@ public class CrmTrialAppointmentServiceImpl extends ServiceImpl<CrmTrialAppointm
 
     @Resource
     private CrmLeadService crmLeadService;
+
+    @Resource
+    private BizEventApi bizEventApi;
 
     @Override
     public Page<CrmTrialAppointment> page(CrmTrialAppointmentPageParam crmTrialAppointmentPageParam) {
@@ -58,6 +64,7 @@ public class CrmTrialAppointmentServiceImpl extends ServiceImpl<CrmTrialAppointm
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void add(CrmTrialAppointmentAddParam crmTrialAppointmentAddParam) {
+        bizEventApi.log(BizEventCodeEnum.TRIAL_BOOK.getValue(), "lead", crmTrialAppointmentAddParam.getLeadId(), null, null);
         // 校验线索存在
         CrmLead crmLead = crmLeadService.queryEntity(crmTrialAppointmentAddParam.getLeadId());
         CrmTrialAppointment appointment = BeanUtil.toBean(crmTrialAppointmentAddParam, CrmTrialAppointment.class);

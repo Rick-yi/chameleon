@@ -51,6 +51,8 @@ import vip.xiaonuo.course.modular.courseschedulechange.entity.CourseScheduleChan
 import vip.xiaonuo.course.modular.courseschedulechange.service.CourseScheduleChangeService;
 import vip.xiaonuo.student.api.StudentNotifyApi;
 import vip.xiaonuo.sys.api.SysUserApi;
+import vip.xiaonuo.platform.api.BizEventApi;
+import vip.xiaonuo.platform.api.enums.BizEventCodeEnum;
 import vip.xiaonuo.course.api.dto.CourseScheduleGenerateResultDTO;
 import vip.xiaonuo.course.api.dto.CourseScheduleViewDTO;
 import vip.xiaonuo.course.core.util.CourseScheduleAttendStatusUtil;
@@ -96,6 +98,9 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
 
     @Resource
     private CourseClassStudentService courseClassStudentService;
+
+    @Resource
+    private BizEventApi bizEventApi;
 
     @Resource
     private StudentNotifyApi studentNotifyApi;
@@ -269,6 +274,10 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             result.setCreatedCount(toSaveList.size());
             return result;
         }
+        // 埋点：批量生成排课
+        bizEventApi.log(BizEventCodeEnum.SCHEDULE_GENERATE.getValue(), "schedule", courseClass.getId(), courseClass.getName(),
+                Map.of("计划", String.valueOf(result.getPlannedCount()), "新增", String.valueOf(result.getCreatedCount()),
+                        "跳过", String.valueOf(result.getSkippedCount())));
         // 任一冲突整体失败（不落库）
         if (ObjectUtil.isNotEmpty(allConflicts)) {
             throw new CommonException("存在排课冲突，未生成：{}", String.join("；", result.getConflicts()));
@@ -341,6 +350,11 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         change.setToScheduleId(to.getId());
         change.setChangeReason(courseScheduleChangeParam.getChangeReason());
         courseScheduleChangeService.add(change);
+        bizEventApi.log(BizEventCodeEnum.SCHEDULE_CHANGE.getValue(), "schedule", to.getId(),
+                courseClassService.queryEntity(from.getClassId()).getName(),
+                Map.of("原时间", String.valueOf(from.getScheduleDate()) + " " + from.getStartTime(),
+                        "新时间", String.valueOf(to.getScheduleDate()) + " " + to.getStartTime(),
+                        "原因", String.valueOf(courseScheduleChangeParam.getChangeReason())));
         // 调课通知落库（含已点名学员：点名与扣课保持原样）
         List<CourseClassStudent> studentList = courseClassStudentService.listByClassId(from.getClassId());
         for (CourseClassStudent classStudent : studentList) {
@@ -358,6 +372,7 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
     @Override
     public void cancel(CourseScheduleIdParam courseScheduleIdParam) {
         CourseSchedule courseSchedule = this.queryEntity(courseScheduleIdParam.getId());
+        bizEventApi.log(BizEventCodeEnum.SCHEDULE_CANCEL.getValue(), "schedule", courseSchedule.getId(), null, null);
         if (!CourseScheduleStatusEnum.NORMAL.getValue().equals(courseSchedule.getStatus())) {
             throw new CommonException("排课当前状态【{}】不允许取消", courseSchedule.getStatus());
         }

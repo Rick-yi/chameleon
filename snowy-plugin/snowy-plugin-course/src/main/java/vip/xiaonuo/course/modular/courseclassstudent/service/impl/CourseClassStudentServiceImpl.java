@@ -31,6 +31,8 @@ import vip.xiaonuo.course.modular.courseclassstudent.param.CourseClassStudentAdd
 import vip.xiaonuo.course.modular.courseclassstudent.param.CourseClassStudentIdParam;
 import vip.xiaonuo.course.modular.courseclassstudent.param.CourseClassStudentPageParam;
 import vip.xiaonuo.course.modular.courseclassstudent.service.CourseClassStudentService;
+import vip.xiaonuo.platform.api.BizEventApi;
+import vip.xiaonuo.platform.api.enums.BizEventCodeEnum;
 import vip.xiaonuo.student.api.StudentApi;
 import vip.xiaonuo.student.api.dto.StudentBriefDTO;
 import vip.xiaonuo.student.api.enums.StudentStatusEnum;
@@ -53,9 +55,12 @@ public class CourseClassStudentServiceImpl extends ServiceImpl<CourseClassStuden
 
     private final StudentApi studentApi;
 
-    public CourseClassStudentServiceImpl(CourseClassService courseClassService, StudentApi studentApi) {
+    private final BizEventApi bizEventApi;
+
+    public CourseClassStudentServiceImpl(CourseClassService courseClassService, StudentApi studentApi, BizEventApi bizEventApi) {
         this.courseClassService = courseClassService;
         this.studentApi = studentApi;
+        this.bizEventApi = bizEventApi;
     }
 
     @Override
@@ -119,6 +124,8 @@ public class CourseClassStudentServiceImpl extends ServiceImpl<CourseClassStuden
         if (ObjectUtil.isEmpty(toSaveList)) {
             return;
         }
+        bizEventApi.log(BizEventCodeEnum.CLASS_ENROLL.getValue(), "class", courseClass.getId(), courseClass.getName(),
+                Map.of("人数", String.valueOf(toSaveList.size())));
         // 容量校验：在读学员数 + 新增人数不得超过班级容量
         int currentCount = this.listByClassId(courseClassStudentAddParam.getClassId()).size();
         int capacity = courseClass.getCapacity() == null ? 0 : courseClass.getCapacity();
@@ -139,6 +146,8 @@ public class CourseClassStudentServiceImpl extends ServiceImpl<CourseClassStuden
             quitList.forEach(item -> item.setStatus(CourseClassStudentStatusEnum.QUIT.getValue()));
             this.updateBatchById(quitList);
             this.removeByIds(courseClassStudentIdList);
+            bizEventApi.log(BizEventCodeEnum.CLASS_QUIT.getValue(), "class", null, null,
+                    Map.of("人数", String.valueOf(quitList.size())));
         }
     }
 

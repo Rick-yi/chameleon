@@ -26,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 import vip.xiaonuo.common.enums.CommonSortOrderEnum;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
+import vip.xiaonuo.platform.api.BizEventApi;
+import vip.xiaonuo.platform.api.enums.BizEventCodeEnum;
 import vip.xiaonuo.student.modular.student.entity.Student;
 import vip.xiaonuo.student.modular.student.mapper.StudentMapper;
 import vip.xiaonuo.student.modular.student.service.StudentService;
@@ -77,6 +79,9 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
 
     @Resource
     private StudentOrderService studentOrderService;
+
+    @Resource
+    private BizEventApi bizEventApi;
 
     @Resource
     private StudentService studentService;
@@ -156,6 +161,8 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void apply(StudentRefundAddParam studentRefundAddParam) {
+        StudentOrder applyOrder = studentOrderService.queryEntity(studentRefundAddParam.getOrderId());
+        bizEventApi.log(BizEventCodeEnum.REFUND_APPLY.getValue(), "order", applyOrder.getId(), applyOrder.getPackageName(), null);
         StudentOrder order = studentOrderService.queryEntity(studentRefundAddParam.getOrderId());
         if (!StudentOrderStatusEnum.PAID.getValue().equals(order.getStatus())) {
             throw new CommonException("仅已支付订单可申请退费");
@@ -197,6 +204,9 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void approve(StudentRefundApproveParam studentRefundApproveParam) {
+        StudentRefund approveRefund = this.queryEntity(studentRefundApproveParam.getRefundId());
+        bizEventApi.log(BizEventCodeEnum.REFUND_APPROVE.getValue(), "order", approveRefund.getOrderId(),
+                approveRefund.getId(), Map.of("通过", String.valueOf(studentRefundApproveParam.getPass())));
         StudentRefund refund = this.queryEntity(studentRefundApproveParam.getRefundId());
         if (!StudentRefundStatusEnum.PENDING.getValue().equals(refund.getStatus())) {
             throw new CommonException("退费单当前状态不允许审批");
@@ -252,6 +262,9 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void confirm(StudentRefundIdParam studentRefundIdParam) {
+        StudentRefund confirmRefund = this.queryEntity(studentRefundIdParam.getId());
+        bizEventApi.log(BizEventCodeEnum.REFUND_CONFIRM.getValue(), "order", confirmRefund.getOrderId(),
+                confirmRefund.getId(), null);
         StudentRefund refund = this.queryEntity(studentRefundIdParam.getId());
         if (!StudentRefundStatusEnum.TO_REFUND.getValue().equals(refund.getStatus())) {
             throw new CommonException("退费单当前状态不允许确认退款");
