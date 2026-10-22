@@ -64,7 +64,7 @@
 						<a-button @click="markAll('ATTEND')">全部到课</a-button>
 						<a-button @click="markAll('LEAVE')">整班请假</a-button>
 						<a-button @click="markAll('ABSENT')">整班缺勤</a-button>
-						<a-button type="primary" @click="onConfirm">确认点名并扣课</a-button>
+						<a-button v-if="hasPerm('/course/attend/confirm')" type="primary" @click="onConfirm">确认点名并扣课</a-button>
 					</a-space>
 				</div>
 				<a-table
@@ -96,7 +96,7 @@
 						</template>
 						<template v-if="column.dataIndex === 'action'">
 							<a-popconfirm v-if="record.attendId" title="撤销点名并回补课时？" @confirm="onCancelAttend(record)">
-								<a-button type="link" danger size="small">撤销</a-button>
+								<a-button v-if="hasPerm('/course/attend/cancel')" type="link" danger size="small">撤销</a-button>
 							</a-popconfirm>
 							<span v-else>-</span>
 						</template>

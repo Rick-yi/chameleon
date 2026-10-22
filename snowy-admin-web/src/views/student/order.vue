@@ -60,9 +60,9 @@
 							</template>
 							<template v-if="column.dataIndex === 'action'">
 								<a-space>
-									<a-button v-if="record.status === 'UNPAID'" type="link" size="small" @click="onOpenPay(record)">收款</a-button>
-									<a-button v-if="record.status === 'UNPAID'" type="link" size="small" @click="onCancelOrder(record)">取消</a-button>
-									<a-button v-if="record.status === 'PAID'" type="link" size="small" @click="onOpenRefund(record)">退费</a-button>
+									<a-button v-if="record.status === 'UNPAID' && hasPerm('/student/order/offlinePay')" type="link" size="small" @click="onOpenPay(record)">收款</a-button>
+									<a-button v-if="record.status === 'UNPAID' && hasPerm('/student/order/cancel')" type="link" size="small" @click="onCancelOrder(record)">取消</a-button>
+									<a-button v-if="record.status === 'PAID' && hasPerm('/student/refund/apply')" type="link" size="small" @click="onOpenRefund(record)">退费</a-button>
 									<a-button type="link" size="small" @click="goStudent(record)">学员</a-button>
 								</a-space>
 							</template>
@@ -105,8 +105,8 @@
 							</template>
 							<template v-if="column.dataIndex === 'action'">
 								<a-space>
-									<a-button v-if="record.status === 'PENDING'" type="link" size="small" @click="onOpenApprove(record)">审批</a-button>
-									<a-button v-if="record.status === 'TO_REFUND'" type="link" size="small" @click="onConfirmRefund(record)">确认退款</a-button>
+									<a-button v-if="record.status === 'PENDING' && hasPerm('/student/refund/approve')" type="link" size="small" @click="onOpenApprove(record)">审批</a-button>
+									<a-button v-if="record.status === 'TO_REFUND' && hasPerm('/student/refund/confirm')" type="link" size="small" @click="onConfirmRefund(record)">确认退款</a-button>
 									<a-popconfirm v-if="record.status === 'PENDING' || record.status === 'TO_REFUND'" title="确定撤销该退费单吗？" @confirm="onCancelRefund(record)">
 										<a-button type="link" danger size="small">撤销</a-button>
 									</a-popconfirm>

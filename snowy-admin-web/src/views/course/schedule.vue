@@ -2,7 +2,7 @@
 	<div>
 		<page-header title="排课课表" desc="周视图 / 日视图 / 教师视角，可批量生成、导出课表">
 			<template #extra>
-				<a-button @click="onExport">
+				<a-button v-if="hasPerm('/course/schedule/export')" @click="onExport">
 					<template #icon><file-text-outlined /></template>
 					导出课表
 				</a-button>
@@ -14,15 +14,15 @@
 					<template #icon><history-outlined /></template>
 					调课记录
 				</a-button>
-				<a-button @click="onOpenGenerate">
+				<a-button v-if="hasPerm('/course/schedule/generate')" @click="onOpenGenerate">
 					<template #icon><thunderbolt-outlined /></template>
 					批量生成
 				</a-button>
-				<a-button @click="onOpenAdhoc">
+				<a-button v-if="hasPerm('/course/schedule/generateAdhoc')" @click="onOpenAdhoc">
 					<template #icon><team-outlined /></template>
 					直接排课
 				</a-button>
-				<a-button type="primary" @click="onOpenAdd">
+				<a-button v-if="hasPerm('/course/schedule/add')" type="primary" @click="onOpenAdd">
 					<template #icon><plus-outlined /></template>
 					手动排课
 				</a-button>

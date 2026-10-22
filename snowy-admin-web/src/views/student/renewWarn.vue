@@ -2,7 +2,7 @@
 	<div>
 		<page-header title="续费预警" desc="课时不足与课包到期提醒，可在此直接续费">
 			<template #extra>
-				<a-button @click="onScan">
+				<a-button v-if="hasPerm('/student/renewWarn/scan')" @click="onScan">
 					<template #icon><thunderbolt-outlined /></template>
 					立即扫描
 				</a-button>

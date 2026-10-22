@@ -103,11 +103,38 @@ public class PlatformRoleTemplateServiceImpl implements PlatformRoleTemplateServ
                 count++;
             }
             // 机构管理员：补齐全部业务菜单与业务接口，保证管理员不被兜底校验拦住
+            if (rebuild) {
+                clearAdminBusinessGrant(tenantId);
+            }
             topUpAdminGrant(tenantId);
             log.info(">>> 租户[{}]业务角色模板落地完成，共 {} 个角色", tenantId, count);
             return count;
         } finally {
             TenantContext.setTenantId(originalTenantId);
+        }
+    }
+
+    /**
+     * 清掉机构管理员的业务菜单授权（覆盖式重建时用，让 buttonInfo 重新写入）
+     */
+    private void clearAdminBusinessGrant(String tenantId) {
+        SysRole adminRole = sysRoleService.getOne(new LambdaQueryWrapper<SysRole>()
+                .eq(SysRole::getCode, PlatformRoleTemplates.ROLE_ADMIN).last("limit 1"), false);
+        if (adminRole == null) {
+            return;
+        }
+        List<String> businessMenuIdList = sysMenuService.list(new LambdaQueryWrapper<SysMenu>()
+                        .eq(SysMenu::getCategory, SysResourceCategoryEnum.MENU.getValue()))
+                .stream()
+                .filter(menu -> StrUtil.isNotBlank(menu.getPath())
+                        && PlatformRoleTemplates.BUSINESS_MENU_PATH_PREFIXES.stream().anyMatch(menu.getPath()::startsWith))
+                .map(SysMenu::getId).toList();
+        List<SysRelation> relationList = sysRelationService.list(new LambdaQueryWrapper<SysRelation>()
+                .eq(SysRelation::getObjectId, adminRole.getId())
+                .eq(SysRelation::getCategory, SysRelationCategoryEnum.SYS_ROLE_HAS_RESOURCE.getValue())
+                .in(SysRelation::getTargetId, businessMenuIdList));
+        for (SysRelation relation : relationList) {
+            sysRelationService.removeById(relation.getId());
         }
     }
 
@@ -124,6 +151,9 @@ public class PlatformRoleTemplateServiceImpl implements PlatformRoleTemplateServ
         if (adminRole == null) {
             return;
         }
+        // 业务接口：全部按钮资源
+        List<String> apiUrlList = matchButtonCodes(List.of("/student", "/course", "/crm", "/finance", "/biz"));
+        List<String> allBusinessApiList = apiUrlList;
         // 业务菜单
         List<String> menuIdList = new ArrayList<>();
         List<String> menuExtJsonList = new ArrayList<>();
@@ -141,14 +171,14 @@ public class PlatformRoleTemplateServiceImpl implements PlatformRoleTemplateServ
                 continue;
             }
             menuIdList.add(menu.getId());
-            menuExtJsonList.add(JSONUtil.toJsonStr(Map.of("menuId", menu.getId(), "buttonInfo", List.of())));
+            menuExtJsonList.add(JSONUtil.toJsonStr(Map.of(
+                    "menuId", menu.getId(),
+                    "buttonInfo", actionButtonIdList(menu.getId(), allBusinessApiList))));
         }
         if (!menuIdList.isEmpty()) {
             sysRelationService.saveRelationBatchWithAppend(adminRole.getId(), menuIdList,
                     SysRelationCategoryEnum.SYS_ROLE_HAS_RESOURCE.getValue(), menuExtJsonList);
         }
-        // 业务接口：全部按钮资源
-        List<String> apiUrlList = matchButtonCodes(List.of("/student", "/course", "/crm", "/finance", "/biz"));
         List<String> targetIdList = new ArrayList<>();
         List<String> extJsonList = new ArrayList<>();
         for (String apiUrl : apiUrlList) {
@@ -209,8 +239,9 @@ public class PlatformRoleTemplateServiceImpl implements PlatformRoleTemplateServ
         }
     }
 
-    /** 授予菜单 */
+    /** 授予菜单（同时写入按钮级权限：buttonInfo = 该角色可用的动作按钮） */
     private void grantMenus(String roleId, PlatformRoleTemplate template) {
+        List<String> apiUrlList = matchButtonCodes(template.getApiPrefixes());
         List<String> menuIdList = new ArrayList<>();
         List<String> extJsonList = new ArrayList<>();
         for (String path : template.getMenuPaths()) {
@@ -225,12 +256,39 @@ public class PlatformRoleTemplateServiceImpl implements PlatformRoleTemplateServ
                 continue;
             }
             menuIdList.add(menu.getId());
-            extJsonList.add(JSONUtil.toJsonStr(Map.of("menuId", menu.getId(), "buttonInfo", List.of())));
+            extJsonList.add(JSONUtil.toJsonStr(Map.of(
+                    "menuId", menu.getId(),
+                    "buttonInfo", actionButtonIdList(menu.getId(), apiUrlList))));
         }
         if (!menuIdList.isEmpty()) {
             sysRelationService.saveRelationBatchWithAppend(roleId, menuIdList,
                     SysRelationCategoryEnum.SYS_ROLE_HAS_RESOURCE.getValue(), extJsonList);
         }
+    }
+
+    /**
+     * 菜单下该角色可用的动作按钮id
+     * <p>
+     * 写操作接口（新增/编辑/删除/审批…）登记为动作按钮，写入角色-菜单关系的 buttonInfo，
+     * 前端 hasPerm(接口地址) 即可判断按钮是否显示。
+     * </p>
+     */
+    private List<String> actionButtonIdList(String menuId, List<String> apiUrlList) {
+        List<SysButton> buttonList = sysButtonService.list(new LambdaQueryWrapper<SysButton>()
+                .eq(SysButton::getParentId, menuId)
+                .eq(SysButton::getCategory, SysResourceCategoryEnum.BUTTON.getValue()));
+        List<String> resultList = new ArrayList<>();
+        for (SysButton button : buttonList) {
+            String code = button.getCode();
+            if (StrUtil.isBlank(code) || !apiUrlList.contains(code)) {
+                continue;
+            }
+            // EXT_JSON 里带 action 标记的才是动作按钮（读接口不算）
+            if (StrUtil.isNotBlank(button.getExtJson()) && button.getExtJson().contains("action")) {
+                resultList.add(button.getId());
+            }
+        }
+        return resultList;
     }
 
     /** 授予接口权限（带数据范围） */

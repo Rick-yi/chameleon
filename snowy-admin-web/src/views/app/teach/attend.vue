@@ -46,7 +46,7 @@
 		<div class="m-attend-foot">
 			<a-button @click="markAll('ATTEND')">全部到课</a-button>
 			<a-button @click="markAll('LEAVE')">整班请假</a-button>
-			<a-button type="primary" :loading="submitting" @click="onSubmit">提交点名</a-button>
+			<a-button v-if="hasPerm('/course/attend/confirm')" type="primary" :loading="submitting" @click="onSubmit">提交点名</a-button>
 		</div>
 	</div>
 </template>

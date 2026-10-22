@@ -2,7 +2,7 @@
 	<div>
 		<page-header title="招生线索" desc="线索录入、跟进记录、试听预约与转学员">
 			<template #extra>
-				<a-button type="primary" @click="onOpenAdd">
+				<a-button v-if="hasPerm('/crm/lead/add')" type="primary" @click="onOpenAdd">
 					<template #icon><plus-outlined /></template>
 					新增线索
 				</a-button>
@@ -66,7 +66,7 @@
 				</template>
 				<template v-if="column.dataIndex === 'action'">
 					<a-space>
-						<a @click="onOpenFollow(record)">跟进</a>
+						<a v-if="hasPerm('/crm/follow/add')" @click="onOpenFollow(record)">跟进</a>
 						<a-divider type="vertical" />
 						<table-more :actions="leadMoreActions" @select="(action) => onLeadMore(action, record)" />
 					</a-space>

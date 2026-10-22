@@ -43,12 +43,14 @@ const get = async (path, token) => {
 /** 各角色应该看到 / 不该看到的接口 */
 const EXPECT = {
 	teacher01: {
-		allow: ['/course/schedule/week', '/course/attend/page', '/course/classStudent/page', '/student/page', '/student/detail?id=s_ux_001'],
-		deny: ['/crm/lead/page', '/student/order/page', '/course/class/page', '/finance/report/summary', '/biz/automation/rule']
+		// 老师需要班级只读数据（点名页的班级筛选与课程 id），但没有班级管理的写权限
+		allow: ['/course/schedule/week', '/course/attend/page', '/course/classStudent/page', '/student/page', '/student/detail?id=s_ux_001', '/course/class/page'],
+		deny: ['/crm/lead/page', '/student/order/page', '/course/class/add', '/finance/report/summary', '/biz/automation/rule']
 	},
 	sales01: {
-		allow: ['/crm/lead/page', '/crm/follow/page?leadId=1', '/student/page', '/student/order/page', '/crm/report/funnel'],
-		deny: ['/course/schedule/week', '/course/attend/page', '/finance/report/summary', '/biz/automation/rule']
+		// 顾问需要课包只读数据（转学员开单），但没有课包管理写权限
+		allow: ['/crm/lead/page', '/crm/follow/page?leadId=1', '/student/page', '/student/order/page', '/crm/report/funnel', '/course/package/page'],
+		deny: ['/course/schedule/week', '/course/attend/page', '/course/package/add', '/finance/report/summary', '/biz/automation/rule']
 	},
 	cashier01: {
 		allow: ['/student/order/page', '/student/refund/page', '/student/renewWarn/page', '/finance/report/summary'],

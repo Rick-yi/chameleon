@@ -2,7 +2,7 @@
 	<div>
 		<page-header title="班级管理" desc="班级、授课教师与每周固定课表">
 			<template #extra>
-				<a-button type="primary" @click="onOpenAdd">
+				<a-button v-if="hasPerm('/course/class/add')" type="primary" @click="onOpenAdd">
 					<template #icon><plus-outlined /></template>
 					新增班级
 				</a-button>
@@ -62,7 +62,7 @@
 					<a-space>
 						<a @click="onOpenStudent(record)">学员</a>
 						<a-divider type="vertical" />
-						<a @click="goSchedule(record)">排课</a>
+						<a v-if="hasPerm('/course/schedule/generate')" @click="goSchedule(record)">排课</a>
 						<a-divider type="vertical" />
 						<table-more :actions="classMoreActions" @select="(action) => onClassMore(action, record)" />
 					</a-space>

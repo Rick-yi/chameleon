@@ -2,7 +2,7 @@
 	<div>
 		<page-header title="学员管理" desc="学员档案、课时账户与报名入口">
 			<template #extra>
-				<a-button type="primary" @click="onOpenAdd">
+				<a-button v-if="hasPerm('/student/add')" type="primary" @click="onOpenAdd">
 					<template #icon><plus-outlined /></template>
 					新增学员
 				</a-button>
@@ -47,7 +47,7 @@
 					<a-space>
 						<a @click="openDetail(record)">详情</a>
 						<a-divider type="vertical" />
-						<a @click="onOpenSignup(record)">报名</a>
+						<a v-if="hasPerm('/student/order/add')" @click="onOpenSignup(record)">报名</a>
 						<a-divider type="vertical" />
 						<table-more :actions="studentMoreActions" @select="(action) => onStudentMore(action, record)" />
 					</a-space>

@@ -48,6 +48,8 @@ public class PlatformRoleTemplates {
             "sales", "招生顾问", 20,
             List.of("/workbench", "/crm", "/student", "/student/order", "/report/crm"),
             List.of("/crm",
+                    // 转学员需要课包、课程的只读数据
+                    "/course/package/page", "/course/package/detail", "/course/page", "/course/detail",
                     "/student/page", "/student/add", "/student/edit", "/student/detail",
                     "/student/lessonAccount/page", "/student/lessonFlow/page", "/student/lessonAccount/balance",
                     "/student/order/page", "/student/order/add", "/student/order/offlinePay",
@@ -60,7 +62,9 @@ public class PlatformRoleTemplates {
             List.of("/workbench", "/course/schedule", "/course/attend", "/student"),
             List.of("/course/schedule/week", "/course/schedule/page", "/course/schedule/detail",
                     "/course/schedule/teacherOptions", "/course/attend", "/course/classStudent/page",
-                    "/course/class/detail", "/course/class/campusOptions",
+                    // 点名页需要班级/课程的只读数据（课程 id、班级名单）
+                    "/course/class/page", "/course/class/detail", "/course/class/campusOptions",
+                    "/course/page", "/course/detail",
                     "/student/page", "/student/detail",
                     "/student/lessonAccount/page", "/student/lessonAccount/balance", "/student/lessonFlow/page"),
             SCOPE_ORG, true, "课表与点名消课，课节按授课教师过滤");

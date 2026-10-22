@@ -27,7 +27,7 @@
 				<div class="m-order-foot">
 					<span>{{ String(item.createTime || '').slice(5, 16) }}</span>
 					<a-button
-						v-if="item.status === 'UNPAID'"
+						v-if="item.status === 'UNPAID' && hasPerm('/student/order/offlinePay')"
 						type="primary"
 						size="small"
 						@click.stop="openPay(item)"
@@ -52,7 +52,7 @@
 				<div class="m-order-foot">
 					<a-tag :color="refundColor(item.status)">{{ refundText(item.status) }}</a-tag>
 					<a-space v-if="item.status === 'PENDING'">
-						<a-button size="small" @click="onApprove(item)">同意</a-button>
+						<a-button v-if="hasPerm('/student/refund/approve')" size="small" @click="onApprove(item)">同意</a-button>
 						<a-button size="small" danger @click="onReject(item)">驳回</a-button>
 					</a-space>
 				</div>

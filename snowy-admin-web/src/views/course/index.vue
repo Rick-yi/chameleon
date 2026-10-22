@@ -6,7 +6,7 @@
 					<template #icon><plus-outlined /></template>
 					新增大类
 				</a-button>
-				<a-button type="primary" @click="onOpenAdd">
+				<a-button v-if="hasPerm('/course/add')" type="primary" @click="onOpenAdd">
 					<template #icon><plus-outlined /></template>
 					新增课程
 				</a-button>
@@ -57,7 +57,7 @@
 				</template>
 				<template v-if="column.dataIndex === 'action'">
 					<a-space>
-						<a @click="onOpenEdit(record)">编辑</a>
+						<a v-if="hasPerm('/course/edit')" @click="onOpenEdit(record)">编辑</a>
 						<a-divider type="vertical" />
 						<a-popconfirm title="确定要删除吗？" @confirm="onDelete(record)">
 							<a-button type="link" danger size="small">删除</a-button>

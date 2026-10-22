@@ -4,7 +4,9 @@
 |---|---|
 | `gen-role-buttons.py` | 生成「业务接口 → 按钮资源」的 SQL（`_sql/chameleon_role_api_button.sql`） |
 | `demo-role-users.sql` | 为 demo 租户创建四个岗位演示账号（teacher01 / sales01 / cashier01 / principal01） |
-| `role-scope-smoke.mjs` | 权限与数据范围验证（62 项用例） |
+| `role-scope-smoke.mjs` | 权限与数据范围验证（65 项用例：接口、菜单、数据范围） |
+| `gui-btn-perm.mjs` | 按钮级权限的页面级验证（不同角色登录后页面上该不该出现某个按钮） |
+| `gen-btn-perm.py` | 批量给业务页面的操作按钮加 `hasPerm` 权限判断 |
 
 ## 使用
 

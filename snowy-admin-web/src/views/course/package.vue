@@ -2,7 +2,7 @@
 	<div>
 		<page-header title="课包管理" desc="售卖课包、课时数、赠课与有效期">
 			<template #extra>
-				<a-button type="primary" @click="onOpenAdd">
+				<a-button v-if="hasPerm('/course/package/add')" type="primary" @click="onOpenAdd">
 					<template #icon><plus-outlined /></template>
 					新增课包
 				</a-button>
@@ -56,7 +56,7 @@
 				</template>
 				<template v-if="column.dataIndex === 'action'">
 					<a-space>
-						<a @click="onOpenEdit(record)">编辑</a>
+						<a v-if="hasPerm('/course/package/edit')" @click="onOpenEdit(record)">编辑</a>
 						<a-divider type="vertical" />
 						<a-popconfirm title="确定要删除吗？" @confirm="onDelete(record)">
 							<a-button type="link" danger size="small">删除</a-button>

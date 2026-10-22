@@ -31,9 +31,9 @@
 
 		<!-- 底部操作 -->
 		<div class="m-foot-bar">
-			<a-button @click="followOpen = true">写跟进</a-button>
-			<a-button @click="trialOpen = true">安排试听</a-button>
-			<a-button type="primary" @click="convertOpen = true">转学员</a-button>
+			<a-button v-if="hasPerm('/crm/follow/add')" @click="followOpen = true">写跟进</a-button>
+			<a-button v-if="hasPerm('/crm/trial/add')" @click="trialOpen = true">安排试听</a-button>
+			<a-button v-if="hasPerm('/student/add')" type="primary" @click="convertOpen = true">转学员</a-button>
 		</div>
 
 		<!-- 写跟进 -->

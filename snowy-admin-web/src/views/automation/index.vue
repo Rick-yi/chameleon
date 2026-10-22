@@ -79,7 +79,7 @@
 									<span class="auto-last-muted">尚未执行过（累计 0 次）</span>
 								</template>
 							</div>
-							<a-button v-if="rule.mode === 'TIMER'" type="primary" ghost :loading="running === rule.ruleCode" @click="onRun(rule)">
+							<a-button v-if="rule.mode === 'TIMER' && hasPerm('/biz/automation/run')" type="primary" ghost :loading="running === rule.ruleCode" @click="onRun(rule)">
 								<template #icon><play-circle-outlined /></template>
 								立即执行
 							</a-button>
