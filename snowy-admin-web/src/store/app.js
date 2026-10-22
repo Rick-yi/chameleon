@@ -30,6 +30,14 @@ const VIEW_BY_ROLE = {
 	cashier: 'cashier'
 }
 
+/** 视角 → 允许担任的角色码（用于按角色收敛「切换视角」选项） */
+const VIEW_ROLES = {
+	all: ['superAdmin', 'bizAdmin', 'principal'],
+	teach: ['superAdmin', 'bizAdmin', 'principal', 'teacher', 'teacherAdmin', 'academic'],
+	enroll: ['superAdmin', 'bizAdmin', 'principal', 'sales', 'salesAdmin', 'marketing'],
+	cashier: ['superAdmin', 'bizAdmin', 'principal', 'cashier', 'finance']
+}
+
 export const useAppStore = defineStore('useAppStore', () => {
 	/** 当前视角 */
 	const view = ref(localStorage.getItem('APP_VIEW') || 'all')
@@ -57,10 +65,32 @@ export const useAppStore = defineStore('useAppStore', () => {
 	/** 当前视角名称 */
 	const viewName = computed(() => APP_VIEWS.find((item) => item.key === view.value)?.name || '经营总览')
 
+	/** 各视角允许访问的页面前缀 */
+	const VIEW_PATH_PREFIX = {
+		teach: ['/app/home', '/app/teach', '/app/mine'],
+		enroll: ['/app/home', '/app/enroll', '/app/teach/students', '/app/mine'],
+		cashier: ['/app/home', '/app/cashier', '/app/report', '/app/mine'],
+		all: ['/app']
+	}
+
+	/** 路径在当前视角下是否可访问 */
+	const canVisit = (path) => {
+		if (!path) return true
+		const prefixList = VIEW_PATH_PREFIX[view.value] || VIEW_PATH_PREFIX.all
+		return prefixList.some((prefix) => path === prefix || path.startsWith(prefix + '/'))
+	}
+
+	/** 当前账号可切换的视角（按角色收敛，避免切到没权限的视角后满屏 403） */
+	const allowedViews = computed(() => {
+		const roleList = userInfo.value?.roleCodeList || []
+		const allowed = APP_VIEWS.filter((item) => (VIEW_ROLES[item.key] || []).some((role) => roleList.includes(role)))
+		return allowed.length ? allowed : APP_VIEWS
+	})
+
 	/** 刷新用户信息 */
 	const refreshUser = () => {
 		userInfo.value = tool.data.get('USER_INFO') || {}
 	}
 
-	return { view, userInfo, orgName, viewName, setView, defaultView, refreshUser }
+	return { view, userInfo, orgName, viewName, allowedViews, canVisit, setView, defaultView, refreshUser }
 })

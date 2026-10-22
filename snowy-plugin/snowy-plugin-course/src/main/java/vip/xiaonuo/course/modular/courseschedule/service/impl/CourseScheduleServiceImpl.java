@@ -74,6 +74,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import vip.xiaonuo.auth.core.util.StpDataScopeUtil;
+import vip.xiaonuo.auth.core.util.StpRoleUtil;
 
 /**
  * 排课Service接口实现类
@@ -598,7 +599,21 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         Date end = cn.hutool.core.date.DateUtil.endOfDay(parseDate(courseScheduleWeekParam.getEndDate(), defaultWeekEnd()));
         List<String> visibleClassIdList = visibleClassIdList();
         List<String> visibleCampusIds = StpDataScopeUtil.visibleOrgIds();
+        // 岗位数据范围：授课老师只看自己带的课
+        // （课节上的授课人 = 自己，或自己带的班级下的课节）
+        String selfTeacherId = StpRoleUtil.hasRole(StpRoleUtil.ROLE_TEACHER) ? StpRoleUtil.currentUserId() : null;
+        List<String> selfClassIdList = StrUtil.isBlank(selfTeacherId) ? List.of()
+                : courseClassMapper.selectList(new LambdaQueryWrapper<CourseClass>()
+                        .select(CourseClass::getId)
+                        .eq(CourseClass::getTeacherId, selfTeacherId))
+                .stream().map(CourseClass::getId).collect(Collectors.toList());
         List<CourseSchedule> scheduleList = this.list(new LambdaQueryWrapper<CourseSchedule>()
+                .and(StrUtil.isNotBlank(selfTeacherId), q -> {
+                    q.eq(CourseSchedule::getTeacherId, selfTeacherId);
+                    if (ObjectUtil.isNotEmpty(selfClassIdList)) {
+                        q.or().in(CourseSchedule::getClassId, selfClassIdList);
+                    }
+                })
                 .eq(StrUtil.isNotBlank(courseScheduleWeekParam.getClassId()), CourseSchedule::getClassId, courseScheduleWeekParam.getClassId())
                 .eq(StrUtil.isNotBlank(courseScheduleWeekParam.getTeacherId()), CourseSchedule::getTeacherId, courseScheduleWeekParam.getTeacherId())
                 .eq(StrUtil.isNotBlank(courseScheduleWeekParam.getClassroom()), CourseSchedule::getClassroom, courseScheduleWeekParam.getClassroom())

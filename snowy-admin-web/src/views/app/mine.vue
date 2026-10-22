@@ -15,7 +15,7 @@
 		<div class="m-section-title">当前视角</div>
 		<div class="m-card">
 			<div
-				v-for="item in views"
+				v-for="item in appStore.allowedViews"
 				:key="item.key"
 				class="m-view-row"
 				:class="{ active: appStore.view === item.key }"

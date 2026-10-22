@@ -18,6 +18,7 @@ import cn.dev33.satoken.context.model.SaResponse;
 import cn.dev33.satoken.filter.SaServletFilter;
 import cn.dev33.satoken.router.SaHttpMethod;
 import cn.dev33.satoken.router.SaRouter;
+import cn.dev33.satoken.exception.NotPermissionException;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.convert.Convert;
@@ -66,6 +67,7 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import vip.xiaonuo.auth.core.util.StpClientUtil;
+import vip.xiaonuo.auth.core.util.StpLoginUserUtil;
 import vip.xiaonuo.common.annotation.CommonNoRepeat;
 import vip.xiaonuo.common.annotation.CommonWrapper;
 import vip.xiaonuo.common.cache.CommonCacheOperator;
@@ -125,6 +127,28 @@ public class GlobalConfigure implements WebMvcConfigurer {
             "FIN_DAILY_STAT",
             "CRM_LEAD", "CRM_LEAD_FOLLOW", "CRM_TRIAL_APPOINTMENT",
             "BIZ_AUTOMATION_CONFIG", "BIZ_AUTOMATION_LOG", "BIZ_EVENT");
+
+    /**
+     * 业务域接口地址集合
+     * <p>
+     * 这些接口必须在当前用户的接口权限清单内（菜单看不见 ≠ 接口打不通），
+     * 没标 {@code @SaCheckPermission} 的接口也能被拦住，避免越权。
+     * </p>
+     */
+    private static final String[] BIZ_PERMISSION_PATH_ARR = {
+            "/student/**",
+            "/course/**",
+            "/crm/**",
+            "/finance/**",
+            "/biz/event/**",
+            "/biz/automation/**"
+    };
+
+    /**
+     * 业务域内不参与角色授权校验的接口（系统级写入）
+     */
+    private static final List<String> BIZ_AUTH_EXEMPT_PATH_ARR = List.of(
+            "/biz/event/track");
 
     /**
      * 无需登录的接口地址集合
@@ -322,6 +346,24 @@ public class GlobalConfigure implements WebMvcConfigurer {
                             .notMatch(CollectionUtil.newArrayList(NO_LOGIN_PATH_ARR))
                             .match(CollectionUtil.newArrayList(PLATFORM_PERMISSION_PATH_ARR))
                             .check(r1 -> StpUtil.checkRole("platformAdmin"));
+
+                    // 业务域接口：必须在当前用户的接口权限清单内
+                    // （兜底：业务接口数量多，避免个别接口漏标 @SaCheckPermission 导致越权）
+                    SaRouter.match("/**")
+                            .notMatch(CollectionUtil.newArrayList(NO_LOGIN_PATH_ARR))
+                            .notMatch(CollectionUtil.newArrayList(CLIENT_USER_PERMISSION_PATH_ARR))
+                            .match(CollectionUtil.newArrayList(BIZ_PERMISSION_PATH_ARR))
+                            .check(r1 -> {
+                                String apiUrl = SaHolder.getRequest().getRequestPath();
+                                // 埋点上报：系统级写入，不参与角色授权校验
+                                if (BIZ_AUTH_EXEMPT_PATH_ARR.contains(apiUrl)) {
+                                    return;
+                                }
+                                List<String> permissionCodeList = StpLoginUserUtil.getLoginUser().getPermissionCodeList();
+                                if (ObjectUtil.isEmpty(permissionCodeList) || !permissionCodeList.contains(apiUrl)) {
+                                    throw new NotPermissionException(apiUrl);
+                                }
+                            });
                 })
 
                 // 前置函数：在每次认证函数之前执行

@@ -28,6 +28,7 @@ import vip.xiaonuo.dev.modular.config.param.DevConfigListParam;
 import vip.xiaonuo.dev.modular.config.service.DevConfigService;
 import vip.xiaonuo.dev.modular.dict.entity.DevDict;
 import vip.xiaonuo.dev.modular.dict.service.DevDictService;
+import vip.xiaonuo.platform.modular.roletemplate.service.PlatformRoleTemplateService;
 import vip.xiaonuo.platform.modular.tenant.entity.Tenant;
 import vip.xiaonuo.platform.modular.tenant.mapper.TenantMapper;
 import vip.xiaonuo.platform.modular.tenant.param.TenantAddParam;
@@ -83,6 +84,10 @@ public class TenantInitService {
 
     @Resource
     private SysOrgService sysOrgService;
+
+    /** 角色模板服务（标准业务角色） */
+    @Resource
+    private PlatformRoleTemplateService platformRoleTemplateService;
 
     @Resource
     private SysOrgExtService sysOrgExtService;
@@ -174,6 +179,9 @@ public class TenantInitService {
             sysRelationService.saveRelationWithAppend(adminUser.getId(), adminRole.getId(),
                     SysRelationCategoryEnum.SYS_USER_HAS_ROLE.getValue());
             grantAdminResources(templateTenant, adminRole.getId());
+
+            // 8.1 标准业务角色（校长/招生顾问/授课老师/前台财务），新租户开通即拥有完整角色体系
+            platformRoleTemplateService.ensureTenantRoles(newTenantId);
 
             // 9. 总部主管设为管理员
             headOffice.setDirectorId(adminUser.getId());

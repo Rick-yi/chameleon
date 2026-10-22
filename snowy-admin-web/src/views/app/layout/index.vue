@@ -39,7 +39,7 @@
 		<a-modal v-model:open="viewOpen" title="切换视角" :footer="null" :width="320">
 			<div class="m-view-list">
 				<div
-					v-for="item in views"
+					v-for="item in appStore.allowedViews"
 					:key="item.key"
 					class="m-view-item"
 					:class="{ active: appStore.view === item.key }"
@@ -55,7 +55,7 @@
 
 <script setup name="appLayout">
 	import { useRoute, useRouter } from 'vue-router'
-	import { useAppStore, APP_VIEWS } from '@/store/app'
+	import { useAppStore } from '@/store/app'
 	import {
 		HomeOutlined,
 		CalendarOutlined,
@@ -100,7 +100,6 @@
 		]
 	}
 
-	const views = APP_VIEWS
 	const tabs = computed(() => TABS[appStore.view] || TABS.all)
 
 	const headerTitle = computed(() => {
@@ -141,14 +140,28 @@
 				const { useUserStore } = await import('@/store/user')
 				await useUserStore().initUserInfo()
 				appStore.refreshUser()
-				if (!appStore.view || appStore.view === 'all') {
+				// 当前视角不在该角色允许范围内时，回落到角色默认视角
+				const allowedKeyList = appStore.allowedViews.map((item) => item.key)
+				if (!allowedKeyList.includes(appStore.view)) {
 					appStore.setView(appStore.defaultView())
 				}
+				// 用户信息就绪后再校验一次当前页面是否在权限范围内
+				guardViewPath()
 			} catch (e) {
 				// 用户信息获取失败不影响已登录状态下的使用
 			}
 		}
 	})
+
+	/** 越权页面直接回首页，避免满屏 403 */
+	const guardViewPath = () => {
+		if (route.path === '/app/login') return
+		if (!appStore.canVisit(route.path)) {
+			router.replace('/app/home')
+		}
+	}
+
+	watch(() => [appStore.view, route.path], guardViewPath, { immediate: true })
 
 	const onSwitchView = (key) => {
 		appStore.setView(key)

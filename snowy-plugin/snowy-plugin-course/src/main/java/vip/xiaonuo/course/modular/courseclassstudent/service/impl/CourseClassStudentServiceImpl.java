@@ -14,6 +14,8 @@ package vip.xiaonuo.course.modular.courseclassstudent.service.impl;
 
 import cn.hutool.core.collection.CollStreamUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
+import vip.xiaonuo.auth.core.util.StpRoleUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -68,6 +70,8 @@ public class CourseClassStudentServiceImpl extends ServiceImpl<CourseClassStuden
     public Page<CourseClassStudent> page(CourseClassStudentPageParam courseClassStudentPageParam) {
         QueryWrapper<CourseClassStudent> queryWrapper = new QueryWrapper<CourseClassStudent>().checkSqlInjection();
         queryWrapper.lambda().eq(CourseClassStudent::getClassId, courseClassStudentPageParam.getClassId())
+                // 岗位数据范围：授课老师只能看自己带的班级
+                .apply(StrUtil.isNotBlank(selfTeacherId()), "class_id in (select id from COURSE_CLASS where teacher_id = {0})", selfTeacherId())
                 .orderByDesc(CourseClassStudent::getCreateTime);
         Page<CourseClassStudent> page = this.page(CommonPageRequest.defaultPage(), queryWrapper);
         fillStudentName(page.getRecords());
@@ -94,6 +98,13 @@ public class CourseClassStudentServiceImpl extends ServiceImpl<CourseClassStuden
             nameMap.put(brief.getId(), brief.getName());
         }
         recordList.forEach(item -> item.setStudentName(nameMap.get(item.getStudentId())));
+    }
+
+    /**
+     * 当前登录人是授课老师时返回其用户id（用于「只看自己班」过滤）
+     */
+    private String selfTeacherId() {
+        return StpRoleUtil.hasRole(StpRoleUtil.ROLE_TEACHER) ? StpRoleUtil.currentUserId() : null;
     }
 
     @Override

@@ -24,6 +24,7 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vip.xiaonuo.auth.core.util.StpRoleUtil;
 import vip.xiaonuo.common.enums.CommonSortOrderEnum;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
@@ -80,6 +81,11 @@ public class CrmLeadServiceImpl extends ServiceImpl<CrmLeadMapper, CrmLead> impl
         }
         if (ObjectUtil.isNotEmpty(crmLeadPageParam.getStatus())) {
             queryWrapper.lambda().eq(CrmLead::getStatus, crmLeadPageParam.getStatus());
+        }
+        // 岗位数据范围：招生顾问只看自己跟进的线索
+        String selfFollowUserId = StpRoleUtil.hasRole(StpRoleUtil.ROLE_SALES) ? StpRoleUtil.currentUserId() : null;
+        if (StrUtil.isNotBlank(selfFollowUserId)) {
+            queryWrapper.lambda().eq(CrmLead::getFollowUserId, selfFollowUserId);
         }
         if (ObjectUtil.isNotEmpty(crmLeadPageParam.getSource())) {
             queryWrapper.lambda().eq(CrmLead::getSource, crmLeadPageParam.getSource());

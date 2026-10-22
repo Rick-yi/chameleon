@@ -2,7 +2,7 @@
 	<div class="m-home">
 		<!-- 指标块 -->
 		<div class="m-stat-grid">
-			<div v-for="item in statList" :key="item.key" class="m-stat" @click="go(item.path)">
+			<div v-for="item in statList" :key="item.key" class="m-stat" :class="{ link: appStore.canVisit(item.path) }" @click="go(item.path)">
 				<div class="m-stat-label">{{ item.label }}</div>
 				<div class="m-stat-value" :style="{ color: item.color }">{{ item.value }}</div>
 				<div class="m-stat-sub">{{ item.sub }}</div>
@@ -107,12 +107,12 @@
 				path: `/app/enroll/lead?id=${item.id}`
 			}))
 		]
-		quickList.value = [
+		quickList.value = filterQuick([
 			{ key: 'schedule', text: '我的课表', icon: CalendarOutlined, color: '#eaf2fd', path: '/app/teach/schedule' },
 			{ key: 'students', text: '学员名册', icon: TeamOutlined, color: '#e8f7f0', path: '/app/teach/students' },
 			{ key: 'leads', text: '我的线索', icon: PhoneOutlined, color: '#f3edfd', path: '/app/enroll/leads' },
 			{ key: 'report', text: '经营报表', icon: BarChartOutlined, color: '#fdf3e6', path: '/app/report' }
-		]
+		])
 	}
 
 	const loadEnroll = async () => {
@@ -135,12 +135,12 @@
 			sub: item.status === 'NEW' ? '新线索待首次跟进' : '继续跟进',
 			path: `/app/enroll/lead?id=${item.id}`
 		}))
-		quickList.value = [
+		quickList.value = filterQuick([
 			{ key: 'leads', text: '我的线索', icon: PhoneOutlined, color: '#f3edfd', path: '/app/enroll/leads' },
 			{ key: 'students', text: '学员名册', icon: TeamOutlined, color: '#e8f7f0', path: '/app/teach/students' },
 			{ key: 'order', text: '收款台', icon: WalletOutlined, color: '#eaf2fd', path: '/app/cashier/orders' },
 			{ key: 'report', text: '招生报表', icon: BarChartOutlined, color: '#fdf3e6', path: '/app/report' }
-		]
+		])
 	}
 
 	const loadCashier = async () => {
@@ -173,12 +173,12 @@
 				path: '/app/cashier/orders?tab=refund'
 			}))
 		]
-		quickList.value = [
+		quickList.value = filterQuick([
 			{ key: 'order', text: '收款台', icon: WalletOutlined, color: '#eaf2fd', path: '/app/cashier/orders' },
 			{ key: 'refund', text: '退费审批', icon: AuditOutlined, color: '#fdedf0', path: '/app/cashier/orders?tab=refund' },
 			{ key: 'report', text: '收款报表', icon: BarChartOutlined, color: '#e8f7f0', path: '/app/report' },
 			{ key: 'mine', text: '我的', icon: UserOutlined, color: '#f3edfd', path: '/app/mine' }
-		]
+		])
 	}
 
 	const loadAll = async () => {
@@ -193,8 +193,12 @@
 		}
 	}
 
+	/** 过滤当前视角不可访问的快捷入口 */
+	const filterQuick = (list) => list.filter((item) => appStore.canVisit(item.path))
+
 	const go = (path) => {
-		if (path) router.push(path)
+		// 越权页面不跳转（视角内不可见的入口直接忽略）
+		if (path && appStore.canVisit(path)) router.push(path)
 	}
 
 	onMounted(loadAll)

@@ -22,6 +22,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vip.xiaonuo.auth.core.util.StpRoleUtil;
 import vip.xiaonuo.common.enums.CommonSortOrderEnum;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
@@ -80,6 +81,13 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
         }
         if (ObjectUtil.isNotEmpty(studentPageParam.getStatus())) {
             queryWrapper.lambda().eq(Student::getStatus, studentPageParam.getStatus());
+        }
+        // 岗位数据范围：授课老师只看自己班里的学员
+        String selfTeacherId = StpRoleUtil.hasRole(StpRoleUtil.ROLE_TEACHER) ? StpRoleUtil.currentUserId() : null;
+        if (StrUtil.isNotBlank(selfTeacherId)) {
+            queryWrapper.lambda().apply(
+                    "id in (select cs.student_id from COURSE_CLASS_STUDENT cs join COURSE_CLASS c on c.id = cs.class_id"
+                            + " where c.teacher_id = {0} and cs.delete_flag = 'NOT_DELETE')", selfTeacherId);
         }
         if (ObjectUtil.isAllNotEmpty(studentPageParam.getSortField(), studentPageParam.getSortOrder())) {
             CommonSortOrderEnum.validate(studentPageParam.getSortOrder());
