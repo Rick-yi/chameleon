@@ -47,7 +47,7 @@
 			</template>
 			<span v-else style="color: rgba(0,0,0,.45); font-size: 13px">尚未选择课节</span>
 			<div style="margin-left: auto">
-				<span v-if="scheduleId" style="color: rgba(0,0,0,.45); font-size: 12px">点击学员方块切换状态：到课 → 缺勤 → 请假；已点名的需先撤销</span>
+				<span v-if="scheduleId" style="color: rgba(0,0,0,.45); font-size: 12px">点击方块即可切换出勤状态</span>
 			</div>
 		</div>
 		<div style="padding: 16px 0">

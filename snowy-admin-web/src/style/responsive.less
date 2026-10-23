@@ -1,0 +1,172 @@
+/* ============================================================
+ * 移动端适配：<=992px（平板/手机）
+ * 目标：让 PC 页面在手机浏览器上可读、可点、不横向溢出
+ * ============================================================ */
+@media (max-width: 992px) {
+	/* 页头：标题占满一行，操作按钮横向可滑动 */
+	.page-header {
+		flex-wrap: wrap;
+		gap: 10px;
+		padding: 12px 14px;
+	}
+	.page-header > div:first-child {
+		flex: 1 1 100%;
+		min-width: 0;
+	}
+	.page-header-title {
+		font-size: 15px;
+		line-height: 22px;
+		white-space: nowrap;
+	}
+	.page-header-desc {
+		font-size: 12px;
+	}
+	.page-header-extra {
+		width: 100%;
+		overflow-x: auto;
+		flex-wrap: nowrap;
+		padding-bottom: 2px;
+		-webkit-overflow-scrolling: touch;
+	}
+	.page-header-extra::-webkit-scrollbar {
+		height: 0;
+	}
+	.page-header-extra > * {
+		flex: none;
+	}
+
+	/* 筛选工具条：表单项纵向铺满 */
+	.ent-toolbar {
+		padding: 10px 12px;
+		gap: 8px;
+	}
+	.ent-toolbar .ant-form {
+		width: 100%;
+	}
+	.ent-toolbar .ant-form-item {
+		width: 100%;
+		margin-right: 0;
+		margin-bottom: 8px;
+	}
+	.ent-toolbar .ant-form-item:last-child {
+		margin-bottom: 0;
+	}
+	.ent-toolbar .ant-form-item-control {
+		width: 100%;
+	}
+	.ent-toolbar input.ant-input,
+	.ent-toolbar .ant-input-affix-wrapper,
+	.ent-toolbar .ant-input-number,
+	.ent-toolbar .ant-select,
+	.ent-toolbar .ant-picker {
+		width: 100% !important;
+	}
+
+	/* 报表筛选卡 */
+	.report-filter .ant-form-item {
+		width: 100%;
+		margin-right: 0;
+	}
+	.report-filter .ant-form-item-control {
+		width: 100%;
+	}
+	.report-filter input.ant-input,
+	.report-filter .ant-input-affix-wrapper,
+	.report-filter .ant-input-number,
+	.report-filter .ant-select,
+	.report-filter .ant-picker {
+		width: 100% !important;
+	}
+
+	/* 卡片与表格：压缩留白，表格可横滑 */
+	.ant-card-body {
+		padding: 14px;
+	}
+	.ant-table-wrapper {
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+	.ant-table-wrapper::-webkit-scrollbar {
+		height: 4px;
+	}
+	.ant-table-wrapper::-webkit-scrollbar-thumb {
+		background: rgba(0, 0, 0, 0.18);
+		border-radius: 2px;
+	}
+	.ant-table {
+		font-size: 13px;
+	}
+	.ant-table-thead > tr > th,
+	.ant-table-tbody > tr > td {
+		padding: 10px 8px;
+	}
+
+	/* 树 + 列表页：手机端隐藏左树，用表单里的组织选择代替 */
+	.tree-page {
+		border: none;
+		background: transparent;
+		border-radius: 0;
+	}
+	.tree-page .panel-left,
+	.tree-page .resizer {
+		display: none;
+	}
+	.tree-page .panel-right {
+		padding: 0 !important;
+	}
+	.tree-page .panel-right > .ant-form {
+		margin: 0;
+		padding: 0 0 10px;
+		background: transparent;
+		border-bottom: none;
+	}
+
+	/* 弹窗与抽屉：不超出屏幕 */
+	.ant-modal {
+		max-width: calc(100vw - 16px);
+		margin: 8px auto;
+		top: 8px;
+	}
+	.ant-modal-body {
+		padding: 14px;
+	}
+	.ant-drawer-content-wrapper {
+		max-width: 100vw !important;
+	}
+	.ant-drawer-body {
+		padding: 14px;
+	}
+
+	/* 悬浮菜单按钮：移到右下角并缩小，减少遮挡 */
+	.mobile-nav-button {
+		left: auto !important;
+		right: 14px !important;
+		bottom: calc(18px + env(safe-area-inset-bottom)) !important;
+		width: 44px !important;
+		height: 44px !important;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18) !important;
+		opacity: 0.95;
+	}
+
+	/* 页签可横滑 */
+	.ant-tabs-nav-wrap {
+		overflow-x: auto;
+	}
+
+	/* 给右下角悬浮菜单留出空间，避免遮住最后一行内容 */
+	.ant-layout-content {
+		padding-bottom: 68px;
+	}
+}
+
+@media (max-width: 576px) {
+	.ant-card-body {
+		padding: 12px;
+	}
+	.ant-modal {
+		max-width: calc(100vw - 12px);
+	}
+	.page-header {
+		padding: 12px;
+	}
+}

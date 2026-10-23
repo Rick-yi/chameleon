@@ -2,6 +2,8 @@
 @import './default';
 // 企业级主题层（覆盖默认观感，最后加载以保证优先级）
 @import './enterprise';
+// 移动端适配（最后加载，覆盖桌面布局）
+@import './responsive';
 
 // 灰色模式全局样式 - 在 html 元素上应用滤镜，覆盖所有内容
 html.gray-mode {
