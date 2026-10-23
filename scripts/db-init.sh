@@ -54,7 +54,7 @@ fi
 
 echo ">> 等待 MySQL ${MYSQL_HOST}:${MYSQL_PORT} ..."
 for i in $(seq 1 60); do
-  if mysqladmin -h "${MYSQL_HOST}" -P "${MYSQL_PORT}" -u "${MYSQL_USER}" -p"${MYSQL_PWD}" ping >/dev/null 2>&1; then
+  if mysqladmin --default-character-set=utf8mb4 -h "${MYSQL_HOST}" -P "${MYSQL_PORT}" -u "${MYSQL_USER}" -p"${MYSQL_PWD}" ping >/dev/null 2>&1; then
     break
   fi
   sleep 2
@@ -71,12 +71,12 @@ for file in "${ORDER[@]}"; do
     continue
   fi
   echo "-- 执行：${file}"
-  mysql --force -h "${MYSQL_HOST}" -P "${MYSQL_PORT}" -u "${MYSQL_USER}" -p"${MYSQL_PWD}" \
+  mysql --default-character-set=utf8mb4 --force -h "${MYSQL_HOST}" -P "${MYSQL_PORT}" -u "${MYSQL_USER}" -p"${MYSQL_PWD}" \
     "${MYSQL_DB}" < "${path}"
 done
 
 echo ">> 初始化完成，检查关键表："
-mysql -h "${MYSQL_HOST}" -P "${MYSQL_PORT}" -u "${MYSQL_USER}" -p"${MYSQL_PWD}" "${MYSQL_DB}" -e "
+mysql --default-character-set=utf8mb4 -h "${MYSQL_HOST}" -P "${MYSQL_PORT}" -u "${MYSQL_USER}" -p"${MYSQL_PWD}" "${MYSQL_DB}" -e "
   SELECT 'SYS_USER' T, COUNT(*) C FROM SYS_USER
   UNION ALL SELECT 'SYS_ROLE', COUNT(*) FROM SYS_ROLE
   UNION ALL SELECT 'SYS_RESOURCE', COUNT(*) FROM SYS_RESOURCE

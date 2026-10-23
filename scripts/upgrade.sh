@@ -53,7 +53,7 @@ for file in "${ORDER[@]}"; do
     continue
   fi
   echo "-- 执行：${file}"
-  mysql --force -h "${MYSQL_HOST}" -P "${MYSQL_PORT}" -u "${MYSQL_USER}" -p"${MYSQL_PWD}" \
+  mysql --default-character-set=utf8mb4 --force -h "${MYSQL_HOST}" -P "${MYSQL_PORT}" -u "${MYSQL_USER}" -p"${MYSQL_PWD}" \
     "${MYSQL_DB}" < "${path}"
 done
 

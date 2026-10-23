@@ -1,0 +1,6 @@
+
+# 部署/脚本统一 LF，避免容器内 bash 解析失败
+*.sh text eol=lf
+*.mjs text eol=lf
+deploy/** text eol=lf
+scripts/**/*.sql text eol=lf
