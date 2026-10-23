@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # ============================================================
-# chameleon 数据库升级脚本（按顺序执行幂等脚本）
+# chameleon 数据库升级脚本（对已有库执行增量/幂等脚本）
 # 用法：
 #   MYSQL_HOST=... MYSQL_USER=... MYSQL_PWD=... ./scripts/upgrade.sh
 # 说明：
-#   - 只执行「可重复执行」的脚本（INSERT IGNORE / 幂等检查）；
-#   - 一次性 ALTER 脚本（chameleon_p0_migration.sql、chameleon_c1_migration.sql）不自动执行，
-#     因为列已存在会报错，需要人工确认后再跑；
-#   - 升级前建议先执行 scripts/backup.sh。
+#   - 升级前请先执行 scripts/backup.sh；
+#   - 不包含 snowy_mysql.sql（会 DROP 底座表），也不包含演示数据；
+#   - 结构变更（加列/索引/新表）由应用启动时的 P0SchemaMigration 幂等补齐，
+#     本脚本只负责数据类脚本（菜单、权限、按钮、自动化配置等）；
+#   - 使用 mysql --force：重复执行时的「已存在」报错会跳过，其余错误请人工确认。
 # ============================================================
 set -euo pipefail
 
@@ -22,31 +23,38 @@ if [ -z "${MYSQL_PWD:-}" ]; then
   exit 1
 fi
 
-run() {
-  local file="$1"
-  local path="${SQL_DIR}/${file}"
+ORDER=(
+  chameleon_course.sql
+  chameleon_crm.sql
+  chameleon_student.sql
+  chameleon_finance.sql
+  chameleon_platform.sql
+  chameleon_event.sql
+  chameleon_tenant_migration.sql
+  chameleon_menu.sql
+  chameleon_ux_menu.sql
+  chameleon_c1_migration.sql
+  chameleon_c2_migration.sql
+  chameleon_c3_migration.sql
+  chameleon_c4_migration.sql
+  chameleon_p0_migration.sql
+  chameleon_report_migration.sql
+  chameleon_report_permission.sql
+  chameleon_report_r2r4_migration.sql
+  chameleon_automation.sql
+  chameleon_role_api_button.sql
+  chameleon_role_template.sql
+)
+
+for file in "${ORDER[@]}"; do
+  path="${SQL_DIR}/${file}"
   if [ ! -f "${path}" ]; then
     echo "-- 跳过（不存在）：${file}"
-    return
+    continue
   fi
   echo "-- 执行：${file}"
-  mysql -h "${MYSQL_HOST}" -P "${MYSQL_PORT}" -u "${MYSQL_USER}" -p"${MYSQL_PWD}" \
+  mysql --force -h "${MYSQL_HOST}" -P "${MYSQL_PORT}" -u "${MYSQL_USER}" -p"${MYSQL_PWD}" \
     "${MYSQL_DB}" < "${path}"
-}
+done
 
-# 幂等脚本：可安全重复执行
-run "chameleon_tenant_migration.sql"
-run "chameleon_menu.sql"
-run "chameleon_report_r2r4_migration.sql"
-run "chameleon_report_permission.sql"
-
-# 一次性脚本：如需执行请手动执行（列已存在会报错）
-cat <<'TXT'
-
-以下脚本为一次性结构升级，需人工确认后执行：
-  chameleon_p0_migration.sql
-  chameleon_c1_migration.sql
-
-TXT
-
-echo ">> 升级完成（应用重启后 P0SchemaMigration 会再做一次幂等检查与补列）"
+echo ">> 升级脚本执行完成；应用启动后 P0SchemaMigration 会补齐结构变更。"

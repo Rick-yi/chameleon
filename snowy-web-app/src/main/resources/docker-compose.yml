@@ -1,11 +1,37 @@
-# chameleon 编排：后端 + MySQL + Redis
-# 使用：docker compose -f snowy-web-app/src/main/resources/docker-compose.yml up -d --build
-# 说明：根目录已提供多阶段 Dockerfile（maven 构建 + JRE 运行），build 段可直接使用。
+# ============================================================
+# chameleon 一键编排：前端(nginx) + 后端 + MySQL + Redis + 初始化
+# 使用：
+#   1) 可选：复制 .env.example 为 .env 并修改数据库密码
+#   2) docker compose -f snowy-web-app/src/main/resources/docker-compose.yml up -d --build
+#   3) 首次启动 db-init 自动建表；默认跳过演示数据（SEED_DEMO=1 可开启）
+# ============================================================
 version: '3.8'
 
 services:
+  # 首次启动执行建库脚本，执行完退出（可重复执行）
+  chameleon-db-init:
+    image: mysql:8.0
+    container_name: chameleon-db-init
+    environment:
+      - MYSQL_HOST=chameleon-mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PWD=${MYSQL_ROOT_PASSWORD:-12345678}
+      - MYSQL_DB=${MYSQL_DB:-chameleon}
+      - SKIP_DEMO=${SKIP_DEMO:-1}
+    volumes:
+      - ../../../scripts:/scripts:ro
+      - ../../../snowy-web-app/src/main/resources/_sql:/sql:ro
+    entrypoint: ["bash", "/scripts/db-init.sh"]
+    depends_on:
+      chameleon-mysql:
+        condition: service_healthy
+    networks:
+      - chameleon-network
+    restart: "no"
+
   chameleon-web-app:
-    build: 
+    build:
       context: ../../../
       dockerfile: Dockerfile
     image: chameleon-web-app:latest
@@ -13,44 +39,76 @@ services:
     ports:
       - "82:82"
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_PROFILES_ACTIVE=prod
       - MYSQL_HOST=chameleon-mysql
       - MYSQL_PORT=3306
-      - MYSQL_DB=chameleon
+      - MYSQL_DB=${MYSQL_DB:-chameleon}
       - MYSQL_USER=root
-      - MYSQL_PWD=12345678
+      - MYSQL_PWD=${MYSQL_ROOT_PASSWORD:-12345678}
       - REDIS_HOST=chameleon-redis
       - REDIS_PORT=6379
-      - REDIS_PWD=
+      - REDIS_PWD=${REDIS_PASSWORD:-}
       - REDIS_DB=1
+      - LOG_PATH=/app/logs
     volumes:
       - app-data:/app/data
       - app-logs:/app/logs
+      - upload-data:/defaultUploadFolder
     depends_on:
-      - chameleon-mysql
-      - chameleon-redis
+      chameleon-db-init:
+        condition: service_completed_successfully
+      chameleon-redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:82/favicon.ico || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    networks:
+      - chameleon-network
+
+  # 前端：nginx 托管 dist，并把 /api 反向代理到后端
+  chameleon-web:
+    build:
+      context: ../../../
+      dockerfile: Dockerfile.web
+    image: chameleon-web:latest
+    container_name: chameleon-web
+    ports:
+      - "80:80"
+    environment:
+      - BACKEND_HOST=chameleon-web-app
+      - BACKEND_PORT=82
+    depends_on:
+      chameleon-web-app:
+        condition: service_healthy
     networks:
       - chameleon-network
 
   chameleon-mysql:
     image: mysql:8.0
     container_name: chameleon-mysql
-    ports:
-      - "3306:3306"
+    # 生产不建议把数据库端口暴露到公网；需要调试时再临时放开
     environment:
-      - MYSQL_ROOT_PASSWORD=12345678
-      - MYSQL_DATABASE=chameleon
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-12345678}
+      - MYSQL_DATABASE=${MYSQL_DB:-chameleon}
     volumes:
       - mysql-data:/var/lib/mysql
     networks:
       - chameleon-network
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   chameleon-redis:
     image: redis:7.0
     container_name: chameleon-redis
-    ports:
-      - "6379:6379"
+    # 生产不建议把 Redis 端口暴露到公网
     volumes:
       - redis-data:/data
     networks:
@@ -66,3 +124,4 @@ volumes:
   redis-data:
   app-data:
   app-logs:
+  upload-data:

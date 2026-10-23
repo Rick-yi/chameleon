@@ -46,8 +46,7 @@ const ORDER = [
 	'chameleon_report_r2r4_migration.sql',
 	'chameleon_automation.sql',
 	'chameleon_role_api_button.sql',
-	'chameleon_role_template.sql',
-	'chameleon_demo_org.sql'
+	'chameleon_role_template.sql'
 ]
 
 /** 幂等错误：迁移脚本重复执行时会遇到，直接跳过 */
@@ -61,6 +60,7 @@ const IDEMPOTENT_ERRORS = [
 ]
 
 const args = process.argv.slice(2)
+const SKIP_DEMO = args.includes('--skip-demo') || process.env.SKIP_DEMO === '1'
 const arg = (name) => {
 	const idx = args.indexOf(`--${name}`)
 	return idx >= 0 ? args[idx + 1] : undefined
@@ -102,9 +102,10 @@ const main = () => {
 		process.exit(1)
 	}
 
-	// 2. 按顺序执行
+	// 2. 按顺序执行（演示数据可选：--skip-demo 或 SKIP_DEMO=1）
 	const executed = []
-	for (const file of ORDER) {
+	const scriptList = SKIP_DEMO ? ORDER : [...ORDER, 'chameleon_demo_org.sql']
+	for (const file of scriptList) {
 		const path = join(SQL_DIR, file)
 		if (!existsSync(path)) {
 			console.warn(`  [跳过] ${file}（文件不存在）`)
