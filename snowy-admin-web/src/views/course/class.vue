@@ -137,7 +137,7 @@
 			bordered
 			:row-key="(record) => record.id"
 			size="small"
-			:pagination="false"
+			:show-pagination="false"
 		>
 			<template #bodyCell="{ column, record }">
 				<template v-if="column.dataIndex === 'studentId'">

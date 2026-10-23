@@ -157,9 +157,68 @@
 	.ant-layout-content {
 		padding-bottom: 68px;
 	}
+
+	/* 弹窗/抽屉里的表格：表头不竖排、容器可横滑 */
+	.ant-modal .ant-table-thead > tr > th,
+	.ant-drawer .ant-table-thead > tr > th,
+	.ant-modal .ant-table-tbody > tr > td,
+	.ant-drawer .ant-table-tbody > tr > td {
+		white-space: nowrap;
+	}
+	.ant-modal .ant-table-wrapper,
+	.ant-drawer .ant-table-wrapper {
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	/* 弹窗/抽屉里的栅格：平板两列，手机单列（见 576 断点） */
+	.ant-modal .ant-row > .ant-col,
+	.ant-drawer .ant-row > .ant-col {
+		flex: 0 0 50% !important;
+		max-width: 50% !important;
+	}
+
+	/* 授权弹窗的模块切换按钮可横滑 */
+	.ant-modal .ant-radio-group {
+		display: block;
+		overflow-x: auto;
+		white-space: nowrap;
+		padding-bottom: 4px;
+	}
+
+	/* 弹窗底部按钮在窄屏换行 */
+	.ant-modal-footer {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		gap: 8px;
+	}
+
+	/* 描述列表标签窄一些，内容可换行 */
+	.ant-drawer .ant-descriptions-item-label,
+	.ant-modal .ant-descriptions-item-label {
+		width: 96px;
+	}
+	.ant-drawer .ant-descriptions-item-content,
+	.ant-modal .ant-descriptions-item-content {
+		word-break: break-word;
+	}
+
+	/* 弹窗内的图片/富文本不撑破屏幕 */
+	.ant-modal img,
+	.ant-drawer img {
+		max-width: 100%;
+		height: auto;
+	}
 }
 
 @media (max-width: 576px) {
+	/* 手机端弹窗/抽屉表单统一单列 */
+	.ant-modal .ant-row > .ant-col,
+	.ant-drawer .ant-row > .ant-col {
+		flex: 0 0 100% !important;
+		max-width: 100% !important;
+	}
 	.ant-card-body {
 		padding: 12px;
 	}

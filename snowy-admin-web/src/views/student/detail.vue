@@ -1,11 +1,11 @@
 <template>
 	<div>
 		<a-card :loading="loading" style="margin-bottom: 16px">
-			<div style="display: flex; align-items: center; gap: 16px">
-				<a-avatar size="large" style="background: #4bb964">{{ (student.name || '?').slice(0, 1) }}</a-avatar>
+			<div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap">
+				<a-avatar size="large" style="background: #4bb964; flex: none">{{ (student.name || '?').slice(0, 1) }}</a-avatar>
 				<div>
 					<div style="font-size: 16px; font-weight: 600">{{ student.name }} <a-tag :color="statusColor" style="margin-left: 8px">{{ statusText }}</a-tag></div>
-					<div style="color: rgba(0,0,0,.45); font-size: 13px; margin-top: 4px">家长：{{ student.parentName }} {{ student.parentPhone }} · 生日：{{ student.birthday || '-' }}</div>
+					<div style="color: rgba(0,0,0,.45); font-size: 13px; margin-top: 4px">家长：{{ student.parentName }} {{ student.parentPhone }} · 生日：{{ student.birthday ? String(student.birthday).slice(0, 10) : '-' }}</div>
 				</div>
 				<div style="margin-left: auto">
 					<a-button type="primary" @click="orderOpen = true">报名购课</a-button>
