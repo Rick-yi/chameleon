@@ -45,6 +45,10 @@ public class CourseScheduleGenerateResultDTO {
     @Schema(description = "冲突说明")
     private List<String> conflicts = new ArrayList<>();
 
+    /** 跳过说明（停课日、与已有排课重复等），不影响其余课节生成 */
+    @Schema(description = "跳过说明")
+    private List<String> skipReasons = new ArrayList<>();
+
     /** 是否仅预览（未落库） */
     @Schema(description = "是否仅预览")
     private Boolean preview = Boolean.FALSE;

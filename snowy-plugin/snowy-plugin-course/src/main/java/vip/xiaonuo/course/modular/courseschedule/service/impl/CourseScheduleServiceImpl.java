@@ -40,6 +40,7 @@ import vip.xiaonuo.course.modular.courseclassstudent.entity.CourseClassStudent;
 import vip.xiaonuo.course.modular.courseclassstudent.enums.CourseClassStudentStatusEnum;
 import vip.xiaonuo.course.modular.courseclassstudent.service.CourseClassStudentService;
 import vip.xiaonuo.course.modular.courseschedule.entity.CourseSchedule;
+import vip.xiaonuo.course.modular.courseschedule.entity.CourseTeacherUnavailable;
 import vip.xiaonuo.course.modular.courseschedule.enums.CourseScheduleStatusEnum;
 import vip.xiaonuo.course.modular.courseschedule.mapper.CourseScheduleMapper;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleAddParam;
@@ -49,6 +50,7 @@ import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleGeneratePar
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleIdParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseSchedulePageParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleSuggestParam;
+import vip.xiaonuo.course.modular.courseschedule.service.CourseScheduleConfigService;
 import vip.xiaonuo.course.modular.courseschedule.service.CourseScheduleService;
 import vip.xiaonuo.course.modular.courseschedulechange.entity.CourseScheduleChange;
 import vip.xiaonuo.course.modular.courschedulestudent.service.CourseScheduleStudentService;
@@ -101,6 +103,9 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
 
     @Resource
     private CourseScheduleChangeService courseScheduleChangeService;
+
+    @Resource
+    private CourseScheduleConfigService courseScheduleConfigService;
 
     @Resource
     private CourseClassStudentService courseClassStudentService;
@@ -182,6 +187,10 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         Map<Integer, List<LocalTime[]>> templateMap = new HashMap<>();
         if (StrUtil.isNotBlank(param.getClassId())) {
             CourseClass courseClass = courseClassMapper.selectById(param.getClassId());
+            // 未显式指定教师时按班级默认教师判断占用，否则会推荐出教师已满的时段
+            if (courseClass != null && StrUtil.isBlank(param.getTeacherId())) {
+                param.setTeacherId(courseClass.getTeacherId());
+            }
             if (courseClass != null && StrUtil.isNotBlank(courseClass.getWeekTemplateJson())) {
                 for (Object item : JSONUtil.parseArray(courseClass.getWeekTemplateJson())) {
                     JSONObject template = (JSONObject) item;
@@ -196,9 +205,17 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                 }
             }
         }
+        // 停课日与教师不可用时段：推荐时一并排除
+        java.util.Map<String, String> closureMap = courseScheduleConfigService.closureMap(rangeStart, rangeEnd);
+        List<CourseTeacherUnavailable> unavailableList = StrUtil.isBlank(param.getTeacherId())
+                ? java.util.Collections.emptyList()
+                : courseScheduleConfigService.listUnavailableInRange(rangeStart, rangeEnd);
         List<vip.xiaonuo.course.api.dto.CourseScheduleSuggestDTO> resultList = new ArrayList<>();
         String[] weekText = {"周一", "周二", "周三", "周四", "周五", "周六", "周日"};
         for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
+            if (closureMap.containsKey(date.toString())) {
+                continue;
+            }
             final LocalDate currentDate = date;
             List<CourseSchedule> dayList = existList.stream()
                     .filter(item -> item.getScheduleDate() != null
@@ -212,6 +229,18 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                 LocalTime slotEnd = slotStart.plusMinutes(duration);
                 if (hasConflict(dayList, param, slotStart, slotEnd)) {
                     continue;
+                }
+                // 教师不可用：跳过重叠的候选
+                if (StrUtil.isNotBlank(param.getTeacherId())) {
+                    Date slotStartDate = Date.from(date.atTime(slotStart).atZone(ZoneId.systemDefault()).toInstant());
+                    Date slotEndDate = Date.from(date.atTime(slotEnd).atZone(ZoneId.systemDefault()).toInstant());
+                    boolean unavailableHit = unavailableList.stream()
+                            .filter(item -> param.getTeacherId().equals(item.getTeacherId()))
+                            .anyMatch(item -> item.getStartTime().before(slotEndDate)
+                                    && item.getEndTime().after(slotStartDate));
+                    if (unavailableHit) {
+                        continue;
+                    }
                 }
                 int score = 0;
                 String reason;
@@ -323,6 +352,11 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void add(CourseScheduleAddParam courseScheduleAddParam) {
+        String closureName = courseScheduleConfigService.closureNameOf(courseScheduleAddParam.getScheduleDate());
+        if (StrUtil.isNotBlank(closureName)) {
+            throw new CommonException("{} 是停课日【{}】，不能排课", 
+                    cn.hutool.core.date.DateUtil.formatDate(courseScheduleAddParam.getScheduleDate()), closureName);
+        }
         List<String> conflicts = this.conflictCheck(courseScheduleAddParam.getClassId(), courseScheduleAddParam.getScheduleDate(),
                 courseScheduleAddParam.getStartTime(), courseScheduleAddParam.getEndTime(),
                 courseScheduleAddParam.getClassroom(), courseScheduleAddParam.getTeacherId(), null);
@@ -391,6 +425,13 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             sysUserApi.getUserListByIdListWithoutException(templateTeacherIdList)
                     .forEach(user -> teacherNameMap.put(user.getStr("id"), user.getStr("name")));
         }
+        // 停课日与教师不可用时段：一次载入区间内数据，循环里内存判断
+        java.util.Map<String, String> closureMap = courseScheduleConfigService.closureMap(
+                Date.from(monday.atStartOfDay(ZoneId.systemDefault()).toInstant()),
+                Date.from(lastDay.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        List<CourseTeacherUnavailable> unavailableList = courseScheduleConfigService.listUnavailableInRange(
+                Date.from(monday.atStartOfDay(ZoneId.systemDefault()).toInstant()),
+                Date.from(lastDay.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
         List<CourseSchedule> toSaveList = new ArrayList<>();
         List<String> allConflicts = new ArrayList<>();
         int plannedCount = 0;
@@ -417,6 +458,14 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                     skippedCount++;
                     continue;
                 }
+                // 停课日：跳过，不算冲突
+                String closureName = closureMap.get(cn.hutool.core.date.DateUtil.formatDate(scheduleDate));
+                if (StrUtil.isNotBlank(closureName)) {
+                    skippedCount++;
+                    result.getSkipReasons().add(cn.hutool.core.date.DateUtil.formatDate(scheduleDate)
+                            + " 停课日【" + closureName + "】，已跳过");
+                    continue;
+                }
                 // 与区间内已有排课冲突（教室 / 教师 / 班级同时段重叠）
                 String slotText = cn.hutool.core.date.DateUtil.formatDate(scheduleDate) + " " + startTime + "-" + endTime;
                 String teacherName = StrUtil.blankToDefault(teacherNameMap.get(teacherId), teacherId);
@@ -437,6 +486,20 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                     }
                     if (courseScheduleGenerateParam.getClassId().equals(exist.getClassId())) {
                         allConflicts.add(slotText + " 班级【" + courseClass.getName() + "】已有排课");
+                    }
+                }
+                // 教师不可用时段
+                if (StrUtil.isNotBlank(teacherId)) {
+                    Date slotStart = Date.from(date.atTime(startTime).atZone(ZoneId.systemDefault()).toInstant());
+                    Date slotEnd = Date.from(date.atTime(endTime).atZone(ZoneId.systemDefault()).toInstant());
+                    for (CourseTeacherUnavailable unavailable : unavailableList) {
+                        if (!teacherId.equals(unavailable.getTeacherId())) {
+                            continue;
+                        }
+                        if (unavailable.getStartTime().before(slotEnd) && unavailable.getEndTime().after(slotStart)) {
+                            allConflicts.add(slotText + " 教师【" + teacherName + "】不可用"
+                                    + (StrUtil.isBlank(unavailable.getReason()) ? "" : "（" + unavailable.getReason() + "）"));
+                        }
                     }
                 }
                 // 与同批生成排课冲突（教室 / 教师）
@@ -520,6 +583,11 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         CourseSchedule from = this.queryEntity(courseScheduleChangeParam.getScheduleId());
         if (!CourseScheduleStatusEnum.NORMAL.getValue().equals(from.getStatus())) {
             throw new CommonException("排课当前状态【{}】不允许调课", from.getStatus());
+        }
+        String closureName = courseScheduleConfigService.closureNameOf(courseScheduleChangeParam.getScheduleDate());
+        if (StrUtil.isNotBlank(closureName)) {
+            throw new CommonException("目标日期 {} 是停课日【{}】，不能调课",
+                    cn.hutool.core.date.DateUtil.formatDate(courseScheduleChangeParam.getScheduleDate()), closureName);
         }
         List<String> conflicts = this.conflictCheck(from.getClassId(), courseScheduleChangeParam.getScheduleDate(),
                 courseScheduleChangeParam.getStartTime(), courseScheduleChangeParam.getEndTime(),
@@ -670,9 +738,7 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             queryWrapper.ne(CourseSchedule::getId, excludeScheduleId);
         }
         List<CourseSchedule> existList = this.list(queryWrapper);
-        if (ObjectUtil.isEmpty(existList)) {
-            return new ArrayList<>();
-        }
+        // 不能因为「同一时段没有其他排课」就提前返回：教师不可用时段也要检查
         Set<String> conflictSet = new HashSet<>();
         String slotText = cn.hutool.core.date.DateUtil.formatDate(scheduleDate) + " "
                 + startTime + "-" + endTime;
@@ -706,6 +772,17 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             if (ObjectUtil.isNotEmpty(classId) && classId.equals(exist.getClassId())) {
                 conflictSet.add("班级【" + StrUtil.blankToDefault(classNameMap.get(classId), classId) + "】在 "
                         + slotText + " 已有排课");
+            }
+        }
+        // 教师不可用时段（请假、教研等）
+        if (ObjectUtil.isNotEmpty(teacherId)) {
+            LocalDate day = scheduleDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            Date slotStart = Date.from(day.atTime(startTime).atZone(ZoneId.systemDefault()).toInstant());
+            Date slotEnd = Date.from(day.atTime(endTime).atZone(ZoneId.systemDefault()).toInstant());
+            for (CourseTeacherUnavailable unavailable : courseScheduleConfigService
+                    .listUnavailable(teacherId, slotStart, slotEnd)) {
+                conflictSet.add("教师【" + teacherName + "】在 " + slotText + " 不可用"
+                        + (StrUtil.isBlank(unavailable.getReason()) ? "" : "（" + unavailable.getReason() + "）"));
             }
         }
         return new ArrayList<>(conflictSet);
@@ -760,6 +837,13 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             sysUserApi.getUserListByIdListWithoutException(templateTeacherIdList)
                     .forEach(user -> teacherNameMap.put(user.getStr("id"), user.getStr("name")));
         }
+        // 停课日与教师不可用时段
+        java.util.Map<String, String> closureMap = courseScheduleConfigService.closureMap(
+                Date.from(monday.atStartOfDay(ZoneId.systemDefault()).toInstant()),
+                Date.from(lastDay.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        List<CourseTeacherUnavailable> unavailableList = courseScheduleConfigService.listUnavailableInRange(
+                Date.from(monday.atStartOfDay(ZoneId.systemDefault()).toInstant()),
+                Date.from(lastDay.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
         List<CourseSchedule> toSaveList = new ArrayList<>();
         List<String> allConflicts = new ArrayList<>();
         int plannedCount = 0;
@@ -784,6 +868,13 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                     skippedCount++;
                     continue;
                 }
+                String closureName = closureMap.get(cn.hutool.core.date.DateUtil.formatDate(scheduleDate));
+                if (StrUtil.isNotBlank(closureName)) {
+                    skippedCount++;
+                    result.getSkipReasons().add(cn.hutool.core.date.DateUtil.formatDate(scheduleDate)
+                            + " 停课日【" + closureName + "】，已跳过");
+                    continue;
+                }
                 String slotText = cn.hutool.core.date.DateUtil.formatDate(scheduleDate) + " " + startTime + "-" + endTime;
                 String teacherName = StrUtil.blankToDefault(teacherNameMap.get(teacherId), teacherId);
                 for (CourseSchedule exist : existList) {
@@ -798,6 +889,19 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                     }
                     if (ObjectUtil.isNotEmpty(teacherId) && teacherId.equals(exist.getTeacherId())) {
                         allConflicts.add(slotText + " 教师【" + teacherName + "】已有排课");
+                    }
+                }
+                if (StrUtil.isNotBlank(teacherId)) {
+                    Date slotStart = Date.from(date.atTime(startTime).atZone(ZoneId.systemDefault()).toInstant());
+                    Date slotEnd = Date.from(date.atTime(endTime).atZone(ZoneId.systemDefault()).toInstant());
+                    for (CourseTeacherUnavailable unavailable : unavailableList) {
+                        if (!teacherId.equals(unavailable.getTeacherId())) {
+                            continue;
+                        }
+                        if (unavailable.getStartTime().before(slotEnd) && unavailable.getEndTime().after(slotStart)) {
+                            allConflicts.add(slotText + " 教师【" + teacherName + "】不可用"
+                                    + (StrUtil.isBlank(unavailable.getReason()) ? "" : "（" + unavailable.getReason() + "）"));
+                        }
                     }
                 }
                 for (CourseSchedule planned : toSaveList) {

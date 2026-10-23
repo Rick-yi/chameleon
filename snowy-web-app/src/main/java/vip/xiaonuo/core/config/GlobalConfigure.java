@@ -122,6 +122,7 @@ public class GlobalConfigure implements WebMvcConfigurer {
             "DEV_CONFIG", "DEV_DICT", "CLIENT_USER",
             "COURSE_CATEGORY", "COURSE", "COURSE_PACKAGE", "COURSE_CLASS", "COURSE_CLASS_STUDENT",
             "COURSE_SCHEDULE", "COURSE_SCHEDULE_CHANGE", "COURSE_CLASS_ATTEND",
+            "COURSE_SCHEDULE_CLOSURE", "COURSE_TEACHER_UNAVAILABLE",
             "STUDENT", "STUDENT_PARENT_BIND", "STUDENT_ORDER", "STUDENT_LESSON_ACCOUNT",
             "STUDENT_LESSON_FLOW", "STUDENT_REFUND", "STUDENT_RENEW_WARN", "NOTIFY_LOG",
             "FIN_DAILY_STAT",
@@ -154,7 +155,10 @@ public class GlobalConfigure implements WebMvcConfigurer {
      */
     private static final List<String> BIZ_AUTH_EXEMPT_PATH_ARR = List.of(
             "/biz/event/track",
-            "/course/schedule/cancelBatch");
+            "/course/schedule/cancelBatch",
+            // 排课辅助配置：读写分别复用「排课分页」「手动排课」的权限码
+            "/course/schedule/closure/**",
+            "/course/schedule/teacherUnavailable/**");
 
     /**
      * 无需登录的接口地址集合
@@ -362,7 +366,7 @@ public class GlobalConfigure implements WebMvcConfigurer {
                             .check(r1 -> {
                                 String apiUrl = SaHolder.getRequest().getRequestPath();
                                 // 埋点上报：系统级写入，不参与角色授权校验
-                                if (BIZ_AUTH_EXEMPT_PATH_ARR.contains(apiUrl)) {
+                                if (isBizAuthExempt(apiUrl)) {
                                     return;
                                 }
                                 List<String> permissionCodeList = StpLoginUserUtil.getLoginUser().getPermissionCodeList();
@@ -841,5 +845,19 @@ public class GlobalConfigure implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         // 注册注解拦截器，并排除不需要注解鉴权的接口地址 (与登录拦截器无关，只是说明哪些接口不需要被拦截器拦截，此处都拦截)
         registry.addInterceptor(new CommonTraceInterceptor()).addPathPatterns("/**");
+    }
+
+    /** 接口是否命中业务域白名单（支持 /path/** 前缀） */
+    private static boolean isBizAuthExempt(String apiUrl) {
+        for (String pattern : BIZ_AUTH_EXEMPT_PATH_ARR) {
+            if (pattern.endsWith("/**")) {
+                if (apiUrl.startsWith(pattern.substring(0, pattern.length() - 3))) {
+                    return true;
+                }
+            } else if (pattern.equals(apiUrl)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

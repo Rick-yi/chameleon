@@ -104,6 +104,45 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
             ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '排课学员(不挂班级时直接指定)';
             """;
 
+    /** 停课日 DDL（节假日/停课，生成排课时跳过） */
+    private static final String SCHEDULE_CLOSURE_DDL = """
+            CREATE TABLE IF NOT EXISTS `COURSE_SCHEDULE_CLOSURE` (
+              `ID` varchar(20) NOT NULL COMMENT '主键',
+              `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '租户id',
+              `CAMPUS_ID` varchar(20) NULL DEFAULT NULL COMMENT '校区id(为空表示全机构)',
+              `CLOSURE_DATE` date NOT NULL COMMENT '停课日期',
+              `NAME` varchar(50) NULL DEFAULT NULL COMMENT '停课名称',
+              `REMARK` varchar(200) NULL DEFAULT NULL COMMENT '备注',
+              `DELETE_FLAG` varchar(255) NULL DEFAULT NULL COMMENT '删除标志',
+              `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+              `CREATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '创建用户',
+              `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '修改时间',
+              `UPDATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '修改用户',
+              PRIMARY KEY (`ID`),
+              UNIQUE INDEX `UK_CLOSURE_TENANT_CAMPUS_DATE` (`TENANT_ID`, `CAMPUS_ID`, `CLOSURE_DATE`),
+              INDEX `IDX_CLOSURE_TENANT_DATE` (`TENANT_ID`, `CLOSURE_DATE`)
+            ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '停课日(节假日)';
+            """;
+
+    /** 教师不可用时段 DDL */
+    private static final String TEACHER_UNAVAILABLE_DDL = """
+            CREATE TABLE IF NOT EXISTS `COURSE_TEACHER_UNAVAILABLE` (
+              `ID` varchar(20) NOT NULL COMMENT '主键',
+              `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '租户id',
+              `TEACHER_ID` varchar(20) NOT NULL COMMENT '教师id',
+              `START_TIME` datetime NOT NULL COMMENT '不可用开始',
+              `END_TIME` datetime NOT NULL COMMENT '不可用结束',
+              `REASON` varchar(200) NULL DEFAULT NULL COMMENT '原因',
+              `DELETE_FLAG` varchar(255) NULL DEFAULT NULL COMMENT '删除标志',
+              `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+              `CREATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '创建用户',
+              `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '修改时间',
+              `UPDATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '修改用户',
+              PRIMARY KEY (`ID`),
+              INDEX `IDX_UNAVAILABLE_TENANT_TEACHER` (`TENANT_ID`, `TEACHER_ID`, `START_TIME`)
+            ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '教师不可用时段';
+            """;
+
     /** 业务埋点表 DDL */
     private static final String BIZ_EVENT_DDL = """
             CREATE TABLE IF NOT EXISTS `BIZ_EVENT` (
@@ -295,6 +334,14 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
             if (!tableExists("COURSE_SCHEDULE_STUDENT")) {
                 jdbcTemplate.execute(SCHEDULE_STUDENT_DDL);
                 log.info(">>> 课务结构升级：COURSE_SCHEDULE_STUDENT 排课学员表已创建");
+            }
+            if (!tableExists("COURSE_SCHEDULE_CLOSURE")) {
+                jdbcTemplate.execute(SCHEDULE_CLOSURE_DDL);
+                log.info(">>> 课务结构升级：COURSE_SCHEDULE_CLOSURE 停课日表已创建");
+            }
+            if (!tableExists("COURSE_TEACHER_UNAVAILABLE")) {
+                jdbcTemplate.execute(TEACHER_UNAVAILABLE_DDL);
+                log.info(">>> 课务结构升级：COURSE_TEACHER_UNAVAILABLE 教师不可用时段表已创建");
             }
 
             // 排课并发唯一约束：同一租户、同一班级、同一天同一开始时间只允许一节正常课

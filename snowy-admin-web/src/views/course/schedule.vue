@@ -14,6 +14,10 @@
 					<template #icon><history-outlined /></template>
 					调课记录
 				</a-button>
+				<a-button @click="openConfig">
+					<template #icon><setting-outlined /></template>
+					排课配置
+				</a-button>
 				<a-button v-if="hasPerm('/course/schedule/generate')" @click="onOpenGenerate">
 					<template #icon><thunderbolt-outlined /></template>
 					批量生成
@@ -57,6 +61,7 @@
 				<div class="sched-corner">时间</div>
 				<div v-for="d in weekDays" :key="d.date" class="sched-head" :class="{ 'is-today': d.date === fmtToday() }">
 					{{ d.label }}
+					<a-tag v-if="closureMap[d.date]" color="orange" style="margin-left: 6px">停课</a-tag>
 				</div>
 				<template v-for="slot in timeSlots" :key="slot.start">
 					<div class="sched-time">
@@ -178,6 +183,60 @@
 		</div>
 	</div>
 
+	<!-- 排课配置：停课日 / 教师不可用 -->
+	<a-modal v-model:open="configOpen" title="排课配置" :width="760" :footer="null" :destroy-on-close="true">
+		<a-tabs v-model:activeKey="configTab">
+			<a-tab-pane key="closure" tab="停课日">
+				<a-space style="margin-bottom: 12px" wrap>
+					<a-date-picker v-model:value="closureForm.closureDate" value-format="YYYY-MM-DD" placeholder="停课日期" style="width: 160px" />
+					<a-input v-model:value="closureForm.name" placeholder="名称，如 国庆节" style="width: 180px" />
+					<a-button type="primary" @click="addClosure">添加</a-button>
+				</a-space>
+				<a-table :data-source="closureList" :columns="closureColumns" size="small" :pagination="false" row-key="id">
+					<template #bodyCell="{ column, record }">
+						<template v-if="column.dataIndex === 'closureDate'">{{ (record.closureDate || '').slice(0, 10) }}</template>
+						<template v-if="column.dataIndex === 'action'">
+							<a style="color: #e5484d" @click="deleteClosure(record)">删除</a>
+						</template>
+					</template>
+				</a-table>
+			</a-tab-pane>
+			<a-tab-pane key="unavailable" tab="教师不可用">
+				<a-space style="margin-bottom: 12px" wrap>
+					<a-select
+						v-model:value="unavailableForm.teacherId"
+						:options="teacherOptions"
+						placeholder="选择教师"
+						show-search
+						option-filter-prop="label"
+						style="width: 170px"
+					/>
+					<a-range-picker
+						v-model:value="unavailableRange"
+						show-time
+						value-format="YYYY-MM-DD HH:mm:ss"
+						:placeholder="['开始时间', '结束时间']"
+						style="width: 340px"
+					/>
+					<a-input v-model:value="unavailableForm.reason" placeholder="原因（请假/教研）" style="width: 150px" />
+					<a-button type="primary" @click="addUnavailable">添加</a-button>
+				</a-space>
+				<a-table :data-source="unavailableList" :columns="unavailableColumns" size="small" :pagination="false" row-key="id">
+					<template #bodyCell="{ column, record }">
+						<template v-if="column.dataIndex === 'teacherId'">{{ teacherName(record.teacherId) }}</template>
+						<template v-if="column.dataIndex === 'time'">
+							{{ (record.startTime || '').slice(0, 16) }} ~ {{ (record.endTime || '').slice(11, 16) }}
+						</template>
+						<template v-if="column.dataIndex === 'reason'">{{ record.reason || '-' }}</template>
+						<template v-if="column.dataIndex === 'action'">
+							<a style="color: #e5484d" @click="deleteUnavailable(record)">删除</a>
+						</template>
+					</template>
+				</a-table>
+			</a-tab-pane>
+		</a-tabs>
+	</a-modal>
+
 	<!-- 手动排课 -->
 	<a-modal v-model:open="addOpen" title="手动排课" :width="560" :destroy-on-close="true" @ok="onSubmitAdd">
 		<a-form ref="addFormRef" :model="addFormData" layout="vertical">
@@ -277,6 +336,9 @@
 				<div style="font-size: 13px; margin-bottom: 4px">{{ generateSummary }}</div>
 				<div v-if="generateResult.conflicts && generateResult.conflicts.length" style="color: #ff4d4f; font-size: 12px">
 					<div v-for="(item, index) in generateResult.conflicts" :key="index">· {{ item }}</div>
+				</div>
+				<div v-if="generateResult.skipReasons && generateResult.skipReasons.length" style="color: #86909c; font-size: 12px; margin-top: 4px">
+					<div v-for="(item, index) in generateResult.skipReasons" :key="index">· {{ item }}</div>
 				</div>
 			</div>
 			<div style="display: flex; gap: 8px; justify-content: flex-end">
@@ -456,7 +518,7 @@
 <script setup name="courseSchedule">
 	import { useRoute, useRouter } from 'vue-router'
 	import { message, Modal } from 'ant-design-vue'
-	import { FileTextOutlined, HistoryOutlined, PlusOutlined, ProfileOutlined, TeamOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
+	import { FileTextOutlined, HistoryOutlined, PlusOutlined, ProfileOutlined, TeamOutlined, ThunderboltOutlined, SettingOutlined } from '@ant-design/icons-vue'
 	import courseApi from '@/api/course/courseApi'
 	import studentApi from '@/api/student/studentApi'
 	import downloadUtil from '@/utils/downloadUtil'
@@ -815,6 +877,143 @@
 		})
 	}
 
+	const configOpen = ref(false)
+	const configTab = ref('closure')
+	const closureList = ref([])
+	const closureMap = ref({})
+	const closureForm = ref({})
+	const closureColumns = [
+		{ title: '日期', dataIndex: 'closureDate', width: 140 },
+		{ title: '名称', dataIndex: 'name' },
+		{ title: '操作', dataIndex: 'action', width: 80, align: 'center' }
+	]
+	const unavailableList = ref([])
+	const unavailableForm = ref({})
+	const unavailableRange = ref([])
+	const unavailableColumns = [
+		{ title: '教师', dataIndex: 'teacherId', width: 120 },
+		{ title: '不可用时间', dataIndex: 'time' },
+		{ title: '原因', dataIndex: 'reason' },
+		{ title: '操作', dataIndex: 'action', width: 80, align: 'center' }
+	]
+
+	const teacherName = (id) => teacherOptions.value.find((item) => item.value === id)?.label || id
+
+	const addDays = (days) => {
+		const date = new Date()
+		date.setDate(date.getDate() + days)
+		return fmtDate(date)
+	}
+
+	const loadClosures = () =>
+		courseApi
+			.closureList({ startDate: `${addDays(-30)} 00:00:00`, endDate: `${addDays(180)} 23:59:59` })
+			.then((data) => {
+				closureList.value = data || []
+			})
+			.catch(() => {
+				closureList.value = []
+			})
+
+	// 周视图表头标记停课
+	const loadWeekClosures = () => {
+		if (!monday.value) return Promise.resolve()
+		const end = new Date(monday.value)
+		end.setDate(end.getDate() + 6)
+		return courseApi
+			.closureList({ startDate: `${fmtDate(monday.value)} 00:00:00`, endDate: `${fmtDate(end)} 23:59:59` })
+			.then((data) => {
+				const map = {}
+				;(data || []).forEach((item) => {
+					map[String(item.closureDate).slice(0, 10)] = item.name || '停课'
+				})
+				closureMap.value = map
+			})
+			.catch(() => {
+				closureMap.value = {}
+			})
+	}
+
+	const openConfig = () => {
+		configOpen.value = true
+		loadClosures()
+		loadUnavailable()
+	}
+
+	const addClosure = () => {
+		if (!closureForm.value.closureDate) {
+			message.warning('请选择停课日期')
+			return
+		}
+		courseApi
+			.closureAdd({ closureDate: `${closureForm.value.closureDate} 00:00:00`, name: closureForm.value.name })
+			.then(() => {
+				message.success('已添加停课日')
+				closureForm.value = {}
+				loadClosures()
+				loadWeekClosures()
+			})
+			.catch(() => {})
+	}
+
+	const deleteClosure = (record) => {
+		Modal.confirm({
+			title: '删除停课日',
+			content: `确定删除 ${String(record.closureDate).slice(0, 10)} 的停课设置吗？`,
+			okType: 'danger',
+			onOk: () =>
+				courseApi.closureDelete({ id: record.id }).then(() => {
+					message.success('已删除')
+					loadClosures()
+					loadWeekClosures()
+				})
+		})
+	}
+
+	const loadUnavailable = () =>
+		courseApi
+			.teacherUnavailableList({ startTime: `${addDays(-7)} 00:00:00`, endTime: `${addDays(60)} 23:59:59` })
+			.then((data) => {
+				unavailableList.value = data || []
+			})
+			.catch(() => {
+				unavailableList.value = []
+			})
+
+	const addUnavailable = () => {
+		if (!unavailableForm.value.teacherId || !unavailableRange.value || unavailableRange.value.length !== 2) {
+			message.warning('请选择教师和不可用时间')
+			return
+		}
+		courseApi
+			.teacherUnavailableAdd({
+				teacherId: unavailableForm.value.teacherId,
+				startTime: unavailableRange.value[0],
+				endTime: unavailableRange.value[1],
+				reason: unavailableForm.value.reason
+			})
+			.then(() => {
+				message.success('已添加不可用时段')
+				unavailableForm.value = {}
+				unavailableRange.value = []
+				loadUnavailable()
+			})
+			.catch(() => {})
+	}
+
+	const deleteUnavailable = (record) => {
+		Modal.confirm({
+			title: '删除不可用时段',
+			content: '确定删除这条不可用时段吗？',
+			okType: 'danger',
+			onOk: () =>
+				courseApi.teacherUnavailableDelete({ id: record.id }).then(() => {
+					message.success('已删除')
+					loadUnavailable()
+				})
+		})
+	}
+
 	const loadWeek = () => {
 		const end = new Date(monday.value)
 		end.setDate(monday.value.getDate() + 6)
@@ -830,6 +1029,7 @@
 			.then((data) => {
 				scheduleList.value = data || []
 				renderSchedule()
+				loadWeekClosures()
 			})
 			.finally(() => {
 				loading.value = false

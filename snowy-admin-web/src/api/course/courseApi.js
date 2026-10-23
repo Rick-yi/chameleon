@@ -98,6 +98,26 @@ export default {
 	scheduleCancelBatch(data) {
 		return request('schedule/cancelBatch', data)
 	},
+	// 停课日
+	closureList(data) {
+		return request('schedule/closure/list', data, 'get')
+	},
+	closureAdd(data) {
+		return request('schedule/closure/add', data)
+	},
+	closureDelete(data) {
+		return request('schedule/closure/delete', data)
+	},
+	// 教师不可用时段
+	teacherUnavailableList(data) {
+		return request('schedule/teacherUnavailable/list', data, 'get')
+	},
+	teacherUnavailableAdd(data) {
+		return request('schedule/teacherUnavailable/add', data)
+	},
+	teacherUnavailableDelete(data) {
+		return request('schedule/teacherUnavailable/delete', data)
+	},
 	// 课表区间查询（不分页）
 	// 推荐可排课时段（排课助手）
 	scheduleSuggest(data) {
