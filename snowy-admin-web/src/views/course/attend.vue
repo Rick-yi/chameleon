@@ -12,7 +12,10 @@
 				</a-button>
 				<span style="color: rgba(0,0,0,.45); font-size: 12px">点击课节卡片即可进入点名</span>
 			</div>
-			<div v-if="!scheduleList.length" class="ent-empty">该日期没有排课</div>
+			<div v-if="!scheduleList.length" class="ent-empty">
+				该日期没有排课
+				<a v-if="recentHint" style="margin-left: 8px" @click="jumpToRecent">最近有课：{{ recentHint.date }}（查看）</a>
+			</div>
 			<a-row v-else :gutter="12">
 				<a-col v-for="item in scheduleList" :key="item.id" :xs="24" :sm="12" :xl="8">
 					<div
@@ -135,12 +138,15 @@
 			classOptions.value = classRecords.value.map((item) => ({ value: item.id, label: item.name }))
 		})
 	}
-	// 今天没排课时回溯最近 7 天，自动定位到最近有课的那天（只回溯一次）
-	const recentFallbackUsed = ref(false)
+	// 默认日期始终是今天；今天没课时只提示「最近有课」，不自动改日期
+	const recentHint = ref(null)
+	const resolvingTarget = ref(false)
+	const fmtDay = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 	const loadSchedules = () => {
 		// 切换日期/班级后先清空当前点名对象，避免显示上一节课的名单
 		scheduleId.value = undefined
 		students.value = []
+		recentHint.value = null
 		const dayStart = `${date.value} 00:00:00`
 		const dayEnd = `${date.value} 23:59:59`
 		courseApi
@@ -151,7 +157,7 @@
 					value: item.id,
 					label: `${item.className || '未命名班级'} ${item.startTime}-${item.endTime} ${item.classroom || ''}`
 				}))
-				// 支持从工作台/课表直达：自动选中目标课节
+				// 从工作台/课表直达：目标课节可能不在当前日期
 				const targetId = route.query.scheduleId
 				if (targetId) {
 					const target = scheduleList.value.find((item) => item.id === targetId)
@@ -159,34 +165,54 @@
 						selectSchedule(target)
 						return
 					}
+					if (!resolvingTarget.value) {
+						resolvingTarget.value = true
+						const start = new Date()
+						start.setDate(start.getDate() - 30)
+						const end = new Date()
+						end.setDate(end.getDate() + 7)
+						courseApi
+							.scheduleWeek({ startDate: `${fmtDay(start)} 00:00:00`, endDate: `${fmtDay(end)} 23:59:59` })
+							.then((list) => {
+								const found = (list || []).find((item) => item.id === targetId)
+								if (found) {
+									date.value = String(found.scheduleDate || '').slice(0, 10)
+									loadSchedules()
+								}
+							})
+							.catch(() => {})
+					}
 				}
-				// 该日期没有排课：回溯最近 7 天，定位到最近有课的日期
-				if (!scheduleList.value.length && !route.query.scheduleId && !recentFallbackUsed.value) {
-					recentFallbackUsed.value = true
+				// 当天没有排课：只查一下最近有课的日期做提示，不改变当前选择
+				if (!scheduleList.value.length && !resolvingTarget.value) {
 					const end = new Date(`${date.value} 00:00:00`)
 					const start = new Date(end)
 					start.setDate(start.getDate() - 7)
 					courseApi
 						.scheduleWeek({
 							classId: classId.value,
-							startDate: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())} 00:00:00`,
-							endDate: `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())} 23:59:59`
+							startDate: `${fmtDay(start)} 00:00:00`,
+							endDate: `${fmtDay(end)} 23:59:59`
 						})
 						.then((recent) => {
 							const dateList = [...new Set((recent || []).map((item) => String(item.scheduleDate || '').slice(0, 10)).filter(Boolean))].sort()
 							if (dateList.length) {
-								date.value = dateList[dateList.length - 1]
-								loadSchedules()
+								recentHint.value = { date: dateList[dateList.length - 1] }
 							}
 						})
 						.catch(() => {})
 					return
 				}
-				// 否则默认选中第一个课节，少一次点击
+				// 默认选中第一个课节，少一次点击
 				if (!scheduleId.value && scheduleList.value.length) {
 					selectSchedule(scheduleList.value[0])
 				}
 			})
+	}
+	const jumpToRecent = () => {
+		if (!recentHint.value) return
+		date.value = recentHint.value.date
+		loadSchedules()
 	}
 	const loadStudents = () => {
 		studentApi.studentPage({ current: 1, size: 200 }).then((data) => {
