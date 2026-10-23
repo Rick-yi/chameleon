@@ -374,6 +374,62 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
                 log.info(">>> 课务结构升级：COURSE_SCHEDULE 班级时段唯一索引已添加");
             }
 
+            // 教师/教室并发唯一约束：同一租户下同一时段老师和教室也只能有一节课
+            if (!columnExists("COURSE_SCHEDULE", "ACTIVE_TEACHER_KEY")) {
+                int canceled = jdbcTemplate.update("""
+                        UPDATE `COURSE_SCHEDULE` s
+                        JOIN (
+                            SELECT `TEACHER_ID`, `SCHEDULE_DATE`, `START_TIME`, MIN(`ID`) AS `KEEP_ID`
+                            FROM `COURSE_SCHEDULE`
+                            WHERE `STATUS` = 'NORMAL' AND `TEACHER_ID` IS NOT NULL
+                            GROUP BY `TEACHER_ID`, `SCHEDULE_DATE`, `START_TIME`
+                            HAVING COUNT(*) > 1
+                        ) d ON s.`TEACHER_ID` = d.`TEACHER_ID`
+                            AND s.`SCHEDULE_DATE` = d.`SCHEDULE_DATE`
+                            AND s.`START_TIME` = d.`START_TIME`
+                        SET s.`STATUS` = 'CANCELED'
+                        WHERE s.`STATUS` = 'NORMAL' AND s.`ID` <> d.`KEEP_ID`
+                        """);
+                if (canceled > 0) {
+                    log.warn(">>> 课务结构升级：清理同教师同时段重复排课 {} 条", canceled);
+                }
+                jdbcTemplate.execute("ALTER TABLE `COURSE_SCHEDULE` ADD COLUMN `ACTIVE_TEACHER_KEY` varchar(64) "
+                        + "GENERATED ALWAYS AS (CASE WHEN `STATUS` = 'NORMAL' AND `TEACHER_ID` IS NOT NULL "
+                        + "THEN CONCAT(`TEACHER_ID`, '|', DATE_FORMAT(`SCHEDULE_DATE`, '%Y-%m-%d'), '|', "
+                        + "TIME_FORMAT(`START_TIME`, '%H:%i')) ELSE NULL END) STORED "
+                        + "COMMENT '教师时段唯一键(仅正常课节参与)'");
+                jdbcTemplate.execute("ALTER TABLE `COURSE_SCHEDULE` ADD UNIQUE INDEX `UK_SCHEDULE_ACTIVE_TEACHER` "
+                        + "(`TENANT_ID`, `ACTIVE_TEACHER_KEY`)");
+                log.info(">>> 课务结构升级：COURSE_SCHEDULE 教师时段唯一索引已添加");
+            }
+            if (!columnExists("COURSE_SCHEDULE", "ACTIVE_ROOM_KEY")) {
+                int canceled = jdbcTemplate.update("""
+                        UPDATE `COURSE_SCHEDULE` s
+                        JOIN (
+                            SELECT UPPER(TRIM(`CLASSROOM`)) AS `ROOM`, `SCHEDULE_DATE`, `START_TIME`, MIN(`ID`) AS `KEEP_ID`
+                            FROM `COURSE_SCHEDULE`
+                            WHERE `STATUS` = 'NORMAL' AND `CLASSROOM` IS NOT NULL AND TRIM(`CLASSROOM`) <> ''
+                            GROUP BY UPPER(TRIM(`CLASSROOM`)), `SCHEDULE_DATE`, `START_TIME`
+                            HAVING COUNT(*) > 1
+                        ) d ON UPPER(TRIM(s.`CLASSROOM`)) = d.`ROOM`
+                            AND s.`SCHEDULE_DATE` = d.`SCHEDULE_DATE`
+                            AND s.`START_TIME` = d.`START_TIME`
+                        SET s.`STATUS` = 'CANCELED'
+                        WHERE s.`STATUS` = 'NORMAL' AND s.`ID` <> d.`KEEP_ID`
+                        """);
+                if (canceled > 0) {
+                    log.warn(">>> 课务结构升级：清理同教室同时段重复排课 {} 条", canceled);
+                }
+                jdbcTemplate.execute("ALTER TABLE `COURSE_SCHEDULE` ADD COLUMN `ACTIVE_ROOM_KEY` varchar(80) "
+                        + "GENERATED ALWAYS AS (CASE WHEN `STATUS` = 'NORMAL' AND `CLASSROOM` IS NOT NULL "
+                        + "AND TRIM(`CLASSROOM`) <> '' THEN CONCAT(UPPER(TRIM(`CLASSROOM`)), '|', "
+                        + "DATE_FORMAT(`SCHEDULE_DATE`, '%Y-%m-%d'), '|', TIME_FORMAT(`START_TIME`, '%H:%i')) "
+                        + "ELSE NULL END) STORED COMMENT '教室时段唯一键(大小写不敏感，仅正常课节参与)'");
+                jdbcTemplate.execute("ALTER TABLE `COURSE_SCHEDULE` ADD UNIQUE INDEX `UK_SCHEDULE_ACTIVE_ROOM` "
+                        + "(`TENANT_ID`, `ACTIVE_ROOM_KEY`)");
+                log.info(">>> 课务结构升级：COURSE_SCHEDULE 教室时段唯一索引已添加");
+            }
+
             // 业务埋点表
             if (!tableExists("BIZ_EVENT")) {
                 jdbcTemplate.execute(BIZ_EVENT_DDL);

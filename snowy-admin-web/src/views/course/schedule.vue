@@ -520,8 +520,8 @@
 	import { message, Modal } from 'ant-design-vue'
 	import { FileTextOutlined, HistoryOutlined, PlusOutlined, ProfileOutlined, TeamOutlined, ThunderboltOutlined, SettingOutlined } from '@ant-design/icons-vue'
 	import courseApi from '@/api/course/courseApi'
+	import { runAsyncExport } from '@/utils/asyncExport'
 	import studentApi from '@/api/student/studentApi'
-	import downloadUtil from '@/utils/downloadUtil'
 	const router = useRouter()
 	const route = useRoute()
 	const attendText = (status) => ({ NONE: '待点名', PARTIAL: '部分点名', DONE: '已点名' }[status] || '待点名')
@@ -1218,16 +1218,14 @@
 	const onExport = () => {
 		const end = new Date(monday.value)
 		end.setDate(monday.value.getDate() + 6)
-		courseApi
-			.scheduleExport({
-				classId: searchFormState.value.classId,
-				teacherId: searchFormState.value.teacherId,
-				classroom: searchFormState.value.classroom,
-				startDate: fmtDate(monday.value),
-				endDate: fmtDate(end)
-			})
-			.then((res) => downloadUtil.resultDownload(res))
-			.catch(() => {})
+		// 走通用异步导出：课表含清单 + 周视图两个 sheet，后台生成后自动下载
+		runAsyncExport('COURSE_SCHEDULE', {
+			classId: searchFormState.value.classId,
+			teacherId: searchFormState.value.teacherId,
+			classroom: searchFormState.value.classroom,
+			startDate: fmtDate(monday.value),
+			endDate: fmtDate(end)
+		})
 	}
 
 	const onOpenChange = (record) => {

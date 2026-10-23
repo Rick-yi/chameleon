@@ -323,6 +323,11 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         return false;
     }
 
+    /** 教室名比较：忽略首尾空格与大小写，避免 B201 / b201 被当成两个教室 */
+    private boolean sameClassroom(String left, String right) {
+        return StrUtil.isNotBlank(left) && StrUtil.equalsIgnoreCase(StrUtil.trim(left), StrUtil.trim(right));
+    }
+
     /** 解析 yyyy-MM-dd */
     private LocalDate parseLocalDate(String text, LocalDate defaultDate) {
         if (StrUtil.isBlank(text)) {
@@ -368,10 +373,17 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         try {
             this.save(courseSchedule);
         } catch (DuplicateKeyException e) {
-            // 唯一约束兜住并发：两个教务同时提交同一班级同一时段
-            throw new CommonException("该班级在 {} {} 已有排课（可能有其他人在同时排课），请刷新后重试",
-                    cn.hutool.core.date.DateUtil.formatDate(courseScheduleAddParam.getScheduleDate()),
-                    courseScheduleAddParam.getStartTime());
+            // 唯一约束兜住并发：班级/教师/教室任一被他人抢先占用
+            String detail = StrUtil.blankToDefault(e.getMessage(), "");
+            String slotText = cn.hutool.core.date.DateUtil.formatDate(courseScheduleAddParam.getScheduleDate())
+                    + " " + courseScheduleAddParam.getStartTime();
+            if (detail.contains("UK_SCHEDULE_ACTIVE_TEACHER")) {
+                throw new CommonException("该教师在 {} 已有排课（可能有其他人在同时排课），请刷新后重试", slotText);
+            }
+            if (detail.contains("UK_SCHEDULE_ACTIVE_ROOM")) {
+                throw new CommonException("该教室在 {} 已被占用（可能有其他人在同时排课），请刷新后重试", slotText);
+            }
+            throw new CommonException("该班级在 {} 已有排课（可能有其他人在同时排课），请刷新后重试", slotText);
         }
     }
 
@@ -478,7 +490,7 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                     }
                     String existClassName = existClassNameMap.get(exist.getClassId());
                     String existDesc = StrUtil.isBlank(existClassName) ? "其他课程" : "【" + existClassName + "】";
-                    if (ObjectUtil.isNotEmpty(classroom) && classroom.equals(exist.getClassroom())) {
+                    if (sameClassroom(classroom, exist.getClassroom())) {
                         allConflicts.add(slotText + " 教室【" + classroom + "】已被" + existDesc + "占用");
                     }
                     if (ObjectUtil.isNotEmpty(teacherId) && teacherId.equals(exist.getTeacherId())) {
@@ -510,7 +522,7 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                     if (!(planned.getStartTime().isBefore(endTime) && planned.getEndTime().isAfter(startTime))) {
                         continue;
                     }
-                    if (ObjectUtil.isNotEmpty(classroom) && classroom.equals(planned.getClassroom())) {
+                    if (sameClassroom(classroom, planned.getClassroom())) {
                         allConflicts.add(slotText + " 教室【" + classroom + "】与同批生成的其他课节冲突");
                     }
                     if (ObjectUtil.isNotEmpty(teacherId) && teacherId.equals(planned.getTeacherId())) {
@@ -761,7 +773,7 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             String existClassName = classNameMap.get(exist.getClassId());
             String existSlot = cn.hutool.core.date.DateUtil.formatDate(exist.getScheduleDate()) + " "
                     + exist.getStartTime() + "-" + exist.getEndTime();
-            if (ObjectUtil.isNotEmpty(classroom) && classroom.equals(exist.getClassroom())) {
+            if (sameClassroom(classroom, exist.getClassroom())) {
                 conflictSet.add("教室【" + classroom + "】在 " + existSlot + " 已被"
                         + (StrUtil.isBlank(existClassName) ? "其他班级" : "【" + existClassName + "】") + "占用");
             }
@@ -884,7 +896,7 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                     if (!(exist.getStartTime().isBefore(endTime) && exist.getEndTime().isAfter(startTime))) {
                         continue;
                     }
-                    if (ObjectUtil.isNotEmpty(classroom) && classroom.equals(exist.getClassroom())) {
+                    if (sameClassroom(classroom, exist.getClassroom())) {
                         allConflicts.add(slotText + " 教室【" + classroom + "】已被其他课节占用");
                     }
                     if (ObjectUtil.isNotEmpty(teacherId) && teacherId.equals(exist.getTeacherId())) {
@@ -911,7 +923,7 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                     if (!(planned.getStartTime().isBefore(endTime) && planned.getEndTime().isAfter(startTime))) {
                         continue;
                     }
-                    if (ObjectUtil.isNotEmpty(classroom) && classroom.equals(planned.getClassroom())) {
+                    if (sameClassroom(classroom, planned.getClassroom())) {
                         allConflicts.add(slotText + " 教室【" + classroom + "】与同批生成的其他课节冲突");
                     }
                     if (ObjectUtil.isNotEmpty(teacherId) && teacherId.equals(planned.getTeacherId())) {

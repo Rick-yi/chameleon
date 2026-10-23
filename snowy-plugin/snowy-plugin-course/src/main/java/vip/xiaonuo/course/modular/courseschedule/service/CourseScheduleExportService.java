@@ -31,4 +31,15 @@ public interface CourseScheduleExportService {
      * @param response                响应
      */
     void export(CourseScheduleWeekParam courseScheduleWeekParam, HttpServletResponse response) throws IOException;
+
+    /**
+     * 构建导出内容（同步导出与异步导出共用）
+     *
+     * @param courseScheduleWeekParam 区间与筛选条件
+     * @return 清单 + 周视图两个 Sheet
+     *
+     * @author 会飞的猪
+     * @date 2026/10/23 15:00
+     **/
+    java.util.List<vip.xiaonuo.biz.api.export.BizExportSheet> buildSheets(CourseScheduleWeekParam courseScheduleWeekParam);
 }

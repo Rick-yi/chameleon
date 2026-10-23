@@ -62,6 +62,21 @@ public class CourseScheduleExportServiceImpl implements CourseScheduleExportServ
 
     @Override
     public void export(CourseScheduleWeekParam courseScheduleWeekParam, HttpServletResponse response) throws IOException {
+        List<vip.xiaonuo.biz.api.export.BizExportSheet> sheetList = buildSheets(courseScheduleWeekParam);
+        String fileName = "课表_" + DateUtil.format(new Date(), "yyyyMMddHHmmss") + ".xlsx";
+        File file = FileUtil.file(FileUtil.getTmpDir(), fileName);
+        try {
+            CommonExcelUtil.writeMulti(file, sheetList.stream()
+                    .map(item -> new CommonExcelUtil.Sheet(item.getSheetName(), item.getHeadList(), item.getRowList()))
+                    .toList());
+            CommonDownloadUtil.download(file, response);
+        } finally {
+            FileUtil.del(file);
+        }
+    }
+
+    @Override
+    public List<vip.xiaonuo.biz.api.export.BizExportSheet> buildSheets(CourseScheduleWeekParam courseScheduleWeekParam) {
         List<CourseScheduleViewDTO> scheduleList = courseScheduleService.week(courseScheduleWeekParam);
         if (ObjectUtil.isEmpty(scheduleList)) {
             throw new CommonException("所选区间没有可导出的排课");
@@ -69,14 +84,13 @@ public class CourseScheduleExportServiceImpl implements CourseScheduleExportServ
         if (scheduleList.size() > MAX_ROWS) {
             throw new CommonException("排课数量超过 {} 条，请缩小导出区间", MAX_ROWS);
         }
-        String fileName = "课表_" + DateUtil.format(new Date(), "yyyyMMddHHmmss") + ".xlsx";
-        File file = FileUtil.file(FileUtil.getTmpDir(), fileName);
-        try {
-            CommonExcelUtil.writeMulti(file, List.of(buildListSheet(scheduleList), buildViewSheet(scheduleList)));
-            CommonDownloadUtil.download(file, response);
-        } finally {
-            FileUtil.del(file);
-        }
+        return List.of(toExportSheet(buildListSheet(scheduleList)), toExportSheet(buildViewSheet(scheduleList)));
+    }
+
+    /** 转成通用异步导出的 Sheet */
+    private vip.xiaonuo.biz.api.export.BizExportSheet toExportSheet(CommonExcelUtil.Sheet sheet) {
+        return new vip.xiaonuo.biz.api.export.BizExportSheet(
+                sheet.getSheetName(), sheet.getHeadList(), sheet.getRowList());
     }
 
     /**
