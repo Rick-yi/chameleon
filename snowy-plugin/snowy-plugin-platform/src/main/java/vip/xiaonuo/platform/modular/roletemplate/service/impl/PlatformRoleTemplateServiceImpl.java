@@ -164,16 +164,21 @@ public class PlatformRoleTemplateServiceImpl implements PlatformRoleTemplateServ
                     .anyMatch(path::startsWith)) {
                 continue;
             }
-            if (sysRelationService.count(new LambdaQueryWrapper<SysRelation>()
+            List<String> buttonIdList = actionButtonIdList(menu.getId(), allBusinessApiList);
+            String extJson = JSONUtil.toJsonStr(Map.of("menuId", menu.getId(), "buttonInfo", buttonIdList));
+            // 已存在的菜单也要补齐按钮授权：租户初始化时菜单先落库、按钮信息为空
+            SysRelation existRelation = sysRelationService.getOne(new LambdaQueryWrapper<SysRelation>()
                     .eq(SysRelation::getObjectId, adminRole.getId())
                     .eq(SysRelation::getTargetId, menu.getId())
-                    .eq(SysRelation::getCategory, SysRelationCategoryEnum.SYS_ROLE_HAS_RESOURCE.getValue())) > 0) {
+                    .eq(SysRelation::getCategory, SysRelationCategoryEnum.SYS_ROLE_HAS_RESOURCE.getValue())
+                    .last("limit 1"), false);
+            if (existRelation != null) {
+                existRelation.setExtJson(extJson);
+                sysRelationService.updateById(existRelation);
                 continue;
             }
             menuIdList.add(menu.getId());
-            menuExtJsonList.add(JSONUtil.toJsonStr(Map.of(
-                    "menuId", menu.getId(),
-                    "buttonInfo", actionButtonIdList(menu.getId(), allBusinessApiList))));
+            menuExtJsonList.add(extJson);
         }
         if (!menuIdList.isEmpty()) {
             sysRelationService.saveRelationBatchWithAppend(adminRole.getId(), menuIdList,
