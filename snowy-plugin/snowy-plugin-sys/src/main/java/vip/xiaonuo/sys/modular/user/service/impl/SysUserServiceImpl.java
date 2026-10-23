@@ -253,6 +253,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     @Resource
     private SysRelationService sysRelationService;
 
+    /** 权限变更审计 */
+    @Resource
+    private vip.xiaonuo.sys.modular.audit.service.SysAuthAuditService sysAuthAuditService;
+
     @Resource
     private MobileButtonApi mobileButtonApi;
 
@@ -1353,6 +1357,12 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 SysRelationCategoryEnum.SYS_USER_HAS_ROLE.getValue());
         // 刷新该用户的权限缓存
         loginUserApi.refreshOnlineUserPermission(sysUserGrantRoleParam.getId());
+        // 权限变更审计：用户分配角色
+        SysUser user = this.getById(sysUserGrantRoleParam.getId());
+        List<String> roleIdList = sysUserGrantRoleParam.getRoleIdList() == null ? List.of() : sysUserGrantRoleParam.getRoleIdList();
+        sysAuthAuditService.log("USER_ROLE", "USER", sysUserGrantRoleParam.getId(),
+                user == null ? null : user.getName(),
+                "分配角色 " + roleIdList.size() + " 个", JSONUtil.toJsonStr(roleIdList));
     }
 
     @Override

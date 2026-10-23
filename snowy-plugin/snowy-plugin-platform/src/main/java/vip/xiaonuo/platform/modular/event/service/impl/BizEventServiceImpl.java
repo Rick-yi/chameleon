@@ -15,6 +15,7 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -152,6 +153,22 @@ public class BizEventServiceImpl extends ServiceImpl<BizEventMapper, BizEvent> i
 		}
 		summary.setTrendList(trendList);
 		return summary;
+	}
+
+	@Override
+	public int deleteBefore(int retainDays, int batchSize) {
+		java.util.Date deadline = cn.hutool.core.date.DateUtil.offsetDay(new java.util.Date(), -Math.max(retainDays, 1));
+		// 先查出待删主键再按主键删除：逻辑删除 + 批次上限，避免一次大事务锁表
+		List<String> idList = this.list(new LambdaQueryWrapper<BizEvent>()
+						.select(BizEvent::getId)
+						.lt(BizEvent::getEventTime, deadline)
+						.last("limit " + Math.max(batchSize, 1)))
+				.stream().map(BizEvent::getId).toList();
+		if (idList.isEmpty()) {
+			return 0;
+		}
+		this.removeByIds(idList);
+		return idList.size();
 	}
 
 	/**

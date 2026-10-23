@@ -50,4 +50,13 @@ public interface BizEventService {
 	 * @param bizEventQueryParam 查询参数
 	 */
 	BizEventSummaryDTO summary(BizEventQueryParam bizEventQueryParam);
+
+	/**
+	 * 清理保留期之前的历史埋点（归档任务用）
+	 *
+	 * @param retainDays 保留天数
+	 * @param batchSize  单批删除条数
+	 * @return 本次删除条数
+	 */
+	int deleteBefore(int retainDays, int batchSize);
 }

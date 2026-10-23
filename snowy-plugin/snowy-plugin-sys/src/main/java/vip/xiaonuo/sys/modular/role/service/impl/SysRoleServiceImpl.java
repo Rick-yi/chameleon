@@ -80,6 +80,10 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
     @Resource
     private SysRelationService sysRelationService;
 
+    /** 权限变更审计 */
+    @Resource
+    private vip.xiaonuo.sys.modular.audit.service.SysAuthAuditService sysAuthAuditService;
+
     @Resource
     private SysOrgService sysOrgService;
 
@@ -277,6 +281,9 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
                 .map(JSONUtil::toJsonStr).collect(Collectors.toList());
         sysRelationService.saveRelationBatchWithClear(id, menuIdList, SysRelationCategoryEnum.SYS_ROLE_HAS_RESOURCE.getValue(),
                 extJsonList);
+        // 权限变更审计：角色菜单/按钮授权
+        sysAuthAuditService.log("ROLE_RESOURCE", "ROLE", id, sysRole.getName(),
+                "授权菜单/按钮 " + menuIdList.size() + " 项", JSONUtil.toJsonStr(menuIdList));
 
         // 刷新拥有该角色的所有在线用户的权限缓存
         this.refreshRoleLoginUserCache(id);
@@ -347,6 +354,10 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         }
         // 刷新拥有该角色的所有在线用户的权限缓存
         this.refreshRoleLoginUserCache(id);
+        // 权限变更审计：角色接口授权
+        SysRole role = this.getById(id);
+        sysAuthAuditService.log("ROLE_PERMISSION", "ROLE", id, role == null ? null : role.getName(),
+                (clear ? "重置" : "追加") + "接口权限 " + apiUrlList.size() + " 项", JSONUtil.toJsonStr(apiUrlList));
     }
 
     @Override

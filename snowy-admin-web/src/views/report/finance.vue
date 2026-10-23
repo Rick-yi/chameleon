@@ -19,7 +19,7 @@
 					<a-space>
 						<a-button type="primary" @click="loadAll">查询</a-button>
 						<a-button @click="reset">重置</a-button>
-						<a-dropdown v-if="hasPerm('reportExport')">
+						<a-dropdown v-if="hasPerm('/finance/report/export')">
 							<a-button :loading="exportLoading">
 								导出
 								<down-outlined />
@@ -143,7 +143,7 @@
 				/>
 			</a-card>
 
-			<a-card :bordered="false" style="margin-top: 16px" v-if="hasPerm('reportDetail')">
+			<a-card :bordered="false" style="margin-top: 16px" v-if="hasPerm('/finance/report/consume')">
 				<a-tabs v-model:activeKey="activeTab">
 					<a-tab-pane key="payment" tab="收款明细">
 						<a-table

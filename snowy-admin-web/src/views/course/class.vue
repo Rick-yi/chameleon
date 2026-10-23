@@ -122,7 +122,7 @@
 	<a-modal v-model:open="studentOpen" :title="`班级学员 · ${currentClass?.name || ''}`" :width="760" :destroy-on-close="true" :footer="null">
 		<div style="margin-bottom: 12px; display: flex; gap: 8px">
 			<a-select v-model:value="addStudentIds" mode="multiple" placeholder="选择学员加入班级" :options="studentOptions" style="flex: 1" allow-clear />
-			<a-button type="primary" :disabled="!addStudentIds || addStudentIds.length === 0" @click="onAddStudents">加入班级</a-button>
+			<a-button v-if="hasPerm('/course/classStudent/add')" type="primary" :disabled="!addStudentIds || addStudentIds.length === 0" @click="onAddStudents">加入班级</a-button>
 		</div>
 		<a-alert
 			type="info"

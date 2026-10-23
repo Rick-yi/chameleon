@@ -32,7 +32,8 @@
 		'/report/academic',
 		'/report/crm',
 		'/report/eventAnalysis',
-		'/automation'
+		'/automation',
+		'/sys/authAudit'
 	]
 	// 注意：新增使用 <page-header> 的业务页，需把路径补进上面的列表，否则会出现双标题
 

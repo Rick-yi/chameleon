@@ -5,7 +5,8 @@
 				<span>到期范围</span>
 				<a-select v-model:value="expiringDays" :options="dayOptions" style="width: 120px" @change="loadExpiring" />
 				<a-button type="primary" @click="loadAll">刷新</a-button>
-				<a-dropdown v-if="hasPerm('reportPlatformExport')">
+				<!-- 平台侧页面由 /platform/** 的角色校验保护，不再叠加按钮级权限 -->
+				<a-dropdown>
 					<a-button>
 						导出
 						<down-outlined />

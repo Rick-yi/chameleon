@@ -10,7 +10,7 @@
 					<a-space>
 						<a-button type="primary" @click="loadAll">查询</a-button>
 						<a-button @click="reset">重置</a-button>
-						<a-dropdown v-if="hasPerm('reportCrmExport')">
+						<a-dropdown v-if="hasPerm('/crm/report/export')">
 							<a-button>
 								导出
 								<down-outlined />
