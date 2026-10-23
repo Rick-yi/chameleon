@@ -34,6 +34,14 @@ export default {
 	indexMessageList(data) {
 		return request('message/list', data, 'get')
 	},
+	// 获取当前用户站内信分页（移动端消息中心）
+	indexMessagePage(data) {
+		return request('message/page', data, 'get')
+	},
+	// 获取当前用户未读站内信数量
+	indexMessageUnreadCount() {
+		return request('message/unreadCount', {}, 'get')
+	},
 	// 获取站内信详情
 	indexMessageDetail(data) {
 		return request('message/detail', data, 'get')

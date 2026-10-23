@@ -21,6 +21,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Service;
+import vip.xiaonuo.biz.api.export.BizExportSheet;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.util.CommonDownloadUtil;
 import vip.xiaonuo.common.util.CommonExcelUtil;
@@ -228,6 +229,18 @@ public class CrmReportServiceImpl implements CrmReportService {
 
     @Override
     public void export(CrmReportQueryParam param, String type, HttpServletResponse response) throws IOException {
+        BizExportSheet sheet = buildSheet(param, type);
+        File file = FileUtil.file(FileUtil.getTmpDir(), "招生报表_" + DateUtil.format(new Date(), "yyyyMMddHHmmss") + ".xlsx");
+        try {
+            CommonExcelUtil.write(file, sheet.getSheetName(), sheet.getHeadList(), sheet.getRowList());
+            CommonDownloadUtil.download(file, response);
+        } finally {
+            FileUtil.del(file);
+        }
+    }
+
+    @Override
+    public BizExportSheet buildSheet(CrmReportQueryParam param, String type) {
         String exportType = StrUtil.blankToDefault(type, "FUNNEL").toUpperCase();
         String sheetName;
         List<List<String>> headList = new ArrayList<>();
@@ -282,13 +295,7 @@ public class CrmReportServiceImpl implements CrmReportService {
         if (rowList.isEmpty()) {
             throw new CommonException("无数据可导出");
         }
-        File file = FileUtil.file(FileUtil.getTmpDir(), "招生报表_" + DateUtil.format(new Date(), "yyyyMMddHHmmss") + ".xlsx");
-        try {
-            CommonExcelUtil.write(file, sheetName, headList, rowList);
-            CommonDownloadUtil.download(file, response);
-        } finally {
-            FileUtil.del(file);
-        }
+        return new BizExportSheet(sheetName, headList, rowList);
     }
 
     private String text(String value) {

@@ -115,6 +115,16 @@ public class SysIndexServiceImpl implements SysIndexService {
     }
 
     @Override
+    public com.baomidou.mybatisplus.extension.plugins.pagination.Page<JSONObject> messagePage(String category) {
+        return devMessageApi.page(CollectionUtil.newArrayList(StpUtil.getLoginIdAsString()), category);
+    }
+
+    @Override
+    public Long messageUnreadCount() {
+        return devMessageApi.unreadCount(StpUtil.getLoginIdAsString());
+    }
+
+    @Override
     public SysIndexMessageDetailResult messageDetail(SysIndexMessageIdParam sysIndexMessageIdParam) {
         return JSONUtil.toBean(devMessageApi.detail(sysIndexMessageIdParam.getId()), SysIndexMessageDetailResult.class);
     }

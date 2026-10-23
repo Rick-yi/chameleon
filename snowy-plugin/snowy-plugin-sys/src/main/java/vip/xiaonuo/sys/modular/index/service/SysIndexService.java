@@ -58,6 +58,22 @@ public interface SysIndexService {
     List<SysIndexMessageListResult> messageList(SysIndexMessageListParam sysIndexMessageListParam);
 
     /**
+     * 获取当前用户站内信分页
+     *
+     * @author 会飞的猪
+     * @date 2026/10/23 11:00
+     */
+    com.baomidou.mybatisplus.extension.plugins.pagination.Page<cn.hutool.json.JSONObject> messagePage(String category);
+
+    /**
+     * 获取当前用户未读站内信数量
+     *
+     * @author 会飞的猪
+     * @date 2026/10/23 11:00
+     */
+    Long messageUnreadCount();
+
+    /**
      * 获取站内信详情
      *
      * @author xuyuxiang

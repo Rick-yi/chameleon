@@ -57,4 +57,15 @@ public interface AcademicReportService {
      * @date 2026/10/21 10:00
      **/
     void export(AcademicReportQueryParam param, String type, HttpServletResponse response) throws IOException;
+
+    /**
+     * 构建导出内容（同步导出与异步导出共用）
+     *
+     * @param param 查询参数
+     * @param type  导出类型：ATTENDANCE/CLASS_FILL/TEACHER/LESSON_PROGRESS/RISK_STUDENT
+     *
+     * @author 会飞的猪
+     * @date 2026/10/23 11:00
+     **/
+    vip.xiaonuo.biz.api.export.BizExportSheet buildSheet(AcademicReportQueryParam param, String type);
 }

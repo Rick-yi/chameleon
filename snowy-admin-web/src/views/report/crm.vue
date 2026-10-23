@@ -101,7 +101,7 @@
 	import { Funnel, Pie } from '@antv/g2plot'
 	import dayjs from 'dayjs'
 	import reportApi from '@/api/report/reportApi'
-	import downloadUtil from '@/utils/downloadUtil'
+	import { runAsyncExport } from '@/utils/asyncExport'
 
 	const router = useRouter()
 
@@ -199,9 +199,8 @@
 	}
 
 	const onExport = ({ key }) => {
-		reportApi.crmExport({ ...buildQuery(), type: key }).then((res) => {
-			downloadUtil.resultDownload(res)
-		})
+		// 走通用异步导出，避免同步导出超时
+		runAsyncExport('CRM_REPORT', { ...buildQuery(), reportType: key })
 	}
 
 	// 下钻：来源 → 招生线索

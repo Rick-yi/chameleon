@@ -24,6 +24,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vip.xiaonuo.common.exception.CommonException;
@@ -330,7 +331,14 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         }
         CourseSchedule courseSchedule = BeanUtil.toBean(courseScheduleAddParam, CourseSchedule.class);
         courseSchedule.setStatus(CourseScheduleStatusEnum.NORMAL.getValue());
-        this.save(courseSchedule);
+        try {
+            this.save(courseSchedule);
+        } catch (DuplicateKeyException e) {
+            // 唯一约束兜住并发：两个教务同时提交同一班级同一时段
+            throw new CommonException("该班级在 {} {} 已有排课（可能有其他人在同时排课），请刷新后重试",
+                    cn.hutool.core.date.DateUtil.formatDate(courseScheduleAddParam.getScheduleDate()),
+                    courseScheduleAddParam.getStartTime());
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -453,7 +461,11 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             throw new CommonException("存在排课冲突，未生成：{}", String.join("；", result.getConflicts()));
         }
         if (ObjectUtil.isNotEmpty(toSaveList)) {
-            this.saveBatch(toSaveList);
+            try {
+                this.saveBatch(toSaveList);
+            } catch (DuplicateKeyException e) {
+                throw new CommonException("部分时段已被其他排课占用，请重新预览后再生成");
+            }
         }
         result.setCreatedCount(toSaveList.size());
         return result;
@@ -504,7 +516,11 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         to.setClassroom(courseScheduleChangeParam.getClassroom());
         to.setTeacherId(courseScheduleChangeParam.getTeacherId());
         to.setStatus(CourseScheduleStatusEnum.NORMAL.getValue());
-        this.save(to);
+        try {
+            this.save(to);
+        } catch (DuplicateKeyException e) {
+            throw new CommonException("调课目标时段已被本班其他排课占用，请刷新后重试");
+        }
         // 已点名的课节调课：把出勤记录迁移到新课节（课时不重复扣，出勤跟着课节走）
         List<CourseClassAttend> attendList = courseClassAttendMapper.selectList(
                 new LambdaQueryWrapper<CourseClassAttend>().eq(CourseClassAttend::getScheduleId, from.getId()));
@@ -587,15 +603,38 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             return new ArrayList<>();
         }
         Set<String> conflictSet = new HashSet<>();
+        String slotText = cn.hutool.core.date.DateUtil.formatDate(scheduleDate) + " "
+                + startTime + "-" + endTime;
+        // 冲突提示要能定位到具体对象，否则用户只能自己去周视图里找
+        Map<String, String> classNameMap = new HashMap<>();
+        if (ObjectUtil.isNotEmpty(existList)) {
+            List<String> classIdList = existList.stream().map(CourseSchedule::getClassId)
+                    .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+            if (ObjectUtil.isNotEmpty(classIdList)) {
+                courseClassMapper.selectBatchIds(classIdList)
+                        .forEach(item -> classNameMap.put(item.getId(), item.getName()));
+            }
+        }
+        String teacherName = null;
+        if (ObjectUtil.isNotEmpty(teacherId)) {
+            cn.hutool.json.JSONObject teacher = sysUserApi.getUserByIdWithoutException(teacherId);
+            teacherName = teacher == null ? teacherId : teacher.getStr("name");
+        }
         for (CourseSchedule exist : existList) {
+            String existClassName = classNameMap.get(exist.getClassId());
+            String existSlot = cn.hutool.core.date.DateUtil.formatDate(exist.getScheduleDate()) + " "
+                    + exist.getStartTime() + "-" + exist.getEndTime();
             if (ObjectUtil.isNotEmpty(classroom) && classroom.equals(exist.getClassroom())) {
-                conflictSet.add("教室【" + classroom + "】同时段已有排课");
+                conflictSet.add("教室【" + classroom + "】在 " + existSlot + " 已被"
+                        + (StrUtil.isBlank(existClassName) ? "其他班级" : "【" + existClassName + "】") + "占用");
             }
             if (ObjectUtil.isNotEmpty(teacherId) && teacherId.equals(exist.getTeacherId())) {
-                conflictSet.add("教师同时段已有排课");
+                conflictSet.add("教师【" + teacherName + "】在 " + existSlot + " 已有排课"
+                        + (StrUtil.isBlank(existClassName) ? "" : "（" + existClassName + "）"));
             }
             if (ObjectUtil.isNotEmpty(classId) && classId.equals(exist.getClassId())) {
-                conflictSet.add("该班级同时段已有排课");
+                conflictSet.add("班级【" + StrUtil.blankToDefault(classNameMap.get(classId), classId) + "】在 "
+                        + slotText + " 已有排课");
             }
         }
         return new ArrayList<>(conflictSet);
@@ -713,7 +752,11 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             result.setCreatedCount(0);
             return result;
         }
-        this.saveBatch(toSaveList);
+        try {
+            this.saveBatch(toSaveList);
+        } catch (DuplicateKeyException e) {
+            throw new CommonException("部分时段已被其他排课占用，请重新预览后再生成");
+        }
         // 绑定这节课的学员名单
         for (CourseSchedule schedule : toSaveList) {
             courseScheduleStudentService.saveBatchStudent(schedule.getId(), courseScheduleAdhocParam.getStudentIdList());

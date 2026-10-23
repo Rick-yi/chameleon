@@ -98,6 +98,25 @@ public class SysIndexController {
     }
 
     /**
+     * 获取当前用户站内信分页（移动端消息中心使用，只查本人，无需额外权限）
+     */
+    @Operation(summary = "获取当前用户站内信分页")
+    @GetMapping("/sys/index/message/page")
+    public CommonResult<com.baomidou.mybatisplus.extension.plugins.pagination.Page<cn.hutool.json.JSONObject>>
+            messagePage(String category) {
+        return CommonResult.data(sysIndexService.messagePage(category));
+    }
+
+    /**
+     * 获取当前用户未读站内信数量
+     */
+    @Operation(summary = "获取当前用户未读站内信数量")
+    @GetMapping("/sys/index/message/unreadCount")
+    public CommonResult<Long> messageUnreadCount() {
+        return CommonResult.data(sysIndexService.messageUnreadCount());
+    }
+
+    /**
      * 获取站内信详情
      *
      * @author xuyuxiang

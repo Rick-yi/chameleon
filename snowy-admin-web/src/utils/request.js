@@ -68,6 +68,17 @@ service.interceptors.request.use(
 
 // 保持重新登录Modal的唯一性
 const error = () => {
+	// 移动端 H5：登录失效直接回移动登录页，不弹桌面端模态框
+	if (window.location.pathname.startsWith('/app')) {
+		tool.data.remove('TOKEN')
+		tool.data.remove('USER_INFO')
+		tool.data.remove('MENU')
+		tool.data.remove('PERMISSIONS')
+		if (window.location.pathname !== '/app/login') {
+			window.location.replace('/app/login')
+		}
+		return
+	}
 	loginBack.value = true
 	Modal.error({
 		title: '提示：',

@@ -137,7 +137,7 @@
 	import dayjs from 'dayjs'
 	import reportApi from '@/api/report/reportApi'
 	import courseApi from '@/api/course/courseApi'
-	import downloadUtil from '@/utils/downloadUtil'
+	import { runAsyncExport } from '@/utils/asyncExport'
 
 	const router = useRouter()
 
@@ -272,9 +272,8 @@
 	}
 
 	const onExport = ({ key }) => {
-		reportApi.academicExport({ ...buildQuery(), type: key }).then((res) => {
-			downloadUtil.resultDownload(res)
-		})
+		// 大报表走后台生成，避免同步导出超时
+		runAsyncExport('COURSE_ACADEMIC', { ...buildQuery(), reportType: key })
 	}
 
 	// 下钻：班级 → 排课课表

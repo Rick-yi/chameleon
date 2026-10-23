@@ -129,6 +129,28 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
             ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '业务埋点流水';
             """;
 
+    private static final String BIZ_EXPORT_TASK_DDL = """
+            CREATE TABLE IF NOT EXISTS `BIZ_EXPORT_TASK` (
+              `ID` varchar(20) NOT NULL COMMENT '主键',
+              `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '租户id',
+              `EXPORT_TYPE` varchar(50) NOT NULL COMMENT '导出类型编码',
+              `PARAM_JSON` text NULL COMMENT '查询参数(JSON)',
+              `STATUS` varchar(20) NOT NULL COMMENT '状态：PENDING/RUNNING/SUCCESS/FAILED',
+              `FILE_NAME` varchar(200) NULL DEFAULT NULL COMMENT '下载文件名',
+              `FILE_PATH` varchar(500) NULL DEFAULT NULL COMMENT '服务器文件路径',
+              `ROW_COUNT` bigint NULL DEFAULT NULL COMMENT '数据行数',
+              `ERROR_MSG` varchar(500) NULL DEFAULT NULL COMMENT '失败原因',
+              `FINISH_TIME` datetime NULL DEFAULT NULL COMMENT '完成时间',
+              `DELETE_FLAG` varchar(255) NULL DEFAULT NULL COMMENT '删除标志',
+              `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+              `CREATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '创建用户',
+              `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '修改时间',
+              `UPDATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '修改用户',
+              PRIMARY KEY (`ID`),
+              INDEX `IDX_EXPORT_TENANT_TIME` (`TENANT_ID`, `CREATE_TIME`)
+            ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '异步导出任务';
+            """;
+
     private static final String TENANT_LOGIN_DDL = """
             CREATE TABLE IF NOT EXISTS `T_TENANT_LOGIN` (
               `ID` varchar(20) NOT NULL COMMENT '主键',
@@ -275,10 +297,44 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
                 log.info(">>> 课务结构升级：COURSE_SCHEDULE_STUDENT 排课学员表已创建");
             }
 
+            // 排课并发唯一约束：同一租户、同一班级、同一天同一开始时间只允许一节正常课
+            // 用生成列 + 唯一索引，已取消/已调的课节不参与（生成列为 NULL 时唯一索引不生效）
+            if (!columnExists("COURSE_SCHEDULE", "ACTIVE_SLOT_KEY")) {
+                int canceled = jdbcTemplate.update("""
+                        UPDATE `COURSE_SCHEDULE` s
+                        JOIN (
+                            SELECT `CLASS_ID`, `SCHEDULE_DATE`, `START_TIME`, MIN(`ID`) AS `KEEP_ID`
+                            FROM `COURSE_SCHEDULE`
+                            WHERE `STATUS` = 'NORMAL' AND `CLASS_ID` IS NOT NULL
+                            GROUP BY `CLASS_ID`, `SCHEDULE_DATE`, `START_TIME`
+                            HAVING COUNT(*) > 1
+                        ) d ON s.`CLASS_ID` = d.`CLASS_ID`
+                            AND s.`SCHEDULE_DATE` = d.`SCHEDULE_DATE`
+                            AND s.`START_TIME` = d.`START_TIME`
+                        SET s.`STATUS` = 'CANCELED'
+                        WHERE s.`STATUS` = 'NORMAL' AND s.`ID` <> d.`KEEP_ID`
+                        """);
+                if (canceled > 0) {
+                    log.warn(">>> 课务结构升级：清理历史重复排课 {} 条（保留每组最早一条，其余置为已取消）", canceled);
+                }
+                jdbcTemplate.execute("ALTER TABLE `COURSE_SCHEDULE` ADD COLUMN `ACTIVE_SLOT_KEY` varchar(64) "
+                        + "GENERATED ALWAYS AS (CASE WHEN `STATUS` = 'NORMAL' AND `CLASS_ID` IS NOT NULL "
+                        + "THEN CONCAT(`CLASS_ID`, '|', DATE_FORMAT(`SCHEDULE_DATE`, '%Y-%m-%d'), '|', "
+                        + "TIME_FORMAT(`START_TIME`, '%H:%i')) ELSE NULL END) STORED "
+                        + "COMMENT '有效排课槽位(仅正常课节参与唯一约束)'");
+                jdbcTemplate.execute("ALTER TABLE `COURSE_SCHEDULE` ADD UNIQUE INDEX `UK_SCHEDULE_ACTIVE_SLOT` "
+                        + "(`TENANT_ID`, `ACTIVE_SLOT_KEY`)");
+                log.info(">>> 课务结构升级：COURSE_SCHEDULE 班级时段唯一索引已添加");
+            }
+
             // 业务埋点表
             if (!tableExists("BIZ_EVENT")) {
                 jdbcTemplate.execute(BIZ_EVENT_DDL);
                 log.info(">>> 平台结构升级：BIZ_EVENT 业务埋点表已创建");
+            }
+            if (!tableExists("BIZ_EXPORT_TASK")) {
+                jdbcTemplate.execute(BIZ_EXPORT_TASK_DDL);
+                log.info(">>> 平台结构升级：BIZ_EXPORT_TASK 异步导出任务表已创建");
             }
 
             // 定时任务归属租户

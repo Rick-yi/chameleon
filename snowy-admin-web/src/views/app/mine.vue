@@ -29,6 +29,16 @@
 			</div>
 		</div>
 
+		<div class="m-section-title">消息</div>
+		<div class="m-card">
+			<div class="m-about-row m-clickable" @click="router.push('/app/message')">
+				<span>消息中心</span>
+				<span :class="{ 'm-unread': unreadCount > 0 }">
+					{{ unreadCount > 0 ? unreadCount + ' 条未读' : '暂无未读' }}
+				</span>
+			</div>
+		</div>
+
 		<div class="m-section-title">关于</div>
 		<div class="m-card">
 			<div class="m-about-row">
@@ -50,6 +60,7 @@
 	import { message } from 'ant-design-vue'
 	import { useAppStore, APP_VIEWS } from '@/store/app'
 	import { globalStore } from '@/store'
+	import indexApi from '@/api/sys/indexApi'
 	import tool from '@/utils/tool'
 
 	const router = useRouter()
@@ -57,6 +68,14 @@
 	const views = APP_VIEWS
 	const userInfo = computed(() => appStore.userInfo)
 	const version = computed(() => globalStore().sysBaseConfig?.SNOWY_SYS_VERSION || '3.0.0')
+	const unreadCount = ref(0)
+
+	// 进入「我的」时刷新未读数，避免角标长期不更新
+	onMounted(() => {
+		indexApi.indexMessageUnreadCount().then((data) => {
+			unreadCount.value = Number(data || 0)
+		})
+	})
 
 	const onSwitch = (key) => {
 		appStore.setView(key)
@@ -125,5 +144,17 @@
 		padding: 6px 0;
 		font-size: 14px;
 		color: var(--text-color-secondary);
+	}
+
+	.m-clickable {
+		cursor: pointer;
+		&:active {
+			opacity: 0.7;
+		}
+	}
+
+	.m-unread {
+		color: var(--primary-6);
+		font-weight: 500;
 	}
 </style>

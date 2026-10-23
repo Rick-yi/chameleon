@@ -120,6 +120,11 @@ const routes = [
 				path: 'report',
 				component: () => import('@/views/app/report/index.vue'),
 				meta: { title: '经营报表' }
+			},
+			{
+				path: 'message',
+				component: () => import('@/views/app/message/index.vue'),
+				meta: { title: '消息中心' }
 			}
 		]
 	}
