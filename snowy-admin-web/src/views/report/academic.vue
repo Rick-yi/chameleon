@@ -46,19 +46,19 @@
 		<a-spin :spinning="loading">
 			<a-row :gutter="16" style="margin-top: 16px">
 				<a-col :xs="12" :sm="8" :md="8" :xl="6">
-					<a-card :bordered="false" class="kpi-link" @click="router.push('/course/attend')"><a-statistic title="到课人次" :value="attendance.attendCount" suffix="人次" /></a-card>
+					<a-card :bordered="false" class="kpi-link" @click="router.push('/course/attend')"><a-statistic title="到课人次" :value="attendance.attendCount" suffix="人次" /><kpi-delta :current="attendance.attendCount" :previous="prevAttendance.attendCount" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="请假人次" :value="attendance.leaveCount" suffix="人次" :value-style="{ color: '#faad14' }" /></a-card>
+					<a-card :bordered="false"><a-statistic title="请假人次" :value="attendance.leaveCount" suffix="人次" :value-style="{ color: '#faad14' }" /><kpi-delta :current="attendance.leaveCount" :previous="prevAttendance.leaveCount" invert /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="缺勤人次" :value="attendance.absentCount" suffix="人次" :value-style="{ color: '#fa541c' }" /></a-card>
+					<a-card :bordered="false"><a-statistic title="缺勤人次" :value="attendance.absentCount" suffix="人次" :value-style="{ color: '#fa541c' }" /><kpi-delta :current="attendance.absentCount" :previous="prevAttendance.absentCount" invert /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="kpi-link" @click="router.push('/course/class')"><a-statistic title="应到人次" :value="attendance.expectedCount" suffix="人次" /></a-card>
+					<a-card :bordered="false" class="kpi-link" @click="router.push('/course/class')"><a-statistic title="应到人次" :value="attendance.expectedCount" suffix="人次" /><kpi-delta :current="attendance.expectedCount" :previous="prevAttendance.expectedCount" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="到课率" :value="attendance.attendRate" :precision="2" suffix="%" /></a-card>
+					<a-card :bordered="false"><a-statistic title="到课率" :value="attendance.attendRate" :precision="2" suffix="%" /><kpi-delta :current="attendance.attendRate" :previous="prevAttendance.attendRate" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
 					<a-card :bordered="false"><a-statistic title="出勤率" :value="attendance.attendanceRate" :precision="2" suffix="%" /></a-card>
@@ -143,6 +143,8 @@
 	import courseApi from '@/api/course/courseApi'
 	import { runAsyncExport } from '@/utils/asyncExport'
 	import ExportRecordsDrawer from '@/components/ExportRecordsDrawer/index.vue'
+	import KpiDelta from '@/components/KpiDelta/index.vue'
+	import { previousRange, rangeToQuery } from '@/utils/reportCompare'
 
 	const router = useRouter()
 
@@ -163,6 +165,7 @@
 		attendRate: 0,
 		attendanceRate: 0
 	})
+	const prevAttendance = ref({ attendCount: 0, leaveCount: 0, absentCount: 0, expectedCount: 0, attendRate: 0 })
 	const classFillList = ref([])
 	const teacherList = ref([])
 	const progressList = ref([])
@@ -185,6 +188,23 @@
 		}
 	}
 
+	// 上期出勤：只用于 KPI 环比
+	const loadPrevAttendance = () => {
+		const range = previousRange(dateRange.value?.[0], dateRange.value?.[1])
+		if (!range) {
+			prevAttendance.value = {}
+			return Promise.resolve()
+		}
+		return reportApi
+			.academicAttendance({ ...buildQuery(), ...rangeToQuery(range) })
+			.then((data) => {
+				prevAttendance.value = data || {}
+			})
+			.catch(() => {
+				prevAttendance.value = {}
+			})
+	}
+
 	const loadAll = () => {
 		loading.value = true
 		const params = buildQuery()
@@ -193,7 +213,8 @@
 			reportApi.academicClassFill(params),
 			reportApi.academicTeacherWorkload(params),
 			reportApi.academicLessonProgress(params),
-			reportApi.academicRiskStudents({ ...params, type: riskType.value })
+			reportApi.academicRiskStudents({ ...params, type: riskType.value }),
+			loadPrevAttendance()
 		])
 			.then(([attendanceData, classFillData, teacherData, progressData, riskData]) => {
 				attendance.value = attendanceData || attendance.value

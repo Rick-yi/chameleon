@@ -43,36 +43,42 @@
 					<div class="ent-stat kpi-link" @click="activeTab = 'payment'">
 						<div class="ent-stat-label">收款</div>
 						<div class="ent-stat-value">¥{{ money(summary.paidAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+						<kpi-delta :current="summary.paidAmount" :previous="prevSummary.paidAmount" />
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="8" :md="8" :xl="8">
 					<div class="ent-stat kpi-link" @click="activeTab = 'refund'">
 						<div class="ent-stat-label">退费</div>
 						<div class="ent-stat-value" style="color: #e5484d">¥{{ money(summary.refundAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+						<kpi-delta :current="summary.refundAmount" :previous="prevSummary.refundAmount" invert />
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="8" :md="8" :xl="8">
 					<div class="ent-stat">
 						<div class="ent-stat-label">净营收</div>
 						<div class="ent-stat-value" style="color: #2ba471">¥{{ money(summary.netAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+						<kpi-delta :current="summary.netAmount" :previous="prevSummary.netAmount" />
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="8" :md="8" :xl="8">
 					<div class="ent-stat kpi-link" @click="router.push('/report/academic')">
 						<div class="ent-stat-label">课消金额</div>
 						<div class="ent-stat-value">¥{{ money(summary.recognizedAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+						<kpi-delta :current="summary.recognizedAmount" :previous="prevSummary.recognizedAmount" />
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="8" :md="8" :xl="8">
 					<div class="ent-stat kpi-link" @click="activeTab = 'payment'">
 						<div class="ent-stat-label">订单数</div>
 						<div class="ent-stat-value">{{ summary.orderCount }}笔</div>
+						<kpi-delta :current="summary.orderCount" :previous="prevSummary.orderCount" />
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="8" :md="8" :xl="8">
 					<div class="ent-stat">
 						<div class="ent-stat-label">客单价</div>
 						<div class="ent-stat-value">¥{{ money(summary.avgOrderAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+						<kpi-delta :current="summary.avgOrderAmount" :previous="prevSummary.avgOrderAmount" />
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="8" :md="8" :xl="8">
@@ -85,6 +91,7 @@
 					<div class="ent-stat">
 						<div class="ent-stat-label">退费率</div>
 						<div class="ent-stat-value">{{ summary.refundRate }}%</div>
+						<kpi-delta :current="summary.refundRate" :previous="prevSummary.refundRate" invert />
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="8" :md="8" :xl="8">
@@ -210,6 +217,8 @@
 	import courseApi from '@/api/course/courseApi'
 	import { payChannelText } from '@/utils/payChannel'
 	import downloadUtil from '@/utils/downloadUtil'
+	import KpiDelta from '@/components/KpiDelta/index.vue'
+	import { previousRange, rangeToQuery } from '@/utils/reportCompare'
 
 	const router = useRouter()
 	const route = useRoute()
@@ -337,6 +346,25 @@
 		}
 	}
 
+	const prevSummary = ref({})
+
+	// 上期汇总：只用于 KPI 环比，失败不影响主报表
+	const loadPrevSummary = () => {
+		const range = previousRange(dateRange.value?.[0], dateRange.value?.[1])
+		if (!range) {
+			prevSummary.value = {}
+			return Promise.resolve()
+		}
+		return reportApi
+			.summary({ ...buildQuery(), ...rangeToQuery(range) })
+			.then((data) => {
+				prevSummary.value = data || {}
+			})
+			.catch(() => {
+				prevSummary.value = {}
+			})
+	}
+
 	const loadSummary = () => {
 		const params = buildQuery()
 		return Promise.all([
@@ -387,7 +415,7 @@
 
 	const loadAll = () => {
 		loading.value = true
-		Promise.all([loadSummary(), loadPayment(), loadRefund(), loadDaily()]).finally(() => {
+		Promise.all([loadSummary(), loadPayment(), loadRefund(), loadDaily(), loadPrevSummary()]).finally(() => {
 			loading.value = false
 		})
 		loadReconcile()

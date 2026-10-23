@@ -104,6 +104,9 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
     private StudentLessonApi studentLessonApi;
 
     @Resource
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
+    @Resource
     private CourseScheduleMapper courseScheduleMapper;
 
     @Resource
@@ -339,6 +342,9 @@ public class CourseClassAttendServiceImpl extends ServiceImpl<CourseClassAttendM
                         "IN_APP");
             }
         }
+        // 消课影响财务/教务报表，清掉本租户的报表缓存
+        eventPublisher.publishEvent(new vip.xiaonuo.common.event.ReportCacheEvictEvent(
+                vip.xiaonuo.common.context.TenantContext.getTenantId(), "ATTEND"));
         return result;
     }
 

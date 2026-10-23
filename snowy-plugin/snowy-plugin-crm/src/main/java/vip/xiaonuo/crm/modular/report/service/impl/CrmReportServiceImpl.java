@@ -87,7 +87,9 @@ public class CrmReportServiceImpl implements CrmReportService {
     public List<CrmFunnelStageDTO> funnel(CrmReportQueryParam param) {
         Date start = resolveStart(param);
         Date end = resolveEnd(param);
-        List<CrmLead> leadList = crmLeadMapper.selectList(leadWrapper(start, end));
+        // 只需 id 与状态，避免把线索全部字段读进内存
+        List<CrmLead> leadList = crmLeadMapper.selectList(leadWrapper(start, end)
+                .select(CrmLead::getId, CrmLead::getStatus));
         long total = leadList.size();
         Set<String> leadIdSet = leadList.stream().map(CrmLead::getId).collect(Collectors.toCollection(LinkedHashSet::new));
 
@@ -98,6 +100,7 @@ public class CrmReportServiceImpl implements CrmReportService {
                 .map(CrmLead::getId).collect(Collectors.toCollection(LinkedHashSet::new));
         if (ObjectUtil.isNotEmpty(leadIdSet)) {
             for (CrmLeadFollow follow : crmLeadFollowMapper.selectList(new LambdaQueryWrapper<CrmLeadFollow>()
+                    .select(CrmLeadFollow::getLeadId)
                     .in(CrmLeadFollow::getLeadId, leadIdSet)
                     .ge(CrmLeadFollow::getCreateTime, start)
                     .le(CrmLeadFollow::getCreateTime, end))) {
@@ -113,6 +116,7 @@ public class CrmReportServiceImpl implements CrmReportService {
                 .map(CrmLead::getId).collect(Collectors.toCollection(LinkedHashSet::new));
         if (ObjectUtil.isNotEmpty(leadIdSet)) {
             for (CrmTrialAppointment trial : crmTrialAppointmentMapper.selectList(new LambdaQueryWrapper<CrmTrialAppointment>()
+                    .select(CrmTrialAppointment::getLeadId)
                     .in(CrmTrialAppointment::getLeadId, leadIdSet)
                     .ge(CrmTrialAppointment::getCreateTime, start)
                     .le(CrmTrialAppointment::getCreateTime, end))) {
@@ -122,20 +126,27 @@ public class CrmReportServiceImpl implements CrmReportService {
             }
         }
 
-        long enrolledCount = leadList.stream()
-                .filter(lead -> CrmLeadStatusEnum.ENROLLED.getValue().equals(lead.getStatus())).count();
+        Set<String> enrolledIdSet = leadList.stream()
+                .filter(lead -> CrmLeadStatusEnum.ENROLLED.getValue().equals(lead.getStatus()))
+                .map(CrmLead::getId).collect(Collectors.toCollection(LinkedHashSet::new));
+
+        // 漏斗必须逐级收窄：已报名 ⊆ 已试听 ⊆ 已跟进 ⊆ 新线索
+        trialIdSet.addAll(enrolledIdSet);
+        followedIdSet.addAll(trialIdSet);
 
         List<CrmFunnelStageDTO> resultList = new ArrayList<>();
         resultList.add(stage("NEW_LEAD", "新线索", total, total));
         resultList.add(stage("FOLLOWED", "已跟进", followedIdSet.size(), total));
         resultList.add(stage("TRIALED", "已试听", trialIdSet.size(), total));
-        resultList.add(stage("ENROLLED", "已报名", enrolledCount, total));
+        resultList.add(stage("ENROLLED", "已报名", enrolledIdSet.size(), total));
         return resultList;
     }
 
     @Override
     public List<CrmSourceDTO> source(CrmReportQueryParam param) {
-        List<CrmLead> leadList = crmLeadMapper.selectList(leadWrapper(resolveStart(param), resolveEnd(param)));
+        // 只需来源与状态
+        List<CrmLead> leadList = crmLeadMapper.selectList(leadWrapper(resolveStart(param), resolveEnd(param))
+                .select(CrmLead::getId, CrmLead::getSource, CrmLead::getStatus));
         Map<String, CrmSourceDTO> sourceMap = new LinkedHashMap<>();
         for (CrmLead lead : leadList) {
             String source = StrUtil.blankToDefault(lead.getSource(), UNKNOWN_SOURCE);

@@ -76,8 +76,8 @@ import java.util.function.Supplier;
 @Service
 public class FinanceServiceImpl implements FinanceService {
 
-    /** 报表缓存有效期（秒） */
-    private static final long CACHE_TTL_SECONDS = 300L;
+    /** 报表缓存有效期（秒）：业务写入会主动失效，这里只做兜底 */
+    private static final long CACHE_TTL_SECONDS = 60L;
 
     /** 单次导出最大行数（超过建议异步导出） */
     private static final int MAX_EXPORT_ROWS = 50000;

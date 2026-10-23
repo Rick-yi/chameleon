@@ -76,6 +76,9 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
     private StudentLessonAccountService studentLessonAccountService;
 
     @Resource
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
+    @Resource
     private CourseApi courseApi;
 
     @Resource
@@ -284,6 +287,9 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
         }
         // 入账：创建/追加课时账户 + 入账流水 + 续费预警置已续费
         studentLessonAccountService.recharge(order);
+        // 收款影响财务报表，清掉本租户的报表缓存
+        eventPublisher.publishEvent(new vip.xiaonuo.common.event.ReportCacheEvictEvent(
+                vip.xiaonuo.common.context.TenantContext.getTenantId(), "PAYMENT"));
     }
 
     @Transactional(rollbackFor = Exception.class)

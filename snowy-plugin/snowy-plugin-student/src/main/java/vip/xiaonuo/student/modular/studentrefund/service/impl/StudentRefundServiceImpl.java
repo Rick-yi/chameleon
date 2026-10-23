@@ -84,6 +84,9 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
     private BizEventApi bizEventApi;
 
     @Resource
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
+    @Resource
     private StudentService studentService;
 
     @Resource
@@ -334,6 +337,9 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
         if (!refundUpdated) {
             throw new CommonException("退费单状态已变化，请刷新后重试");
         }
+        // 退费影响财务报表，清掉本租户的报表缓存
+        eventPublisher.publishEvent(new vip.xiaonuo.common.event.ReportCacheEvictEvent(
+                vip.xiaonuo.common.context.TenantContext.getTenantId(), "REFUND"));
     }
 
     @Transactional(rollbackFor = Exception.class)
