@@ -32,123 +32,110 @@ const v3Token = convertLegacyToken.default(mapToken)
  * 设计取向：冷灰底 + 沉稳企业蓝 + 细边框 + 紧凑信息密度 + 弱装饰
  */
 const enterpriseToken = {
-	// 主色：沉稳的企业蓝（比默认 #1677ff 更深更稳）
-	'primary-color': '#1668dc',
-	'primary-color-hover': '#3c85f0',
-	'primary-color-active': '#0e42b2',
-	'primary-color-outline': '#b3d1f5',
-	'primary-1': '#eaf2fd',
-	'primary-2': '#c8dcf9',
-	'primary-3': '#9dc2f4',
-	'primary-4': '#6ea5ee',
-	'primary-5': '#3f88e5',
-	'primary-6': '#1668dc',
-	'primary-7': '#0f52b6',
-	'primary-8': '#0b3d8c',
-	'primary-9': '#072862',
-	'primary-10': '#041634',
+	// 主色：果子绿（明亮但不刺眼）
+	'primary-color': '#4bb964',
+	'primary-color-hover': '#6fcc85',
+	'primary-color-active': '#3b9a50',
+	'primary-color-outline': '#c2eacb',
+	'primary-1': '#f0fbf3',
+	'primary-2': '#dcf5e3',
+	'primary-3': '#bceac8',
+	'primary-4': '#95dca7',
+	'primary-5': '#6fcc85',
+	'primary-6': '#4bb964',
+	'primary-7': '#3b9a50',
+	'primary-8': '#2c7a3d',
+	'primary-9': '#1d5a2c',
+	'primary-10': '#0f3a1c',
 
-	// 语义色：降低饱和度，避免刺眼
+	// 语义色：爱马仕橙作为提醒/强调色，红绿保持辨识度
 	'success-color': '#2ba471',
 	'success-color-hover': '#3fb989',
 	'success-color-active': '#1f8c5e',
 	'success-color-outline': '#a7e0c8',
-	'warning-color': '#d89614',
-	'warning-color-hover': '#e5a92b',
-	'warning-color-active': '#b87a0c',
-	'warning-color-outline': '#f0d199',
+	'warning-color': '#f37021',
+	'warning-color-hover': '#ff8a3d',
+	'warning-color-active': '#d45a12',
+	'warning-color-outline': '#ffd7bf',
 	'error-color': '#e5484d',
 	'error-color-hover': '#eb6266',
 	'error-color-active': '#ce3539',
 	'error-color-outline': '#f2b5b7',
-	'info-color': '#1668dc',
+	'info-color': '#4bb964',
 
 	// 文字层级
-	'text-color': '#1d2129',
-	'text-color-secondary': '#4e5969',
+	'text-color': '#26302a',
+	'text-color-secondary': '#5b665e',
 	'text-color-inverse': '#ffffff',
-	'heading-color': '#1d2129',
+	'heading-color': '#1f2a23',
 
-	// 边框与分隔线
-	'border-color-base': '#e5e6eb',
-	'border-color-split': '#f0f1f3',
-	'border-color-light': '#f2f3f5',
-	'divider-color': '#f0f1f3',
+	// 边框与分隔线（偏暖）
+	'border-color-base': '#e3eade',
+	'border-color-split': '#eef3ea',
+	'border-color-light': '#f2f6ee',
+	'divider-color': '#eef3ea',
 
-	// 背景
+	// 背景：奶油绿底，卡片纯白
 	'component-background': '#ffffff',
-	'background-color-light': '#f7f8fa',
-	'background-color-base': '#f2f3f5',
-	'layout-body-background': '#f5f6f7',
-	'item-hover-bg': '#f2f3f5',
+	'background-color-light': '#f7faf3',
+	'background-color-base': '#f1f6ec',
+	'layout-body-background': '#f4f9f0',
+	'item-hover-bg': '#f2f8ee',
 
-	// 圆角：收敛到 2/4/6，弱化"玩具感"
-	'border-radius-base': '4px',
-	'border-radius-sm': '2px',
-	'btn-border-radius-base': '4px',
-	'btn-border-radius-sm': '2px',
-	'tag-border-radius': '2px',
+	// 圆角：儿童风，大圆角
+	'border-radius-base': '10px',
+	'border-radius-sm': '8px',
+	'btn-border-radius-base': '14px',
+	'btn-border-radius-sm': '12px',
+	'tag-border-radius': '999px',
 
 	// 字体
 	'font-size-base': '14px',
 	'font-size-lg': '16px',
 	'font-size-sm': '12px',
-	'font-family':
-		"-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif",
+	'font-weight-bold': '600',
+	'btn-font-weight': '500',
 
-	// 表格：浅表头、淡分隔线、紧凑行高
-	'table-bg': '#ffffff',
-	'table-header-bg': '#f7f8fa',
-	'table-header-color': '#4e5969',
-	'table-header-split-color': '#e5e6eb',
-	'table-border-color': '#eef0f3',
-	'table-row-hover-bg': '#f4f7fd',
-	'table-footer-bg': '#f7f8fa',
-	'table-padding-vertical': '10px',
-	'table-padding-horizontal': '12px',
-
-	// 卡片：细边框、极轻阴影
-	'card-background': '#ffffff',
-	'card-head-background': '#ffffff',
-	'card-head-color': '#1d2129',
-	'card-head-font-size': '14px',
-	'card-head-height': '44px',
-	'card-padding-base': '16px',
-	'card-shadow': '0 1px 2px rgba(29, 33, 41, 0.06)',
-
-	// 按钮：去掉立体阴影
+	// 按钮
+	'btn-height-base': '36px',
+	'btn-height-lg': '42px',
+	'btn-height-sm': '28px',
 	'btn-shadow': 'none',
-	'btn-primary-shadow': 'none',
+	'btn-primary-shadow': '0 2px 6px rgba(75, 185, 100, 0.28)',
 	'btn-text-shadow': 'none',
 	'btn-default-bg': '#ffffff',
-	'btn-default-border': '#d9dce0',
+	'btn-default-border': '#dbe5d6',
 	'btn-danger-bg': '#ffffff',
 	'btn-danger-border': '#f0b4b6',
 	'btn-danger-color': '#e5484d',
 
 	// 输入类控件
-	'input-height-base': '32px',
-	'input-height-lg': '36px',
-	'input-height-sm': '26px',
+	'input-height-base': '36px',
+	'input-height-lg': '42px',
+	'input-height-sm': '28px',
 	'input-bg': '#ffffff',
-	'input-border-color': '#d9dce0',
-	'input-placeholder-color': '#86909c',
+	'input-border-color': '#dbe5d6',
+	'input-placeholder-color': '#93a096',
 
-	// 标签：中性化
-	'tag-default-bg': '#f2f3f5',
-	'tag-default-color': '#4e5969',
+	// 标签：胶囊形
+	'tag-default-bg': '#f1f6ec',
+	'tag-default-color': '#5b665e',
 	'tag-font-size': '12px',
 
-	// 阴影
-	'box-shadow-base': '0 4px 12px rgba(29, 33, 41, 0.08)',
+	// 阴影：柔和
+	'box-shadow-base': '0 6px 20px rgba(43, 92, 52, 0.08)',
 
-	// 侧边导航：冷灰深色，弱化默认蓝块
-	'layout-sider-background': '#1e2330',
+	// 侧边导航：深果子绿 + 爱马仕橙选中态
+	'layout-sider-background': '#123b2b',
+	'menu-dark-bg': '#123b2b',
+	'menu-dark-submenu-bg': '#0e3022',
+	'menu-dark-item-active-bg': '#f37021',
+	'menu-dark-item-selected-bg': '#f37021',
 	'layout-header-background': '#ffffff',
-	'menu-item-height': '38px',
+	'menu-item-height': '40px',
 	'menu-item-font-size': '13px',
-	'menu-item-active-bg': '#1668dc',
-	'menu-item-group-title-color': 'rgba(255,255,255,0.45)',
+	'menu-item-active-bg': '#f37021',
+	'menu-item-group-title-color': 'rgba(255,255,255,0.5)',
 
 	// 弹层
 	'modal-header-bg': '#ffffff'

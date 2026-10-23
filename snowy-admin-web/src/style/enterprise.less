@@ -1,8 +1,8 @@
 /* ============================================================
  * chameleon 企业级主题层
  * ------------------------------------------------------------
- * 目标：把默认「AntD 亮蓝 + 大圆角 + 强装饰」的观感，收敛成
- *       冷灰底 / 细边框 / 紧凑密度 / 弱色彩的企业控制台风格。
+ * 目标：把界面统一成儿童友好风格：
+ *       果子绿 + 爱马仕橙 + 大圆角，轻松但不失秩序。
  *
  * 令牌（颜色/圆角/字号/间距）见 vite.config.mjs 的 enterpriseToken，
  * 这里只做 Less/CSS 变量层的补齐与组件级规整。
@@ -10,45 +10,57 @@
 
 /* ---------- 1. Snowy 自身 CSS 变量对齐（与 antd 令牌保持同一套色板） ---------- */
 :root {
-	--blue-6: #1668dc;
+	--blue-1: #f0fbf3;
+	--blue-2: #dcf5e3;
+	--blue-3: #bceac8;
+	--blue-4: #95dca7;
+	--blue-5: #6fcc85;
+	--blue-6: #4bb964;
 	--green-6: #2ba471;
 	--red-6: #e5484d;
 	--gold-6: #d89614;
 	--cyan-6: #2ba8b8;
 	--purple-6: #6f5bd8;
 	--pink-6: #d64d8a;
-	--orange-6: #d98014;
+	--orange-6: #f37021;
 
-	--primary-1: #eaf2fd;
-	--primary-2: #c8dcf9;
-	--primary-3: #9dc2f4;
-	--primary-4: #6ea5ee;
-	--primary-5: #3f88e5;
-	--primary-6: #1668dc;
-	--primary-7: #0f52b6;
-	--primary-8: #0b3d8c;
-	--primary-9: #072862;
-	--primary-10: #041634;
+	/* 主色：果子绿 */
+	--primary-1: #f0fbf3;
+	--primary-2: #dcf5e3;
+	--primary-3: #bceac8;
+	--primary-4: #95dca7;
+	--primary-5: #6fcc85;
+	--primary-6: #4bb964;
+	--primary-7: #3b9a50;
+	--primary-8: #2c7a3d;
+	--primary-9: #1d5a2c;
+	--primary-10: #0f3a1c;
 
-	--text-color: #1d2129;
-	--text-color-secondary: #4e5969;
-	--heading-color: #1d2129;
+	/* 强调色：爱马仕橙 */
+	--accent-1: #fff4ec;
+	--accent-2: #ffe3d1;
+	--accent-6: #f37021;
+	--accent-7: #d45a12;
 
-	--border-color-base: #e5e6eb;
-	--border-color-split: #f0f1f3;
-	--background-color-light: #f7f8fa;
-	--background-color-base: #f2f3f5;
-	--layout-body-background: #f5f6f7;
-	--item-hover-bg: #f2f3f5;
+	--text-color: #26302a;
+	--text-color-secondary: #5b665e;
+	--heading-color: #1f2a23;
+
+	--border-color-base: #e3eade;
+	--border-color-split: #eef3ea;
+	--background-color-light: #f7faf3;
+	--background-color-base: #f1f6ec;
+	--layout-body-background: #f4f9f0;
+	--item-hover-bg: #f2f8ee;
 	--component-background: #ffffff;
 
-	--shadow-color: rgba(29, 33, 41, 0.08);
-	--shadow-1-down: 0 2px 8px rgba(29, 33, 41, 0.08);
-	--shadow-2: 0 4px 12px rgba(29, 33, 41, 0.1);
+	--shadow-color: rgba(43, 92, 52, 0.1);
+	--shadow-1-down: 0 4px 14px rgba(43, 92, 52, 0.08);
+	--shadow-2: 0 8px 24px rgba(43, 92, 52, 0.12);
 
-	/* 圆角统一：卡片 6px，控件 4px */
-	--radius-card: 6px;
-	--radius-control: 4px;
+	/* 圆角统一：儿童风大圆角 */
+	--radius-card: 18px;
+	--radius-control: 10px;
 }
 
 /* ---------- 2. 基础排版 ---------- */
@@ -239,7 +251,7 @@ html {
 	font-size: 13px;
 }
 .ant-layout-sider .ant-menu-item-selected {
-	background: #1668dc;
+	background: var(--primary-6);
 }
 
 /* 顶部栏：更克制的分隔线 */
@@ -506,7 +518,7 @@ html {
 	width: 32px !important;
 	height: 32px !important;
 	border-radius: 6px !important;
-	background: #eaf2fd !important;
+	background: var(--primary-1) !important;
 	color: var(--primary-color) !important;
 }
 .stat-icon-orange,
@@ -568,7 +580,7 @@ html {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: #eaf2fd;
+	background: var(--primary-1);
 	color: var(--primary-color);
 	font-size: 15px;
 }
@@ -597,7 +609,7 @@ html {
 .ent-schedule-title {
 	font-size: 13px;
 	font-weight: 500;
-	color: #0f52b6;
+	color: var(--primary-7);
 }
 .ent-schedule-meta {
 	font-size: 11px;
@@ -669,7 +681,7 @@ html {
 	border-bottom: 1px solid var(--border-color-split);
 }
 .sched-cell.is-today {
-	background: rgba(22, 104, 220, 0.03);
+	background: rgba(75, 185, 100, 0.04);
 }
 .sched-card-head {
 	display: flex;
@@ -747,4 +759,26 @@ html {
 
 .tree-page .panel-right > .ant-form .ant-form-item {
 	margin-bottom: 8px;
+}
+
+/* ---------- 17. 侧边导航：深果子绿 + 爱马仕橙选中 ---------- */
+.ant-layout-sider-dark {
+	background: #123b2b !important;
+}
+.ant-menu-dark {
+	background: #123b2b !important;
+}
+.ant-menu-dark .ant-menu-sub {
+	background: #0e3022 !important;
+}
+.ant-menu-dark .ant-menu-item-selected,
+.ant-menu-dark .ant-menu-submenu-selected > .ant-menu-submenu-title {
+	background: var(--accent-6) !important;
+	color: #fff !important;
+}
+.ant-menu-dark .ant-menu-item-selected .anticon,
+.ant-menu-dark .ant-menu-item-selected span,
+.ant-menu-dark .ant-menu-submenu-selected > .ant-menu-submenu-title .anticon,
+.ant-menu-dark .ant-menu-submenu-selected > .ant-menu-submenu-title span {
+	color: #fff !important;
 }

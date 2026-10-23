@@ -5,7 +5,28 @@
 			algorithm: store.theme === 'realDark' ? theme.darkAlgorithm : theme.defaultAlgorithm,
 			token: {
 				colorPrimary: `${store.themeColor}`,
-				borderRadius: roundedCornerStyleOpen ? 6 : 2
+				colorInfo: '#4bb964',
+				colorSuccess: '#2ba471',
+				colorWarning: '#f37021',
+				colorLink: '#3b9a50',
+				borderRadius: roundedCornerStyleOpen ? 16 : 12,
+				borderRadiusLG: 20,
+				borderRadiusSM: 8
+			},
+			components: {
+				Layout: {
+					siderBg: '#123b2b',
+					bodyBg: '#f4f9f0',
+					headerBg: '#ffffff'
+				},
+				Menu: {
+					darkItemBg: '#123b2b',
+					darkSubMenuItemBg: '#0e3022',
+					darkItemSelectedBg: '#f37021',
+					darkItemHoverBg: 'rgba(255,255,255,0.08)',
+					itemBorderRadius: 10,
+					itemMarginInline: 8
+				}
 			}
 		}"
 	>

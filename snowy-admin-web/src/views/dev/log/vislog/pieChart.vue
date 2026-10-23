@@ -15,7 +15,7 @@
 				angleField: 'value',
 				colorField: 'type',
 				radius: 0.9,
-				color: ['#1677FF', 'rgb(188, 189, 190)'],
+				color: ['#4BB964', 'rgb(188, 189, 190)'],
 				label: {
 					type: 'inner',
 					offset: '-30%',

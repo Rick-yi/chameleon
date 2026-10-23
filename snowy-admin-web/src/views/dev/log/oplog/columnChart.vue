@@ -16,7 +16,7 @@
 				yField: 'count',
 				seriesField: 'name',
 				/** 设置颜色 */
-				color: ['#1677FF', '#F5222D'],
+				color: ['#4BB964', '#F5222D'],
 				/** 设置间距 */
 				// marginRatio: 0.1,
 				label: {

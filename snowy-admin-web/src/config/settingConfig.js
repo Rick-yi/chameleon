@@ -10,6 +10,14 @@
  */
 const colorList = [
 	{
+		key: '果子绿',
+		color: '#4BB964'
+	},
+	{
+		key: '爱马仕橙',
+		color: '#F37021'
+	},
+	{
 		key: '薄暮',
 		color: '#F5222D'
 	},

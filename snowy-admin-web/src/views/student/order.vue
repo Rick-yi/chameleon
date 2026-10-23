@@ -423,8 +423,8 @@
 			border-color: #9dc2f4;
 		}
 		&.active {
-			border-color: #1668dc;
-			box-shadow: 0 0 0 1px #1668dc;
+			border-color: #4bb964;
+			box-shadow: 0 0 0 1px #4bb964;
 		}
 	}
 </style>

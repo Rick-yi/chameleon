@@ -306,7 +306,7 @@
 				yField: 'value',
 				seriesField: 'series',
 				height: 300,
-				color: ['#1668dc', '#e5484d', '#2ba471'],
+				color: ['#4bb964', '#e5484d', '#f37021'],
 				legend: { position: 'top' },
 				smooth: true
 			})
@@ -319,7 +319,7 @@
 				data: channelData,
 				angleField: 'value',
 				colorField: 'type',
-				color: ['#1668dc', '#2ba471', '#d89614', '#6f5bd8', '#2ba8b8', '#e5484d'],
+				color: ['#4bb964', '#f37021', '#2ba471', '#6f5bd8', '#2ba8b8', '#e5484d'],
 				height: 300,
 				radius: 0.8,
 				label: { type: 'outer', content: '{name} {percentage}' },

@@ -87,7 +87,7 @@
 
 		statList.value = [
 			{ key: 'paid', label: '今日收款', value: `¥${todayPaid.toLocaleString('zh-CN')}`, sub: `${paidList.length} 笔`, color: '#2ba471', path: '/app/cashier/orders' },
-			{ key: 'class', label: '今日课节', value: `${scheduleList.length} 节`, sub: '待点名优先', color: '#1668dc', path: '/app/teach/schedule' },
+			{ key: 'class', label: '今日课节', value: `${scheduleList.length} 节`, sub: '待点名优先', color: '#4bb964', path: '/app/teach/schedule' },
 			{ key: 'unpaid', label: '待收款', value: `${unpaidTotal} 笔`, sub: '需跟进', color: '#d89614', path: '/app/cashier/orders' },
 			{ key: 'lead', label: '待跟进线索', value: `${leadTotal} 条`, sub: '今日到期', color: '#6f5bd8', path: '/app/enroll/leads' }
 		]
@@ -124,7 +124,7 @@
 		const newLead = leadRes?.records?.filter((item) => item.status === 'NEW').length || 0
 		statList.value = [
 			{ key: 'lead', label: '在跟线索', value: `${leadRes?.total || 0} 条`, sub: `新线索 ${newLead}`, color: '#6f5bd8', path: '/app/enroll/leads' },
-			{ key: 'trial', label: '试听预约', value: `${trialRes?.total || 0} 场`, sub: '待到店', color: '#1668dc', path: '/app/enroll/leads' },
+			{ key: 'trial', label: '试听预约', value: `${trialRes?.total || 0} 场`, sub: '待到店', color: '#4bb964', path: '/app/enroll/leads' },
 			{ key: 'unpaid', label: '待收款', value: `${unpaidRes?.total || 0} 笔`, sub: '需跟进', color: '#d89614', path: '/app/cashier/orders' },
 			{ key: 'report', label: '招生转化', value: '查看', sub: '漏斗/来源', color: '#2ba471', path: '/app/report' }
 		]
@@ -155,7 +155,7 @@
 			{ key: 'paid', label: '今日收款', value: `¥${todayPaid.toLocaleString('zh-CN')}`, sub: `${paidList.length} 笔`, color: '#2ba471', path: '/app/cashier/orders' },
 			{ key: 'unpaid', label: '待收款', value: `${unpaidRes?.total || 0} 笔`, sub: '需催收', color: '#d89614', path: '/app/cashier/orders' },
 			{ key: 'refund', label: '待审批退费', value: `${refundRes?.total || 0} 笔`, sub: '待处理', color: '#e5484d', path: '/app/cashier/orders' },
-			{ key: 'report', label: '收款报表', value: '查看', sub: '趋势/渠道', color: '#1668dc', path: '/app/report' }
+			{ key: 'report', label: '收款报表', value: '查看', sub: '趋势/渠道', color: '#4bb964', path: '/app/report' }
 		]
 		todoList.value = [
 			...(unpaidRes?.records || []).map((item) => ({

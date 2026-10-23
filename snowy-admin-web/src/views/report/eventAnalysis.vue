@@ -157,7 +157,7 @@
 			xField: 'date',
 			yField: 'value',
 			seriesField: 'type',
-			color: ['#1668dc', '#2ba471', '#d89614', '#e5484d', '#6f5bd8', '#2ba8b8'],
+			color: ['#4bb964', '#f37021', '#2ba471', '#e5484d', '#6f5bd8', '#2ba8b8'],
 			height: 320,
 			smooth: true,
 			legend: { position: 'top' },

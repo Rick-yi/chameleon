@@ -39,7 +39,7 @@
 				xField: 'date',
 				yField: valueKey,
 				seriesField: seriesKey,
-				color: ['#1677FF', 'rgb(188, 189, 190)'],
+				color: ['#4BB964', 'rgb(188, 189, 190)'],
 				appendPadding: [0, 8, 0, 0]
 			})
 			line.render()

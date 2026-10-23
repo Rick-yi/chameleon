@@ -73,7 +73,7 @@ const DEFAULT_CONFIG = {
 	LANG: 'zh-cn',
 
 	// 主题颜色
-	COLOR: '#1677FF',
+	COLOR: '#4BB964',
 
 	// 默认整体主题
 	SNOWY_THEME: 'dark',

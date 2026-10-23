@@ -113,7 +113,7 @@
 		width: 100vw;
 		height: 100vh;
 		overflow: hidden;
-		background: linear-gradient(135deg, #0f5cb3 0%, #1677ff 50%, #4096ff 100%);
+		background: linear-gradient(135deg, #1b5e3f 0%, #4bb964 50%, #f37021 100%);
 		box-shadow: inset 0 0 200px rgba(255, 255, 255, 0.1);
 		transition: background-color 0.5s ease;
 	}

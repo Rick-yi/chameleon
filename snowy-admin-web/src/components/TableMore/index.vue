@@ -54,12 +54,12 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 2px;
-		color: #1668dc;
+		color: #4bb964;
 		cursor: pointer;
 		white-space: nowrap;
 	}
 	.table-more:hover {
-		color: #3c85f0;
+		color: #6fcc85;
 	}
 	.table-more-caret {
 		font-size: 10px;

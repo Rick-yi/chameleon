@@ -144,7 +144,7 @@
 				yField: 'value',
 				seriesField: 'series',
 				height: 320,
-				color: ['#1677ff', '#52c41a'],
+				color: ['#4bb964', '#f37021'],
 				smooth: true,
 				legend: { position: 'top' }
 			})

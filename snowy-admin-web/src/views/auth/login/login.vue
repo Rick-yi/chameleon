@@ -360,6 +360,6 @@
 <style lang="less">
 	@import 'login';
 	.xn-color-0d84ff {
-		color: #0d84ff;
+		color: #3b9a50;
 	}
 </style>

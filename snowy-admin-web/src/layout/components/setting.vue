@@ -404,7 +404,7 @@
 		position: absolute;
 		right: 8px;
 		bottom: 8px;
-		color: #1677ff;
+		color: #4bb964;
 		font-weight: 700;
 		font-size: 14px;
 		pointer-events: none;

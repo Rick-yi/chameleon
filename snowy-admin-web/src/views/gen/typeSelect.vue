@@ -9,7 +9,7 @@
 				>
 					<template #title>
 						<div style="display: flex; align-items: center; gap: 8px">
-							<component :is="item.icon" style="font-size: 20px; color: #1677ff" />
+							<component :is="item.icon" style="font-size: 20px; color: #4bb964" />
 							<span>{{ item.label }}</span>
 							<a-tag v-if="item.tag" :color="item.tagColor">{{ item.tag }}</a-tag>
 						</div>
@@ -91,7 +91,7 @@
 
 <style scoped>
 	.type-card-selected {
-		border-color: #1677ff;
+		border-color: #4bb964;
 		box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2);
 	}
 </style>

@@ -164,7 +164,7 @@
 	.module-card {
 		width: 70px;
 		height: 70px;
-		background-color: #0d84ff;
+		background-color: var(--accent-6);
 		text-align: center;
 		align-items: center;
 		cursor: pointer;
