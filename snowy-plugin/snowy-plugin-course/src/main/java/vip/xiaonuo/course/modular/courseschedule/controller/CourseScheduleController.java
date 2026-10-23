@@ -13,6 +13,7 @@
 package vip.xiaonuo.course.modular.courseschedule.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
@@ -37,6 +38,7 @@ import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleChangeParam
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleGenerateParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleIdParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseSchedulePageParam;
+import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleSuggestParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleWeekParam;
 import vip.xiaonuo.course.modular.courseschedule.service.CourseScheduleExportService;
 import vip.xiaonuo.course.modular.courseschedule.service.CourseScheduleService;
@@ -110,6 +112,24 @@ public class CourseScheduleController {
     @GetMapping("/course/schedule/week")
     public CommonResult<List<CourseScheduleViewDTO>> week(@Valid CourseScheduleWeekParam courseScheduleWeekParam) {
         return CommonResult.data(courseScheduleService.week(courseScheduleWeekParam));
+    }
+
+    /**
+     * 推荐可排课时段
+     * <p>
+     * 按班级/教师/教室占用计算空闲时段，优先推荐与班级固定课表一致的星期与时间，
+     * 供「手动排课」弹窗直接点选，减少反复试错。
+     * </p>
+     *
+     * @author 会飞的猪
+     * @date 2026/10/23 10:00
+     */
+    @SaCheckPermission("/course/schedule/suggest")
+    @Operation(summary = "推荐可排课时段")
+    @GetMapping("/course/schedule/suggest")
+    public CommonResult<List<vip.xiaonuo.course.api.dto.CourseScheduleSuggestDTO>> suggest(
+            CourseScheduleSuggestParam courseScheduleSuggestParam) {
+        return CommonResult.data(courseScheduleService.suggest(courseScheduleSuggestParam));
     }
 
     /**

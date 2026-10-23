@@ -95,6 +95,10 @@ export default {
 		return request('schedule/cancel', data)
 	},
 	// 课表区间查询（不分页）
+	// 推荐可排课时段（排课助手）
+	scheduleSuggest(data) {
+		return request('schedule/suggest', data, 'get')
+	},
 	scheduleWeek(data) {
 		return request('schedule/week', data, 'get')
 	},

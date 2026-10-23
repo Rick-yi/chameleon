@@ -174,7 +174,7 @@
 			<a-row :gutter="16">
 				<a-col :span="12">
 					<a-form-item label="班级" name="classId" :rules="[{ required: true, message: '请选择班级' }]">
-						<a-select v-model:value="addFormData.classId" placeholder="请选择班级" :options="classOptions" />
+						<a-select v-model:value="addFormData.classId" placeholder="请选择班级" :options="classOptions" @change="loadSuggest" />
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
@@ -194,7 +194,7 @@
 				</a-col>
 				<a-col :span="12">
 					<a-form-item label="教室" name="classroom">
-						<a-input v-model:value="addFormData.classroom" placeholder="如：A101" allow-clear />
+						<a-input v-model:value="addFormData.classroom" placeholder="如：A101" allow-clear @blur="loadSuggest" />
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
@@ -206,10 +206,31 @@
 							show-search
 							option-filter-prop="label"
 							allow-clear
+							@change="loadSuggest"
 						/>
 					</a-form-item>
 				</a-col>
 			</a-row>
+			<!-- 排课助手：按班级/教师/教室占用推荐可用时段 -->
+			<div class="suggest-box">
+				<div class="suggest-title">
+					<span>推荐时段</span>
+					<a v-if="suggestList.length" class="suggest-refresh" @click="loadSuggest">换一批</a>
+				</div>
+				<div v-if="suggestLoading" class="suggest-empty">正在计算可用时段…</div>
+				<div v-else-if="!suggestList.length" class="suggest-empty">暂无可推荐时段（可调整日期或教师）</div>
+				<div v-else class="suggest-list">
+					<a-tag
+						v-for="item in suggestList"
+						:key="item.scheduleDate + item.startTime"
+						class="suggest-item"
+						color="blue"
+						@click="applySuggest(item)"
+					>
+						{{ item.label }}
+					</a-tag>
+				</div>
+			</div>
 		</a-form>
 	</a-modal>
 
@@ -454,6 +475,9 @@
 	const addOpen = ref(false)
 	const addFormRef = ref()
 	const addFormData = ref({})
+	// 排课助手：推荐时段
+	const suggestList = ref([])
+	const suggestLoading = ref(false)
 	const generateOpen = ref(false)
 	const generateFormRef = ref()
 	const generateFormData = ref({})
@@ -789,15 +813,62 @@
 	const onOpenAdd = () => {
 		addFormData.value = { classId: searchFormState.value.classId, startTime: '09:00', endTime: '10:30' }
 		addOpen.value = true
+		loadSuggest()
+	}
+
+	// 排课助手：按班级/教师/教室的占用推荐可用时段（默认看未来 7 天）
+	const loadSuggest = () => {
+		if (!addOpen.value) return
+		suggestLoading.value = true
+		const start = addFormData.value.scheduleDate || fmtDate(new Date())
+		const endDate = new Date(`${start}T00:00:00`)
+		endDate.setDate(endDate.getDate() + 6)
+		courseApi
+			.scheduleSuggest({
+				classId: addFormData.value.classId,
+				teacherId: addFormData.value.teacherId,
+				classroom: addFormData.value.classroom,
+				startDate: start,
+				endDate: fmtDate(endDate),
+				durationMinutes: 90,
+				limit: 8
+			})
+			.then((data) => {
+				suggestList.value = data || []
+			})
+			.catch(() => {
+				suggestList.value = []
+			})
+			.finally(() => {
+				suggestLoading.value = false
+			})
+	}
+
+	// 点推荐时段直接回填表单
+	const applySuggest = (item) => {
+		addFormData.value.scheduleDate = item.scheduleDate
+		addFormData.value.startTime = item.startTime.slice(0, 5)
+		addFormData.value.endTime = item.endTime.slice(0, 5)
+		message.success(`已填入 ${item.label}`)
 	}
 	const onSubmitAdd = () => {
 		addFormRef.value.validate().then(() => {
 			const body = { ...addFormData.value, scheduleDate: `${addFormData.value.scheduleDate} 00:00:00` }
-			courseApi.scheduleAdd(body).then(() => {
-				addOpen.value = false
-				conflictTip.value = ''
-				loadWeek()
-			})
+			courseApi
+				.scheduleAdd(body)
+				.then(() => {
+					addOpen.value = false
+					conflictTip.value = ''
+					loadWeek()
+				})
+				.catch((err) => {
+					// 冲突时不关闭弹窗，直接刷新推荐时段让用户点选替换
+					const msg = String(err?.msg || '')
+					if (msg.includes('冲突')) {
+						message.warning('该时段冲突，已为你重新计算可用时段')
+						loadSuggest()
+					}
+				})
 		})
 	}
 
@@ -932,3 +1003,37 @@
 	loadAdhocOptions()
 	buildWeek()
 </script>
+
+<style lang="less" scoped>
+	.suggest-box {
+		margin-top: 4px;
+		padding: 10px 12px;
+		background: var(--background-color-light);
+		border-radius: var(--radius-control);
+	}
+	.suggest-title {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		font-size: 13px;
+		color: var(--text-color-secondary);
+	}
+	.suggest-refresh {
+		font-size: 12px;
+	}
+	.suggest-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin-top: 8px;
+	}
+	.suggest-item {
+		cursor: pointer;
+		margin: 0;
+	}
+	.suggest-empty {
+		margin-top: 8px;
+		font-size: 12px;
+		color: #86909c;
+	}
+</style>

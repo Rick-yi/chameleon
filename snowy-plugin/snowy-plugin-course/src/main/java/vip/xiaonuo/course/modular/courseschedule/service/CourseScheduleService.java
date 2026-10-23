@@ -22,6 +22,7 @@ import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleChangeParam
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleGenerateParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleIdParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseSchedulePageParam;
+import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleSuggestParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleWeekParam;
 
 import cn.hutool.json.JSONObject;
@@ -70,6 +71,14 @@ public interface CourseScheduleService {
      * @date 2026/10/21 10:00
      **/
     List<CourseScheduleViewDTO> week(CourseScheduleWeekParam courseScheduleWeekParam);
+
+    /**
+     * 推荐可排课时段（按班级/教师/教室占用，优先固定课表星期与时间）
+     *
+     * @param courseScheduleSuggestParam 查询参数
+     * @return 推荐时段（按推荐分降序）
+     */
+    List<vip.xiaonuo.course.api.dto.CourseScheduleSuggestDTO> suggest(CourseScheduleSuggestParam courseScheduleSuggestParam);
 
     /**
      * 教师可选项（租户内用户）

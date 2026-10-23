@@ -47,6 +47,7 @@ import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleChangeParam
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleGenerateParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleIdParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseSchedulePageParam;
+import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleSuggestParam;
 import vip.xiaonuo.course.modular.courseschedule.service.CourseScheduleService;
 import vip.xiaonuo.course.modular.courseschedulechange.entity.CourseScheduleChange;
 import vip.xiaonuo.course.modular.courschedulestudent.service.CourseScheduleStudentService;
@@ -152,6 +153,156 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         }
         cn.hutool.json.JSONObject user = sysUserApi.getUserByIdWithoutException(teacherId);
         return user == null ? null : user.getStr("orgId");
+    }
+
+    @Override
+    public List<vip.xiaonuo.course.api.dto.CourseScheduleSuggestDTO> suggest(CourseScheduleSuggestParam param) {
+        int duration = ObjectUtil.defaultIfNull(param.getDurationMinutes(), 90);
+        int limit = ObjectUtil.defaultIfNull(param.getLimit(), 8);
+        duration = Math.max(30, Math.min(duration, 240));
+        LocalDate start = parseLocalDate(param.getStartDate(), LocalDate.now());
+        LocalDate end = parseLocalDate(param.getEndDate(), start.plusDays(6));
+        if (end.isBefore(start)) {
+            LocalDate tmp = start;
+            start = end;
+            end = tmp;
+        }
+        // 最多看 14 天，避免一次扫太多
+        if (end.isAfter(start.plusDays(13))) {
+            end = start.plusDays(13);
+        }
+        Date rangeStart = Date.from(start.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        Date rangeEnd = Date.from(end.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant());
+        List<CourseSchedule> existList = this.list(new LambdaQueryWrapper<CourseSchedule>()
+                .ge(CourseSchedule::getScheduleDate, rangeStart)
+                .le(CourseSchedule::getScheduleDate, rangeEnd)
+                .eq(CourseSchedule::getStatus, CourseScheduleStatusEnum.NORMAL.getValue()));
+        // 班级固定课表：命中星期与时间时优先推荐
+        Map<Integer, List<LocalTime[]>> templateMap = new HashMap<>();
+        if (StrUtil.isNotBlank(param.getClassId())) {
+            CourseClass courseClass = courseClassMapper.selectById(param.getClassId());
+            if (courseClass != null && StrUtil.isNotBlank(courseClass.getWeekTemplateJson())) {
+                for (Object item : JSONUtil.parseArray(courseClass.getWeekTemplateJson())) {
+                    JSONObject template = (JSONObject) item;
+                    int dayOfWeek = template.getInt("dayOfWeek", 0);
+                    String startText = template.getStr("startTime");
+                    String endText = template.getStr("endTime");
+                    if (dayOfWeek < 1 || dayOfWeek > 7 || StrUtil.isBlank(startText) || StrUtil.isBlank(endText)) {
+                        continue;
+                    }
+                    templateMap.computeIfAbsent(dayOfWeek, k -> new ArrayList<>())
+                            .add(new LocalTime[]{LocalTime.parse(startText), LocalTime.parse(endText)});
+                }
+            }
+        }
+        List<vip.xiaonuo.course.api.dto.CourseScheduleSuggestDTO> resultList = new ArrayList<>();
+        String[] weekText = {"周一", "周二", "周三", "周四", "周五", "周六", "周日"};
+        for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
+            final LocalDate currentDate = date;
+            List<CourseSchedule> dayList = existList.stream()
+                    .filter(item -> item.getScheduleDate() != null
+                            && item.getScheduleDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate().equals(currentDate))
+                    .collect(Collectors.toList());
+            int dayOfWeek = date.getDayOfWeek().getValue();
+            List<LocalTime[]> templateRanges = templateMap.getOrDefault(dayOfWeek, List.of());
+            long daysFromStart = java.time.temporal.ChronoUnit.DAYS.between(start, date);
+            for (int minutes = 9 * 60; minutes + duration <= 21 * 60; minutes += 30) {
+                LocalTime slotStart = LocalTime.of(minutes / 60, minutes % 60);
+                LocalTime slotEnd = slotStart.plusMinutes(duration);
+                if (hasConflict(dayList, param, slotStart, slotEnd)) {
+                    continue;
+                }
+                int score = 0;
+                String reason;
+                boolean inTemplate = templateRanges.stream().anyMatch(range ->
+                        range[0].compareTo(slotStart) <= 0 && range[1].compareTo(slotEnd) >= 0);
+                if (inTemplate) {
+                    score += 40;
+                    reason = "与班级固定课表一致";
+                } else if (!templateRanges.isEmpty()) {
+                    score += 12;
+                    reason = "避开了固定课表时段";
+                } else {
+                    score += 20;
+                    reason = "该时段全部空闲";
+                }
+                if (minutes < 12 * 60) {
+                    score += 12;
+                } else if (minutes < 17 * 60) {
+                    score += 8;
+                } else {
+                    score += 5;
+                }
+                score += (int) Math.max(0, 7 - daysFromStart);
+                vip.xiaonuo.course.api.dto.CourseScheduleSuggestDTO dto = new vip.xiaonuo.course.api.dto.CourseScheduleSuggestDTO();
+                dto.setScheduleDate(date.toString());
+                dto.setStartTime(slotStart.toString());
+                dto.setEndTime(slotEnd.toString());
+                dto.setLabel(date.getMonthValue() + "月" + date.getDayOfMonth() + "日 "
+                        + weekText[dayOfWeek - 1] + " " + slotStart + "-" + slotEnd);
+                dto.setScore(score);
+                dto.setReason(reason);
+                resultList.add(dto);
+            }
+        }
+        resultList.sort((a, b) -> b.getScore().compareTo(a.getScore()) != 0
+                ? b.getScore().compareTo(a.getScore())
+                : (a.getScheduleDate() + a.getStartTime()).compareTo(b.getScheduleDate() + b.getStartTime()));
+        // 按分数从高到低挑选，同一天内互相重叠的候选只保留分更高的那个
+        Map<String, List<LocalTime[]>> pickedMap = new HashMap<>();
+        List<vip.xiaonuo.course.api.dto.CourseScheduleSuggestDTO> selectedList = new ArrayList<>();
+        for (vip.xiaonuo.course.api.dto.CourseScheduleSuggestDTO dto : resultList) {
+            LocalTime slotStart = LocalTime.parse(dto.getStartTime());
+            LocalTime slotEnd = LocalTime.parse(dto.getEndTime());
+            List<LocalTime[]> pickedRanges = pickedMap.computeIfAbsent(dto.getScheduleDate(), k -> new ArrayList<>());
+            boolean overlapped = pickedRanges.stream()
+                    .anyMatch(range -> range[0].isBefore(slotEnd) && range[1].isAfter(slotStart));
+            if (overlapped) {
+                continue;
+            }
+            pickedRanges.add(new LocalTime[]{slotStart, slotEnd});
+            selectedList.add(dto);
+            if (selectedList.size() >= Math.max(limit, 1)) {
+                break;
+            }
+        }
+        return selectedList;
+    }
+
+    /** 该时段是否与班级/教师/教室冲突 */
+    private boolean hasConflict(List<CourseSchedule> dayList, CourseScheduleSuggestParam param,
+                                LocalTime startTime, LocalTime endTime) {
+        for (CourseSchedule exist : dayList) {
+            if (exist.getStartTime() == null || exist.getEndTime() == null) {
+                continue;
+            }
+            boolean overlap = exist.getStartTime().isBefore(endTime) && exist.getEndTime().isAfter(startTime);
+            if (!overlap) {
+                continue;
+            }
+            if (StrUtil.isNotBlank(param.getClassId()) && param.getClassId().equals(exist.getClassId())) {
+                return true;
+            }
+            if (StrUtil.isNotBlank(param.getTeacherId()) && param.getTeacherId().equals(exist.getTeacherId())) {
+                return true;
+            }
+            if (StrUtil.isNotBlank(param.getClassroom()) && param.getClassroom().equals(exist.getClassroom())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 解析 yyyy-MM-dd */
+    private LocalDate parseLocalDate(String text, LocalDate defaultDate) {
+        if (StrUtil.isBlank(text)) {
+            return defaultDate;
+        }
+        try {
+            return LocalDate.parse(text.length() > 10 ? text.substring(0, 10) : text);
+        } catch (Exception e) {
+            return defaultDate;
+        }
     }
 
     private List<String> visibleClassIdList() {

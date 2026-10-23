@@ -756,7 +756,7 @@ CREATE TABLE `DEV_JOB`  (
 -- ----------------------------
 -- Records of DEV_JOB
 -- ----------------------------
-INSERT INTO `DEV_JOB` VALUES ('1555471535453827073', '定时任务', 'qi06nah38m', 'FRM', 'vip.xiaonuo.dev.modular.job.task.DevJobTimerTaskRunner', '0 0 0 1 * ?', 'STOPPED', 1, NULL, 'NOT_DELETE', NULL, NULL, NULL, NULL);
+INSERT INTO `DEV_JOB` VALUES ('1555471535453827073', '定时任务', 'qi06nah38m', 'FRM', 'vip.xiaonuo.dev.modular.job.task.DevJobTimerTaskRunner', '0 0 0 1 * ?', 'STOPPED', 1, NULL, NULL, 'NOT_DELETE', NULL, NULL, NULL, NULL);
 
 -- ----------------------------
 -- Table structure for DEV_LOG
