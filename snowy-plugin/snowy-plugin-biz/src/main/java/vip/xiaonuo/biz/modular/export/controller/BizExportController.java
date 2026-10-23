@@ -70,6 +70,16 @@ public class BizExportController {
     }
 
     /**
+     * 我的导出记录
+     */
+    @Operation(summary = "我的导出记录")
+    @GetMapping("/biz/export/page")
+    public CommonResult<com.baomidou.mybatisplus.extension.plugins.pagination.Page<BizExportTask>> page(
+            @RequestParam(required = false) String exportType) {
+        return CommonResult.data(bizExportTaskService.pageTask(exportType));
+    }
+
+    /**
      * 下载导出文件
      */
     @Operation(summary = "下载导出文件")

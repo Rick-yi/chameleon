@@ -21,6 +21,8 @@
 									<a-menu-item key="SOURCE">来源渠道</a-menu-item>
 									<a-menu-item key="FOLLOW_RANK">跟进排行</a-menu-item>
 									<a-menu-item key="TRIAL">试听转化</a-menu-item>
+									<a-menu-divider />
+									<a-menu-item key="__records">导出记录</a-menu-item>
 								</a-menu>
 							</template>
 						</a-dropdown>
@@ -28,6 +30,8 @@
 				</a-form-item>
 			</a-form>
 		</a-card>
+
+		<export-records-drawer v-model:open="recordsOpen" export-type="CRM_REPORT" />
 
 		<a-spin :spinning="loading">
 			<a-row :gutter="16" style="margin-top: 16px">
@@ -102,6 +106,7 @@
 	import dayjs from 'dayjs'
 	import reportApi from '@/api/report/reportApi'
 	import { runAsyncExport } from '@/utils/asyncExport'
+	import ExportRecordsDrawer from '@/components/ExportRecordsDrawer/index.vue'
 
 	const router = useRouter()
 
@@ -198,7 +203,12 @@
 		loadAll()
 	}
 
+	const recordsOpen = ref(false)
 	const onExport = ({ key }) => {
+		if (key === '__records') {
+			recordsOpen.value = true
+			return
+		}
 		// 走通用异步导出，避免同步导出超时
 		runAsyncExport('CRM_REPORT', { ...buildQuery(), reportType: key })
 	}

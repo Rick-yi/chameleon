@@ -17,6 +17,10 @@ export default {
 	status(data) {
 		return request('status', data, 'get')
 	},
+	// 我的导出记录
+	page(data) {
+		return request('page', data, 'get')
+	},
 	// 下载导出文件
 	download(data) {
 		return request('download', data, 'get', {

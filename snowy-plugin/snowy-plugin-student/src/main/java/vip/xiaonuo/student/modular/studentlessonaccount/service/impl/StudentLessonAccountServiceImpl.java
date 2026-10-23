@@ -19,6 +19,7 @@ import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import org.springframework.dao.DuplicateKeyException;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
@@ -156,15 +157,23 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
             account.setRemainLessons(totalAdded);
             account.setExpireTime(calcExpireTime(null, studentOrder.getPackageValidityDays()));
             account.setStatus(LessonAccountStatusEnum.NORMAL.getValue());
-            this.save(account);
+            try {
+                this.save(account);
+            } catch (DuplicateKeyException e) {
+                // 两个收款单同时首次购课：另一个请求已建好账户，改为原子追加
+                StudentLessonAccount exists = this.getOne(new LambdaQueryWrapper<StudentLessonAccount>()
+                        .eq(StudentLessonAccount::getStudentId, studentOrder.getStudentId())
+                        .eq(StudentLessonAccount::getCourseId, courseId));
+                if (ObjectUtil.isEmpty(exists)) {
+                    throw e;
+                }
+                addLessonsAtomically(exists.getId(), totalAdded, studentOrder.getPackageGiftLessons(),
+                        studentOrder.getPackageValidityDays());
+            }
         } else {
-            // 续费：追加课时 + 有效期顺延
-            account.setTotalLessons(account.getTotalLessons().add(totalAdded));
-            account.setGiftLessons(account.getGiftLessons().add(studentOrder.getPackageGiftLessons()));
-            account.setRemainLessons(account.getRemainLessons().add(totalAdded));
-            account.setExpireTime(calcExpireTime(account.getExpireTime(), studentOrder.getPackageValidityDays()));
-            account.setStatus(LessonAccountStatusEnum.NORMAL.getValue());
-            this.updateById(account);
+            // 续费：追加课时 + 有效期顺延（数据库端原子累加，避免并发收款丢更新）
+            addLessonsAtomically(account.getId(), totalAdded, studentOrder.getPackageGiftLessons(),
+                    studentOrder.getPackageValidityDays());
         }
         // 入账流水
         StudentLessonFlow flow = new StudentLessonFlow();
@@ -346,6 +355,24 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
      * @author 会飞的猪
      * @date 2026/10/20 10:00
      **/
+    /**
+     * 原子追加课时：总课时/赠送/剩余在数据库端累加，有效期按「max(当前有效期, 今天) + 天数」顺延
+     */
+    private void addLessonsAtomically(String accountId, BigDecimal totalAdded, BigDecimal giftLessons, Integer validityDays) {
+        LambdaUpdateWrapper<StudentLessonAccount> wrapper = new LambdaUpdateWrapper<StudentLessonAccount>()
+                .eq(StudentLessonAccount::getId, accountId)
+                .setSql("TOTAL_LESSONS = TOTAL_LESSONS + " + totalAdded.toPlainString())
+                .setSql("GIFT_LESSONS = COALESCE(GIFT_LESSONS, 0) + "
+                        + (giftLessons == null ? "0" : giftLessons.toPlainString()))
+                .setSql("REMAIN_LESSONS = REMAIN_LESSONS + " + totalAdded.toPlainString())
+                .setSql("STATUS = '" + LessonAccountStatusEnum.NORMAL.getValue() + "'");
+        if (validityDays != null && validityDays > 0) {
+            wrapper.setSql("EXPIRE_TIME = DATE_ADD(GREATEST(COALESCE(EXPIRE_TIME, NOW()), NOW()), INTERVAL "
+                    + validityDays + " DAY)");
+        }
+        this.update(wrapper);
+    }
+
     private Date calcExpireTime(Date oldExpireTime, Integer validityDays) {
         if (validityDays == null || validityDays <= 0) {
             return null;

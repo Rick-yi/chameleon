@@ -107,6 +107,19 @@ public class BizExportTaskService extends ServiceImpl<BizExportTaskMapper, BizEx
         return task;
     }
 
+    /**
+     * 我的导出记录
+     */
+    public com.baomidou.mybatisplus.extension.plugins.pagination.Page<BizExportTask> pageTask(String exportType) {
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizExportTask> queryWrapper =
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        if (StrUtil.isNotBlank(exportType)) {
+            queryWrapper.eq(BizExportTask::getExportType, exportType.toUpperCase());
+        }
+        queryWrapper.orderByDesc(BizExportTask::getCreateTime);
+        return this.page(vip.xiaonuo.common.page.CommonPageRequest.defaultPage(), queryWrapper);
+    }
+
     /** 导出文件目录 */
     public File exportDir() {
         return new File(System.getProperty("user.dir") + File.separator + "data" + File.separator + "chameleon-export");

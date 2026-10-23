@@ -39,6 +39,11 @@ public class BizEventArchiveTimerTaskRunner implements CommonTimerTaskRunner {
 
     /** 默认保留天数 */
     public static final int DEFAULT_RETAIN_DAYS = 90;
+    /** 保留天数配置键（DEV_CONFIG，可按租户覆盖） */
+    public static final String RETAIN_DAYS_CONFIG_KEY = "BIZ_EVENT_RETAIN_DAYS";
+    /** 保留天数可选范围 */
+    private static final int MIN_RETAIN_DAYS = 7;
+    private static final int MAX_RETAIN_DAYS = 3650;
     /** 单批删除条数 */
     private static final int BATCH_SIZE = 5000;
     /** 单次任务最多删除批次（防止一次跑太久） */
@@ -50,6 +55,9 @@ public class BizEventArchiveTimerTaskRunner implements CommonTimerTaskRunner {
     @Resource
     private BizEventService bizEventService;
 
+    @Resource
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
     @Override
     public void action(String extJson) {
         String originalTenantId = TenantContext.getTenantId();
@@ -58,8 +66,10 @@ public class BizEventArchiveTimerTaskRunner implements CommonTimerTaskRunner {
         for (String tenantId : tenantIdList) {
             try {
                 TenantContext.setTenantId(tenantId);
-                int deleted = archiveTenant(DEFAULT_RETAIN_DAYS);
+                int retainDays = resolveRetainDays(tenantId);
+                int deleted = archiveTenant(retainDays);
                 totalDeleted += deleted;
+                log.info(">>> 租户[{}]埋点归档：保留 {} 天，清理 {} 条", tenantId, retainDays, deleted);
             } catch (Exception e) {
                 log.error(">>> 租户[{}]埋点归档失败", tenantId, e);
             }
@@ -69,7 +79,36 @@ public class BizEventArchiveTimerTaskRunner implements CommonTimerTaskRunner {
         } else {
             TenantContext.clear();
         }
-        log.info(">>> 埋点归档完成，保留 {} 天，共清理 {} 条", DEFAULT_RETAIN_DAYS, totalDeleted);
+        log.info(">>> 埋点归档完成，共清理 {} 条", totalDeleted);
+    }
+
+    /**
+     * 读取当前租户的保留天数；未配置或配置非法时用默认值
+     * <p>
+     * 直查 DEV_CONFIG 而不是走配置服务：配置服务带全局缓存且依赖租户上下文，
+     * 定时任务里需要按租户精确取各自的配置。
+     * </p>
+     */
+    private int resolveRetainDays(String tenantId) {
+        try {
+            List<String> valueList = jdbcTemplate.queryForList(
+                    "SELECT CONFIG_VALUE FROM DEV_CONFIG WHERE CONFIG_KEY = ? AND TENANT_ID = ? "
+                            + "AND (DELETE_FLAG IS NULL OR DELETE_FLAG = 'NOT_DELETE') LIMIT 1",
+                    String.class, RETAIN_DAYS_CONFIG_KEY, tenantId);
+            if (valueList.isEmpty() || ObjectUtil.isEmpty(valueList.get(0))) {
+                return DEFAULT_RETAIN_DAYS;
+            }
+            String value = valueList.get(0);
+            int days = Integer.parseInt(value.trim());
+            if (days < MIN_RETAIN_DAYS || days > MAX_RETAIN_DAYS) {
+                log.warn(">>> 租户[{}]埋点保留天数配置超出范围（{}），按默认 {} 天处理", tenantId, value, DEFAULT_RETAIN_DAYS);
+                return DEFAULT_RETAIN_DAYS;
+            }
+            return days;
+        } catch (Exception e) {
+            log.warn(">>> 租户[{}]埋点保留天数读取失败，按默认 {} 天处理", tenantId, DEFAULT_RETAIN_DAYS);
+            return DEFAULT_RETAIN_DAYS;
+        }
     }
 
     /**

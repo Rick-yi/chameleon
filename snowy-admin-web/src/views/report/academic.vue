@@ -31,6 +31,8 @@
 									<a-menu-item key="TEACHER">教师课时</a-menu-item>
 									<a-menu-item key="LESSON_PROGRESS">学员课消进度</a-menu-item>
 									<a-menu-item key="RISK_STUDENT">风险学员</a-menu-item>
+									<a-menu-divider />
+									<a-menu-item key="__records">导出记录</a-menu-item>
 								</a-menu>
 							</template>
 						</a-dropdown>
@@ -38,6 +40,8 @@
 				</a-form-item>
 			</a-form>
 		</a-card>
+
+		<export-records-drawer v-model:open="recordsOpen" export-type="COURSE_ACADEMIC" />
 
 		<a-spin :spinning="loading">
 			<a-row :gutter="16" style="margin-top: 16px">
@@ -138,6 +142,7 @@
 	import reportApi from '@/api/report/reportApi'
 	import courseApi from '@/api/course/courseApi'
 	import { runAsyncExport } from '@/utils/asyncExport'
+	import ExportRecordsDrawer from '@/components/ExportRecordsDrawer/index.vue'
 
 	const router = useRouter()
 
@@ -271,7 +276,12 @@
 		return item ? item.label : type
 	}
 
+	const recordsOpen = ref(false)
 	const onExport = ({ key }) => {
+		if (key === '__records') {
+			recordsOpen.value = true
+			return
+		}
 		// 大报表走后台生成，避免同步导出超时
 		runAsyncExport('COURSE_ACADEMIC', { ...buildQuery(), reportType: key })
 	}
