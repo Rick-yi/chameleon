@@ -47,19 +47,14 @@
 			</template>
 			<span v-else style="color: rgba(0,0,0,.45); font-size: 13px">尚未选择课节</span>
 			<div style="margin-left: auto">
-				<span v-if="scheduleId" style="color: rgba(0,0,0,.45); font-size: 12px">点击状态按钮标记出勤，到课/缺勤将按课程规则扣课时</span>
+				<span v-if="scheduleId" style="color: rgba(0,0,0,.45); font-size: 12px">点击学员方块切换状态：到课 → 缺勤 → 请假；已点名的需先撤销</span>
 			</div>
 		</div>
 		<div style="padding: 16px 0">
 			<div v-if="!scheduleId" class="ent-empty">请在上方选择要点的课节，选中后这里会列出该课节的学员名单</div>
 			<template v-else>
 				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap">
-					<span style="font-weight: 500">
-						应到 {{ students.length }} 人
-						<span style="font-weight: 400; color: rgba(0,0,0,.45); font-size: 12px; margin-left: 8px">
-							到课 {{ countByStatus('ATTEND') }} · 请假 {{ countByStatus('LEAVE') }} · 缺勤 {{ countByStatus('ABSENT') }}
-						</span>
-					</span>
+					<span style="font-weight: 500">应到 {{ students.length }} 人</span>
 					<a-space>
 						<a-button @click="markAll('ATTEND')">全部到课</a-button>
 						<a-button @click="markAll('LEAVE')">整班请假</a-button>
@@ -67,41 +62,39 @@
 						<a-button v-if="hasPerm('/course/attend/confirm')" type="primary" @click="onConfirm">确认点名并扣课</a-button>
 					</a-space>
 				</div>
-				<a-table
-					:columns="columns"
-					:data-source="students"
-					:row-key="(record) => record.studentId"
-					:paginating="false"
-					:pagination="false"
-					size="middle"
-					bordered
-				>
-					<template #bodyCell="{ column, record }">
-						<template v-if="column.dataIndex === 'studentId'">
-							{{ studentName(record.studentId) }}
-						</template>
-						<template v-if="column.dataIndex === 'remain'">
-							<a-tag v-if="!balanceMap[record.studentId]" color="red">未购课</a-tag>
-							<a-tag v-else-if="balanceMap[record.studentId].remainLessons < 1" color="orange">
+				<div class="attend-legend">
+					<span class="attend-chip st-attend">到课 {{ countByStatus('ATTEND') }}</span>
+					<span class="attend-chip st-leave">请假 {{ countByStatus('LEAVE') }}</span>
+					<span class="attend-chip st-absent">缺勤 {{ countByStatus('ABSENT') }}</span>
+					<span class="attend-tip">点击学员方块切换：到课 → 缺勤 → 请假</span>
+				</div>
+				<div class="attend-grid">
+					<div
+						v-for="record in students"
+						:key="record.studentId"
+						class="attend-tile"
+						:class="[statusClass(record.attendStatus), { locked: !!record.attendId }]"
+						@click="toggleStudent(record)"
+					>
+						<div class="attend-tile-name">
+							<span>{{ studentName(record.studentId) }}</span>
+							<a-tag v-if="record.attendId" class="attend-tile-locked">已点名</a-tag>
+						</div>
+						<div class="attend-tile-sub">
+							<span>{{ studentPhone(record.studentId) }}</span>
+							<span v-if="!balanceMap[record.studentId]" class="attend-balance is-danger">未购课</span>
+							<span v-else-if="Number(balanceMap[record.studentId].remainLessons) < 1.5" class="attend-balance is-warn">
 								剩 {{ balanceMap[record.studentId].remainLessons }}
-							</a-tag>
-							<span v-else>剩 {{ balanceMap[record.studentId].remainLessons }}</span>
-						</template>
-						<template v-if="column.dataIndex === 'status'">
-							<a-radio-group v-model:value="record.attendStatus" :disabled="!!record.attendId" button-style="solid">
-								<a-radio-button value="ATTEND">到课</a-radio-button>
-								<a-radio-button value="LEAVE">请假</a-radio-button>
-								<a-radio-button value="ABSENT">缺勤</a-radio-button>
-							</a-radio-group>
-						</template>
-						<template v-if="column.dataIndex === 'action'">
-							<a-popconfirm v-if="record.attendId" title="撤销点名并回补课时？" @confirm="onCancelAttend(record)">
-								<a-button v-if="hasPerm('/course/attend/cancel')" type="link" danger size="small">撤销</a-button>
-							</a-popconfirm>
-							<span v-else>-</span>
-						</template>
-					</template>
-				</a-table>
+							</span>
+							<span v-else class="attend-balance">剩 {{ balanceMap[record.studentId].remainLessons }}</span>
+						</div>
+						<div class="attend-tile-status">
+							<span class="dot" />
+							{{ statusText(record.attendStatus) }}
+							<a v-if="record.attendId" class="attend-undo" @click.stop="onCancelAttend(record)">撤销</a>
+						</div>
+					</div>
+				</div>
 			</template>
 		</div>
 		</a-card>
@@ -136,12 +129,6 @@
 		classId.value = item.classId
 		loadAttendPage()
 	}
-	const columns = [
-		{ title: '学员', dataIndex: 'studentId' },
-		{ title: '剩余课时', dataIndex: 'remain', width: 100 },
-		{ title: '点名状态', dataIndex: 'status' },
-		{ title: '操作', dataIndex: 'action', align: 'center', width: 100 }
-	]
 	const loadClasses = () => {
 		courseApi.classPage({ current: 1, size: 200 }).then((data) => {
 			classRecords.value = data.records || []
@@ -151,6 +138,9 @@
 	// 今天没排课时回溯最近 7 天，自动定位到最近有课的那天（只回溯一次）
 	const recentFallbackUsed = ref(false)
 	const loadSchedules = () => {
+		// 切换日期/班级后先清空当前点名对象，避免显示上一节课的名单
+		scheduleId.value = undefined
+		students.value = []
 		const dayStart = `${date.value} 00:00:00`
 		const dayEnd = `${date.value} 23:59:59`
 		courseApi
@@ -250,6 +240,19 @@
 	}
 	// 统计各状态人数
 	const countByStatus = (status) => students.value.filter((s) => s.attendStatus === status && !s.attendId).length
+	const statusText = (status) => ({ ATTEND: '到课', LEAVE: '请假', ABSENT: '缺勤' }[status] || '待标记')
+	const statusClass = (status) =>
+		status === 'ATTEND' ? 'st-attend' : status === 'LEAVE' ? 'st-leave' : 'st-absent'
+	const studentPhone = (id) => studentMap.value[id]?.parentPhone || ''
+	// 方块点击：默认到课，点一下变缺勤，再点变请假，再点回到课
+	const toggleStudent = (record) => {
+		if (record.attendId) {
+			message.info('已点名，如需修改请先撤销')
+			return
+		}
+		record.attendStatus =
+			record.attendStatus === 'ATTEND' ? 'ABSENT' : record.attendStatus === 'ABSENT' ? 'LEAVE' : 'ATTEND'
+	}
 	// 快捷标记：只影响还没点名的学员
 	const markAll = (status) => {
 		for (const item of students.value) {
@@ -349,5 +352,127 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
+	}
+
+	.attend-legend {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+		margin-bottom: 12px;
+		font-size: 12px;
+	}
+	.attend-chip {
+		padding: 2px 10px;
+		border-radius: 10px;
+		border: 1px solid;
+		&.st-attend {
+			color: #2ba471;
+			background: #f6ffed;
+			border-color: #b7eb8f;
+		}
+		&.st-leave {
+			color: #b07d00;
+			background: #fffbe6;
+			border-color: #ffe58f;
+		}
+		&.st-absent {
+			color: #e5484d;
+			background: #fff1f0;
+			border-color: #ffa39e;
+		}
+	}
+	.attend-tip {
+		color: var(--text-color-secondary);
+		margin-left: 4px;
+	}
+	.attend-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+		gap: 12px;
+	}
+	.attend-tile {
+		border: 1px solid var(--border-color-base);
+		border-radius: var(--radius-card);
+		padding: 12px;
+		background: #fff;
+		cursor: pointer;
+		user-select: none;
+		transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+		&:hover {
+			transform: translateY(-1px);
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+		}
+		&.st-attend {
+			background: #f6ffed;
+			border-color: #b7eb8f;
+		}
+		&.st-leave {
+			background: #fffbe6;
+			border-color: #ffe58f;
+		}
+		&.st-absent {
+			background: #fff1f0;
+			border-color: #ffa39e;
+		}
+		&.locked {
+			cursor: default;
+			opacity: 0.88;
+			&:hover {
+				transform: none;
+				box-shadow: none;
+			}
+		}
+	}
+	.attend-tile-name {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 6px;
+		font-size: 14px;
+		font-weight: 600;
+	}
+	.attend-tile-locked {
+		font-size: 11px;
+		line-height: 16px;
+		padding: 0 4px;
+		margin: 0;
+	}
+	.attend-tile-sub {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		margin-top: 6px;
+		font-size: 12px;
+		color: var(--text-color-secondary);
+	}
+	.attend-balance {
+		white-space: nowrap;
+		&.is-warn {
+			color: #d48806;
+		}
+		&.is-danger {
+			color: #e5484d;
+		}
+	}
+	.attend-tile-status {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		margin-top: 8px;
+		font-size: 12px;
+		color: var(--text-color);
+	}
+	.attend-tile-status .dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: currentColor;
+	}
+	.attend-undo {
+		margin-left: auto;
+		font-size: 12px;
+		color: #e5484d;
 	}
 </style>

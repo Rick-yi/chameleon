@@ -31,6 +31,9 @@ export default {
 	studentDelete(data) {
 		return request('delete', data)
 	},
+	studentDetail(data) {
+		return request('detail', data, 'get')
+	},
 	// 订单
 	orderPage(data) {
 		return request('order/page', data, 'get')

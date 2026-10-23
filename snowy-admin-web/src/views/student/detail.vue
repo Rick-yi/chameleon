@@ -304,13 +304,15 @@
 			courseMap.value = cmap
 			packageRaw.value = pkg.records || []
 			packageOptions.value = packageRaw.value.map((p) => ({ value: p.id, label: `${p.name}（${p.lessons}课时 ${p.price}元）` }))
+		}).catch((err) => {
+			message.error(err?.msg || '学员详情加载失败，请重试')
 		}).finally(() => (loading.value = false))
 	}
 
 	const onSubmitOrder = () => {
 		orderFormRef.value.validate().then(() => {
 			studentApi
-				.orderAdd({ studentId, coursePackageId: orderFormData.value.coursePackageId, payChannel: orderFormData.value.payChannel || 'WECHAT' })
+				.orderAdd({ studentId: currentStudentId.value, coursePackageId: orderFormData.value.coursePackageId, payChannel: orderFormData.value.payChannel || 'WECHAT' })
 				.then((res) => {
 					orderOpen.value = false
 					message.success('下单成功，请登记收款')
@@ -362,7 +364,7 @@
 	}
 	const onOpenAdjust = (record) => {
 		adjustFormData.value = {
-			studentId,
+			studentId: currentStudentId.value,
 			courseId: record.courseId,
 			remainLessons: record.remainLessons,
 			lessons: 1,
