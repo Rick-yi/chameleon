@@ -145,10 +145,16 @@ public class GlobalConfigure implements WebMvcConfigurer {
     };
 
     /**
-     * 业务域内不参与角色授权校验的接口（系统级写入）
+     * 业务域内不参与角色授权校验的接口
+     * <p>
+     * - /biz/event/track：埋点上报，系统级写入；
+     * - /course/schedule/cancelBatch：批量取消，方法上已校验 /course/schedule/cancel，
+     *   与单节取消共用同一权限，避免为每个租户补一条接口授权。
+     * </p>
      */
     private static final List<String> BIZ_AUTH_EXEMPT_PATH_ARR = List.of(
-            "/biz/event/track");
+            "/biz/event/track",
+            "/course/schedule/cancelBatch");
 
     /**
      * 无需登录的接口地址集合

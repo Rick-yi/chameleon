@@ -94,6 +94,17 @@ public interface CourseScheduleService {
     /** 取消排课（已有点名流水的排课不允许取消，M3 校验） */
     void cancel(CourseScheduleIdParam courseScheduleIdParam);
 
+    /**
+     * 批量取消排课：已点名/非正常的课节跳过并给出原因
+     *
+     * @param idList 课节id集合
+     * @return 成功与跳过统计
+     *
+     * @author 会飞的猪
+     * @date 2026/10/23 13:00
+     **/
+    vip.xiaonuo.course.api.dto.CourseScheduleCancelResultDTO cancelBatch(List<String> idList);
+
     /** 获取排课详情 */
     CourseSchedule detail(CourseScheduleIdParam courseScheduleIdParam);
 

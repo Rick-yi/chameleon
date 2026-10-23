@@ -197,6 +197,23 @@ public class CourseScheduleController {
     }
 
     /**
+     * 批量取消排课（已点名的课节跳过并在结果里说明）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/23 13:00
+     */
+    @Operation(summary = "批量取消排课")
+    @CommonLog("批量取消排课")
+    @SaCheckPermission("/course/schedule/cancel")
+    @PostMapping("/course/schedule/cancelBatch")
+    public CommonResult<vip.xiaonuo.course.api.dto.CourseScheduleCancelResultDTO> cancelBatch(
+            @RequestBody @jakarta.validation.constraints.NotEmpty(message = "集合不能为空")
+            java.util.List<CourseScheduleIdParam> paramList) {
+        return CommonResult.data(courseScheduleService.cancelBatch(
+                paramList.stream().map(CourseScheduleIdParam::getId).toList()));
+    }
+
+    /**
      * 获取排课详情
      *
      * @author 会飞的猪

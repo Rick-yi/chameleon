@@ -372,6 +372,25 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         for (CourseSchedule exist : existList) {
             existKeySet.add(scheduleKey(exist.getClassId(), exist.getScheduleDate(), exist.getStartTime(), exist.getEndTime()));
         }
+        // 冲突提示需要写清「和谁撞了」：先批量取已有课节的班级名与模板里涉及的教师名
+        Map<String, String> existClassNameMap = new HashMap<>();
+        List<String> existClassIdList = existList.stream().map(CourseSchedule::getClassId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (ObjectUtil.isNotEmpty(existClassIdList)) {
+            courseClassMapper.selectBatchIds(existClassIdList)
+                    .forEach(item -> existClassNameMap.put(item.getId(), item.getName()));
+        }
+        Map<String, String> teacherNameMap = new HashMap<>();
+        List<String> templateTeacherIdList = templateList.stream()
+                .map(item -> ((JSONObject) item).getStr("teacherId"))
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (StrUtil.isNotBlank(courseClass.getTeacherId())) {
+            templateTeacherIdList.add(courseClass.getTeacherId());
+        }
+        if (ObjectUtil.isNotEmpty(templateTeacherIdList)) {
+            sysUserApi.getUserListByIdListWithoutException(templateTeacherIdList)
+                    .forEach(user -> teacherNameMap.put(user.getStr("id"), user.getStr("name")));
+        }
         List<CourseSchedule> toSaveList = new ArrayList<>();
         List<String> allConflicts = new ArrayList<>();
         int plannedCount = 0;
@@ -399,6 +418,8 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                     continue;
                 }
                 // 与区间内已有排课冲突（教室 / 教师 / 班级同时段重叠）
+                String slotText = cn.hutool.core.date.DateUtil.formatDate(scheduleDate) + " " + startTime + "-" + endTime;
+                String teacherName = StrUtil.blankToDefault(teacherNameMap.get(teacherId), teacherId);
                 for (CourseSchedule exist : existList) {
                     if (!sameDate(exist.getScheduleDate(), scheduleDate)) {
                         continue;
@@ -406,14 +427,16 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                     if (!(exist.getStartTime().isBefore(endTime) && exist.getEndTime().isAfter(startTime))) {
                         continue;
                     }
+                    String existClassName = existClassNameMap.get(exist.getClassId());
+                    String existDesc = StrUtil.isBlank(existClassName) ? "其他课程" : "【" + existClassName + "】";
                     if (ObjectUtil.isNotEmpty(classroom) && classroom.equals(exist.getClassroom())) {
-                        allConflicts.add("教室【" + classroom + "】同时段已有排课");
+                        allConflicts.add(slotText + " 教室【" + classroom + "】已被" + existDesc + "占用");
                     }
                     if (ObjectUtil.isNotEmpty(teacherId) && teacherId.equals(exist.getTeacherId())) {
-                        allConflicts.add("教师同时段已有排课");
+                        allConflicts.add(slotText + " 教师【" + teacherName + "】已有排课" + existDesc);
                     }
                     if (courseScheduleGenerateParam.getClassId().equals(exist.getClassId())) {
-                        allConflicts.add("该班级同时段已有排课");
+                        allConflicts.add(slotText + " 班级【" + courseClass.getName() + "】已有排课");
                     }
                 }
                 // 与同批生成排课冲突（教室 / 教师）
@@ -425,10 +448,10 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                         continue;
                     }
                     if (ObjectUtil.isNotEmpty(classroom) && classroom.equals(planned.getClassroom())) {
-                        allConflicts.add("教室【" + classroom + "】同时段已有排课（同批生成）");
+                        allConflicts.add(slotText + " 教室【" + classroom + "】与同批生成的其他课节冲突");
                     }
                     if (ObjectUtil.isNotEmpty(teacherId) && teacherId.equals(planned.getTeacherId())) {
-                        allConflicts.add("教师同时段已有排课（同批生成）");
+                        allConflicts.add(slotText + " 教师【" + teacherName + "】与同批生成的其他课节冲突");
                     }
                 }
                 CourseSchedule courseSchedule = new CourseSchedule();
@@ -572,6 +595,54 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         this.updateById(courseSchedule);
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public vip.xiaonuo.course.api.dto.CourseScheduleCancelResultDTO cancelBatch(List<String> idList) {
+        vip.xiaonuo.course.api.dto.CourseScheduleCancelResultDTO result =
+                new vip.xiaonuo.course.api.dto.CourseScheduleCancelResultDTO();
+        if (ObjectUtil.isEmpty(idList)) {
+            return result;
+        }
+        List<String> distinctIdList = idList.stream()
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        Map<String, CourseSchedule> scheduleMap = this.listByIds(distinctIdList).stream()
+                .collect(Collectors.toMap(CourseSchedule::getId, item -> item));
+        // 一次查出哪些课节已经点过名，避免逐条查库
+        Set<String> attendedIdSet = courseClassAttendMapper.selectList(new LambdaQueryWrapper<CourseClassAttend>()
+                        .select(CourseClassAttend::getScheduleId)
+                        .in(CourseClassAttend::getScheduleId, distinctIdList))
+                .stream().map(CourseClassAttend::getScheduleId)
+                .filter(StrUtil::isNotBlank).collect(Collectors.toSet());
+        int canceledCount = 0;
+        for (String id : distinctIdList) {
+            CourseSchedule schedule = scheduleMap.get(id);
+            if (schedule == null) {
+                result.getSkippedList().add("课节不存在：" + id);
+                continue;
+            }
+            String label = cn.hutool.core.date.DateUtil.formatDate(schedule.getScheduleDate())
+                    + " " + schedule.getStartTime() + "-" + schedule.getEndTime();
+            if (!CourseScheduleStatusEnum.NORMAL.getValue().equals(schedule.getStatus())) {
+                result.getSkippedList().add(label + " 当前状态不允许取消");
+                continue;
+            }
+            if (attendedIdSet.contains(id)) {
+                result.getSkippedList().add(label + " 已点名，请先撤销点名记录");
+                continue;
+            }
+            schedule.setStatus(CourseScheduleStatusEnum.CANCELED.getValue());
+            this.updateById(schedule);
+            canceledCount++;
+        }
+        result.setCanceledCount(canceledCount);
+        result.setSkippedCount(result.getSkippedList().size());
+        if (canceledCount > 0) {
+            bizEventApi.log(BizEventCodeEnum.SCHEDULE_CANCEL.getValue(), "schedule", null, "批量取消排课",
+                    Map.of("数量", String.valueOf(canceledCount)));
+        }
+        return result;
+    }
+
     @Override
     public CourseSchedule detail(CourseScheduleIdParam courseScheduleIdParam) {
         return this.queryEntity(courseScheduleIdParam.getId());
@@ -677,6 +748,18 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         for (CourseSchedule exist : existList) {
             existKeySet.add(scheduleKey(null, exist.getScheduleDate(), exist.getStartTime(), exist.getEndTime()));
         }
+        // 冲突提示带上教师名
+        Map<String, String> teacherNameMap = new HashMap<>();
+        List<String> templateTeacherIdList = templateList.stream()
+                .map(item -> ((JSONObject) item).getStr("teacherId"))
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (StrUtil.isNotBlank(courseScheduleAdhocParam.getTeacherId())) {
+            templateTeacherIdList.add(courseScheduleAdhocParam.getTeacherId());
+        }
+        if (ObjectUtil.isNotEmpty(templateTeacherIdList)) {
+            sysUserApi.getUserListByIdListWithoutException(templateTeacherIdList)
+                    .forEach(user -> teacherNameMap.put(user.getStr("id"), user.getStr("name")));
+        }
         List<CourseSchedule> toSaveList = new ArrayList<>();
         List<String> allConflicts = new ArrayList<>();
         int plannedCount = 0;
@@ -701,6 +784,8 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                     skippedCount++;
                     continue;
                 }
+                String slotText = cn.hutool.core.date.DateUtil.formatDate(scheduleDate) + " " + startTime + "-" + endTime;
+                String teacherName = StrUtil.blankToDefault(teacherNameMap.get(teacherId), teacherId);
                 for (CourseSchedule exist : existList) {
                     if (!sameDate(exist.getScheduleDate(), scheduleDate)) {
                         continue;
@@ -709,10 +794,10 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                         continue;
                     }
                     if (ObjectUtil.isNotEmpty(classroom) && classroom.equals(exist.getClassroom())) {
-                        allConflicts.add("教室【" + classroom + "】同时段已有排课");
+                        allConflicts.add(slotText + " 教室【" + classroom + "】已被其他课节占用");
                     }
                     if (ObjectUtil.isNotEmpty(teacherId) && teacherId.equals(exist.getTeacherId())) {
-                        allConflicts.add("教师同时段已有排课");
+                        allConflicts.add(slotText + " 教师【" + teacherName + "】已有排课");
                     }
                 }
                 for (CourseSchedule planned : toSaveList) {
@@ -723,10 +808,10 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                         continue;
                     }
                     if (ObjectUtil.isNotEmpty(classroom) && classroom.equals(planned.getClassroom())) {
-                        allConflicts.add("教室【" + classroom + "】同时段已有排课（同批生成）");
+                        allConflicts.add(slotText + " 教室【" + classroom + "】与同批生成的其他课节冲突");
                     }
                     if (ObjectUtil.isNotEmpty(teacherId) && teacherId.equals(planned.getTeacherId())) {
-                        allConflicts.add("教师同时段已有排课（同批生成）");
+                        allConflicts.add(slotText + " 教师【" + teacherName + "】与同批生成的其他课节冲突");
                     }
                 }
                 CourseSchedule courseSchedule = new CourseSchedule();

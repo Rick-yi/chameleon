@@ -84,7 +84,10 @@
 							</div>
 							<div class="sched-card-sub">{{ s.classroom || '未设教室' }}</div>
 							<div v-if="s.teacherName" class="sched-card-sub2">{{ s.teacherName }}</div>
-							<a-button type="link" size="small" class="sched-card-link" @click.stop="goAttend(s)">点名 ›</a-button>
+							<div class="sched-card-actions">
+								<a-button type="link" size="small" class="sched-card-link" @click.stop="goAttend(s)">点名 ›</a-button>
+								<a class="sched-card-link sched-card-cancel" @click.stop="onCancelScheduleConfirm(s)">取消</a>
+							</div>
 						</div>
 					</div>
 				</template>
@@ -96,8 +99,11 @@
 
 		<!-- 日视图 -->
 		<div v-else-if="viewMode === 'day'" style="padding: 16px">
-			<div v-if="classroomUsage.length" style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap">
+			<div style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
 				<a-tag v-for="item in classroomUsage" :key="item.name" color="blue">{{ item.name }} {{ item.count }} 节</a-tag>
+				<a-button v-if="selectedScheduleIds.length" danger size="small" @click="onBatchCancel">
+					批量取消（{{ selectedScheduleIds.length }}）
+				</a-button>
 			</div>
 			<div v-if="!dayScheduleList.length" class="ent-empty">当天没有排课</div>
 			<a-table
@@ -105,6 +111,7 @@
 				:columns="dayColumns"
 				:data-source="dayScheduleList"
 				:row-key="(r) => r.id"
+				:row-selection="{ selectedRowKeys: selectedScheduleIds, onChange: onSelectSchedules }"
 				bordered
 				size="middle"
 				:pagination="false"
@@ -128,6 +135,8 @@
 							<a @click="goAttend(record)">点名</a>
 							<a-divider type="vertical" />
 							<a @click="onOpenChange(record)">调课</a>
+							<a-divider type="vertical" />
+							<a style="color: #e5484d" @click="onCancelScheduleConfirm(record)">取消</a>
 						</a-space>
 					</template>
 				</template>
@@ -158,7 +167,8 @@
 								</span>
 								<span style="font-size: 12px">{{ s.className || className(s.classId) }}</span>
 								<span class="sched-card-sub2">{{ s.classroom || '未设教室' }}</span>
-								<a-tag v-if="conflictIdSet.has(s.id)" color="red" style="margin-left: auto; font-size: 11px; line-height: 16px; padding: 0 4px">冲突</a-tag>
+								<a class="sched-card-link sched-card-cancel" style="margin-left: auto" @click.stop="onCancelScheduleConfirm(s)">取消</a>
+								<a-tag v-if="conflictIdSet.has(s.id)" color="red" style="font-size: 11px; line-height: 16px; padding: 0 4px">冲突</a-tag>
 							</div>
 						</div>
 					</a-card>
@@ -445,7 +455,7 @@
 
 <script setup name="courseSchedule">
 	import { useRoute, useRouter } from 'vue-router'
-	import { message } from 'ant-design-vue'
+	import { message, Modal } from 'ant-design-vue'
 	import { FileTextOutlined, HistoryOutlined, PlusOutlined, ProfileOutlined, TeamOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
 	import courseApi from '@/api/course/courseApi'
 	import studentApi from '@/api/student/studentApi'
@@ -747,6 +757,64 @@
 	}
 
 	// 课表加载：整周数据一次取回（不限条数），支持班级/教师/教室筛选
+	const selectedScheduleIds = ref([])
+	const onSelectSchedules = (keys) => {
+		selectedScheduleIds.value = keys
+	}
+
+	const cancelOne = (id) => courseApi.scheduleCancel({ id })
+
+	// 单节取消：已点名的课节后端会拒绝，这里先给出提示
+	const onCancelScheduleConfirm = (schedule) => {
+		const timeText = `${dateOf(schedule) || ''} ${(schedule.startTime || '').slice(0, 5)}-${(schedule.endTime || '').slice(0, 5)}`
+		Modal.confirm({
+			title: '取消排课',
+			content: `确定取消 ${timeText} 的这节课吗？已点名的课节需要先撤销点名记录。`,
+			okText: '取消排课',
+			okType: 'danger',
+			cancelText: '返回',
+			onOk: () =>
+				cancelOne(schedule.id)
+					.then(() => {
+						message.success('已取消')
+						loadWeek()
+					})
+					.catch(() => {})
+		})
+	}
+
+	// 批量取消：跳过的课节（已点名/状态异常）会汇总提示
+	const onBatchCancel = () => {
+		if (!selectedScheduleIds.value.length) return
+		const count = selectedScheduleIds.value.length
+		Modal.confirm({
+			title: '批量取消排课',
+			content: `确定取消选中的 ${count} 节课吗？已点名的课节会自动跳过。`,
+			okText: '取消排课',
+			okType: 'danger',
+			cancelText: '返回',
+			onOk: () =>
+				courseApi
+					.scheduleCancelBatch(selectedScheduleIds.value.map((id) => ({ id })))
+					.then((data) => {
+						const result = data || {}
+						message.success(
+							`已取消 ${result.canceledCount || 0} 节` +
+								(result.skippedCount ? `，跳过 ${result.skippedCount} 节` : '')
+						)
+						if (result.skippedList && result.skippedList.length) {
+							Modal.info({
+								title: '以下课节未取消',
+								content: result.skippedList.join('；')
+							})
+						}
+						selectedScheduleIds.value = []
+						loadWeek()
+					})
+					.catch(() => {})
+		})
+	}
+
 	const loadWeek = () => {
 		const end = new Date(monday.value)
 		end.setDate(monday.value.getDate() + 6)
@@ -1005,6 +1073,22 @@
 </script>
 
 <style lang="less" scoped>
+	.sched-card-actions {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.sched-card-cancel {
+		font-size: 12px;
+		color: #e5484d;
+		cursor: pointer;
+
+		&:hover {
+			opacity: 0.8;
+		}
+	}
+
 	.suggest-box {
 		margin-top: 4px;
 		padding: 10px 12px;
