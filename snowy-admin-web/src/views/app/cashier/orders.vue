@@ -99,7 +99,8 @@
 	const payChannelOptions = [
 		{ value: 'OFFLINE', label: '线下' },
 		{ value: 'CASH', label: '现金' },
-		{ value: 'WECHAT', label: '微信' }
+		{ value: 'WECHAT', label: '微信' },
+		{ value: 'ALIPAY', label: '支付宝' }
 	]
 
 	const refundText = (s) =>

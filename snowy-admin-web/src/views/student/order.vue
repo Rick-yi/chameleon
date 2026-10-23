@@ -198,7 +198,9 @@
 	]
 	const payChannelOptions = [
 		{ value: 'OFFLINE', label: '线下转账' },
-		{ value: 'CASH', label: '现金' }
+		{ value: 'CASH', label: '现金' },
+		{ value: 'WECHAT', label: '微信' },
+		{ value: 'ALIPAY', label: '支付宝' }
 	]
 	const orderColumns = [
 		{ title: '学员', dataIndex: 'studentName' },

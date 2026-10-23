@@ -226,8 +226,8 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
     public void offlinePay(StudentOrderOfflinePayParam studentOrderOfflinePayParam) {
         String payChannel = ObjectUtil.isNotEmpty(studentOrderOfflinePayParam.getPayChannel())
                 ? studentOrderOfflinePayParam.getPayChannel() : "OFFLINE";
-        if (!"OFFLINE".equals(payChannel) && !"CASH".equals(payChannel)) {
-            throw new CommonException("v1 仅支持线下收款登记，线上支付将在后续版本开放");
+        if (!java.util.List.of("OFFLINE", "CASH", "WECHAT", "ALIPAY").contains(payChannel)) {
+            throw new CommonException("不支持的收款渠道：{}", payChannel);
         }
         if (ObjectUtil.isNotEmpty(studentOrderOfflinePayParam.getPaidAmount())
                 && studentOrderOfflinePayParam.getPaidAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {

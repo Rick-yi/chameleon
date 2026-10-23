@@ -25,6 +25,10 @@ export default {
 	studentAdd(data) {
 		return request('add', data)
 	},
+	// 工作台快速录入：建档 + 报名 + 收款
+	quickEnroll(data) {
+		return request('quickEnroll', data)
+	},
 	studentEdit(data) {
 		return request('edit', data)
 	},

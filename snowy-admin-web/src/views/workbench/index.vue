@@ -3,6 +3,10 @@
 		<!-- 页头 -->
 		<page-header title="工作台" :desc="todayLabel">
 			<template #extra>
+				<a-button v-if="hasPerm('/student/add')" type="primary" @click="enrollOpen = true">
+					<template #icon><user-add-outlined /></template>
+					录入学员
+				</a-button>
 				<a-button @click="loadAll">
 					<template #icon><reload-outlined /></template>
 					刷新
@@ -43,7 +47,7 @@
 
 		<!-- 快捷入口 -->
 		<div class="ent-shortcut" style="margin-bottom: 12px">
-			<div v-for="item in shortcuts" :key="item.key" class="ent-shortcut-item" @click="go(item)">
+			<div v-for="item in visibleShortcuts" :key="item.key" class="ent-shortcut-item" @click="onShortcut(item)">
 				<div class="ent-shortcut-icon" :style="{ background: item.color }">
 					<component :is="item.icon" />
 				</div>
@@ -224,6 +228,8 @@
 				</a-col>
 			</a-row>
 		</a-spin>
+
+		<quick-enroll-modal v-model:open="enrollOpen" @success="onEnrollSuccess" />
 	</div>
 </template>
 
@@ -235,8 +241,10 @@
 		CalendarOutlined,
 		CheckSquareOutlined,
 		PhoneOutlined,
-		BarChartOutlined
+		BarChartOutlined,
+		UserAddOutlined
 	} from '@ant-design/icons-vue'
+	import QuickEnrollModal from './QuickEnrollModal.vue'
 	import studentApi from '@/api/student/studentApi'
 	import courseApi from '@/api/course/courseApi'
 	import crmApi from '@/api/crm/crmApi'
@@ -254,7 +262,9 @@
 	// 本月经营概览（财务看板汇总，取不到时降级为空）
 	const monthSummary = ref({})
 
+	const enrollOpen = ref(false)
 	const shortcuts = [
+		{ key: 'quickEnroll', text: '录入学员', icon: UserAddOutlined, color: '#fff1e6', action: 'quickEnroll', perm: '/student/add' },
 		{ key: 'order', text: '报名购课', icon: ShoppingCartOutlined, path: '/student', color: '#eaf2fd' },
 		{ key: 'pay', text: '收款台', icon: WalletOutlined, path: '/student/order', color: '#e8f7f0' },
 		{ key: 'schedule', text: '排课表', icon: CalendarOutlined, path: '/course/schedule', color: '#f3edfd' },
@@ -263,8 +273,19 @@
 		{ key: 'report', text: '经营看板', icon: BarChartOutlined, path: '/report/dashboard', color: '#fdedf0' }
 	]
 
+	const visibleShortcuts = computed(() => shortcuts.filter((item) => !item.perm || hasPerm(item.perm)))
 	const go = (item) => {
 		router.push(item.path ? { path: item.path, query: item.query } : item)
+	}
+	const onShortcut = (item) => {
+		if (item.action === 'quickEnroll') {
+			enrollOpen.value = true
+			return
+		}
+		go(item)
+	}
+	const onEnrollSuccess = () => {
+		loadAll()
 	}
 	const goAttend = (item) => {
 		router.push({ path: '/course/attend', query: { classId: item.classId, scheduleId: item.id } })

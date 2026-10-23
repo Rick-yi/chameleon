@@ -157,6 +157,7 @@ public class GlobalConfigure implements WebMvcConfigurer {
             "/biz/event/track",
             "/course/schedule/cancelBatch",
             // 排课辅助配置：读写分别复用「排课分页」「手动排课」的权限码
+            "/student/quickEnroll",
             "/course/schedule/closure/**",
             "/course/schedule/teacherUnavailable/**");
 

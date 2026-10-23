@@ -70,7 +70,7 @@
 				<a-select v-model:value="signupFormData.coursePackageId" placeholder="请选择课包" :options="packageOptions" show-search option-filter-prop="label" />
 			</a-form-item>
 			<a-form-item label="支付渠道" name="payChannel">
-				<a-radio-group v-model:value="signupFormData.payChannel" :options="[{ value: 'WECHAT', label: '微信' }, { value: 'OFFLINE', label: '线下' }]" />
+				<a-radio-group v-model:value="signupFormData.payChannel" :options="[{ value: 'WECHAT', label: '微信' }, { value: 'ALIPAY', label: '支付宝' }, { value: 'CASH', label: '现金' }, { value: 'OFFLINE', label: '线下转账' }]" />
 			</a-form-item>
 			<div style="color: rgba(0,0,0,.45); font-size: 12px">下单后立即登记收款，确认即到账入账；也可稍后在「收款台」处理</div>
 		</a-form>

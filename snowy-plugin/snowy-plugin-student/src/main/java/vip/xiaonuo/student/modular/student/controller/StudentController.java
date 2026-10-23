@@ -12,6 +12,7 @@
  */
 package vip.xiaonuo.student.modular.student.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,6 +30,8 @@ import vip.xiaonuo.student.modular.student.param.StudentAddParam;
 import vip.xiaonuo.student.modular.student.param.StudentEditParam;
 import vip.xiaonuo.student.modular.student.param.StudentIdParam;
 import vip.xiaonuo.student.modular.student.param.StudentPageParam;
+import vip.xiaonuo.student.modular.student.param.StudentQuickEnrollParam;
+import vip.xiaonuo.student.modular.student.service.StudentEnrollService;
 import vip.xiaonuo.student.modular.student.service.StudentService;
 
 import javax.validation.Valid;
@@ -47,6 +50,9 @@ public class StudentController {
 
     @Resource
     private StudentService studentService;
+
+    @Resource
+    private StudentEnrollService studentEnrollService;
 
     /**
      * 获取学员分页
@@ -71,6 +77,21 @@ public class StudentController {
     @PostMapping("/student/add")
     public CommonResult<String> add(@RequestBody @Valid StudentAddParam studentAddParam) {
         return CommonResult.data(studentService.add(studentAddParam));
+    }
+
+    /**
+     * 工作台快速录入学员：建档 + 报名 + 收款一次完成
+     *
+     * @author 会飞的猪
+     * @date 2026/10/23 19:00
+     */
+    @Operation(summary = "快速录入学员")
+    @CommonLog("快速录入学员")
+    @SaCheckPermission("/student/add")
+    @PostMapping("/student/quickEnroll")
+    public CommonResult<java.util.Map<String, Object>> quickEnroll(
+            @RequestBody @Valid StudentQuickEnrollParam studentQuickEnrollParam) {
+        return CommonResult.data(studentEnrollService.quickEnroll(studentQuickEnrollParam));
     }
 
     /**
