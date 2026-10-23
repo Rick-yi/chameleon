@@ -719,3 +719,32 @@ html {
 	border-color: var(--primary-3);
 	box-shadow: 0 2px 10px rgba(29, 33, 41, 0.08);
 }
+
+/* ---------- 16. 树 + 列表页：左右分栏与筛选条统一 ---------- */
+.tree-page {
+	background: #fff;
+	border: 1px solid var(--border-color-base);
+	border-radius: var(--radius-card);
+	overflow: hidden;
+}
+
+.tree-page .panel-left {
+	background: var(--background-color-light);
+	border-right: 1px solid var(--border-color-base);
+}
+
+.tree-page .panel-right {
+	background: #fff;
+}
+
+/* 右侧筛选表单贴齐卡片顶部，形成与业务列表一致的工具栏 */
+.tree-page .panel-right > .ant-form {
+	margin: -24px -24px 12px;
+	padding: 12px 24px;
+	background: var(--background-color-light);
+	border-bottom: 1px solid var(--border-color-base);
+}
+
+.tree-page .panel-right > .ant-form .ant-form-item {
+	margin-bottom: 8px;
+}

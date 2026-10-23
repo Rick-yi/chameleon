@@ -1,5 +1,5 @@
 <template>
-	<XnResizablePanel direction="row" :initial-size="300" :min-size="200" :max-size="500" :md="0">
+	<XnResizablePanel class="tree-page" direction="row" :initial-size="300" :min-size="200" :max-size="500" :md="0">
 		<template #left>
 			<a-tree
 				v-if="treeData.length > 0"
