@@ -19,6 +19,7 @@ services:
       - MYSQL_PWD=${MYSQL_ROOT_PASSWORD:-12345678}
       - MYSQL_DB=${MYSQL_DB:-chameleon}
       - SKIP_DEMO=${SKIP_DEMO:-1}
+      - SQL_DIR=/sql
     volumes:
       - ../../../scripts:/scripts:ro
       - ../../../snowy-web-app/src/main/resources/_sql:/sql:ro
