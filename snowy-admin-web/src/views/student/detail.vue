@@ -11,6 +11,31 @@
 					<a-button type="primary" @click="orderOpen = true">报名购课</a-button>
 				</div>
 			</div>
+			<div class="detail-kpis">
+				<div class="kpi">
+					<span>剩余课时</span>
+					<b :class="remainTone">{{ remainText }}</b>
+				</div>
+				<div class="kpi">
+					<span>课包到期</span>
+					<b :class="{ 'kpi-danger': isExpired(student.accountExpireTime) }">{{ formatDate(student.accountExpireTime) }}</b>
+				</div>
+				<div class="kpi">
+					<span>待收款</span>
+					<b :class="{ 'kpi-warning': Number(student.unpaidAmount) > 0 }">{{ formatMoney(student.unpaidAmount) }}</b>
+				</div>
+				<div class="kpi">
+					<span>所在班级</span>
+					<b class="kpi-text">{{ student.classNames || '-' }}</b>
+				</div>
+				<div class="kpi">
+					<span>最近到课</span>
+					<b class="kpi-text">{{ lastAttendDate || '-' }}</b>
+				</div>
+			</div>
+			<div v-if="riskTags.length" class="risk-tags">
+				<a-tag v-for="tag in riskTags" :key="tag.text" :color="tag.color">{{ tag.text }}</a-tag>
+			</div>
 		</a-card>
 
 		<a-card>
@@ -230,6 +255,55 @@
 	const statusColor = computed(() => {
 		return student.value.status === 'STUDYING' ? 'green' : student.value.status === 'STOP' ? 'orange' : 'red'
 	})
+	const hasLessonAccount = computed(() => student.value.hasLessonAccount !== false)
+	const remainNumber = computed(() => Number(student.value.remainLessons || 0))
+	const remainText = computed(() => {
+		if (!hasLessonAccount.value) return '未报名'
+		return Number.isInteger(remainNumber.value) ? String(remainNumber.value) : remainNumber.value.toFixed(2)
+	})
+	const remainTone = computed(() => {
+		if (!hasLessonAccount.value) return 'kpi-muted'
+		if (remainNumber.value <= 0) return 'kpi-danger'
+		if (remainNumber.value < 3) return 'kpi-warning'
+		return ''
+	})
+	const parseDate = (value) => {
+		if (!value) return null
+		const date = new Date(String(value).replace(/-/g, '/'))
+		return Number.isNaN(date.getTime()) ? null : date
+	}
+	const formatDate = (value) => (value ? String(value).slice(0, 10) : '-')
+	const formatMoney = (value) => `¥${Number(value || 0).toFixed(2)}`
+	const isExpired = (value) => {
+		const date = parseDate(value)
+		return !!date && date < new Date()
+	}
+	const lastAttendDate = computed(() => {
+		const dates = attends.value.map((item) => item.scheduleDate).filter(Boolean).sort()
+		return dates.length ? String(dates[dates.length - 1]).slice(0, 10) : ''
+	})
+	const riskTags = computed(() => {
+		const tags = []
+		if (!hasLessonAccount.value) {
+			tags.push({ text: '未报名', color: 'default' })
+		} else if (remainNumber.value <= 0) {
+			tags.push({ text: '无剩余课时', color: 'red' })
+		} else if (remainNumber.value < 3) {
+			tags.push({ text: '课时不足 3', color: 'orange' })
+		}
+		if (isExpired(student.value.accountExpireTime)) {
+			tags.push({ text: '课包已到期', color: 'red' })
+		}
+		const unpaid = Number(student.value.unpaidAmount || 0)
+		if (unpaid > 0) {
+			tags.push({ text: `待收款 ${formatMoney(unpaid)}`, color: 'orange' })
+		}
+		const last = parseDate(lastAttendDate.value)
+		if (last && (Date.now() - last.getTime()) / (24 * 60 * 60 * 1000) > 30) {
+			tags.push({ text: '久未到课', color: 'volcano' })
+		}
+		return tags
+	})
 	const accountColumns = [
 		{ title: '课程', dataIndex: 'courseId' },
 		{ title: '总课时', dataIndex: 'totalLessons' },
@@ -416,3 +490,53 @@
 	}
 	watch(currentStudentId, () => loadAll(), { immediate: true })
 </script>
+
+<style scoped lang="less">
+	.detail-kpis {
+		display: grid;
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+		gap: 12px;
+		margin-top: 16px;
+		padding-top: 16px;
+		border-top: 1px dashed var(--border-color-split);
+	}
+	.kpi {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		span {
+			font-size: 12px;
+			color: var(--text-color-secondary);
+		}
+		b {
+			font-size: 20px;
+			font-weight: 700;
+			line-height: 1.2;
+		}
+	}
+	.kpi-text {
+		font-size: 14px !important;
+		font-weight: 600 !important;
+	}
+	.kpi-danger {
+		color: #cf1322;
+	}
+	.kpi-warning {
+		color: var(--accent-6);
+	}
+	.kpi-muted {
+		font-size: 14px !important;
+		color: var(--text-color-secondary);
+	}
+	.risk-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin-top: 12px;
+	}
+	@media (max-width: 576px) {
+		.detail-kpis {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+</style>

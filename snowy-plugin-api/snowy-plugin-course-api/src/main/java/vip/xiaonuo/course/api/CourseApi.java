@@ -111,4 +111,12 @@ public interface CourseApi {
      * @return 课包id → 课包名称
      */
     java.util.Map<String, String> listCoursePackageNameMap(java.util.List<String> packageIdList);
+
+    /**
+     * 批量查询学员所在班级名称（学员列表/详情摘要用）
+     *
+     * @param studentIdList 学员id集合
+     * @return 学员id → 班级名称（多个班级用顿号连接）
+     */
+    java.util.Map<String, String> listStudentClassNameMap(java.util.List<String> studentIdList);
 }

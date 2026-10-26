@@ -40,6 +40,18 @@
 			:scroll="{ x: 'max-content' }"
 		>
 			<template #bodyCell="{ column, record }">
+				<template v-if="column.dataIndex === 'remainLessons'">
+					<span :class="lessonTone(record)">{{ lessonText(record) }}</span>
+				</template>
+				<template v-if="column.dataIndex === 'accountExpireTime'">
+					<span :class="{ 'text-danger': isExpired(record.accountExpireTime) }">{{ formatDate(record.accountExpireTime) }}</span>
+				</template>
+				<template v-if="column.dataIndex === 'classNames'">
+					{{ record.classNames || '-' }}
+				</template>
+				<template v-if="column.dataIndex === 'unpaidAmount'">
+					<span :class="{ 'text-warning': Number(record.unpaidAmount) > 0 }">{{ formatMoney(record.unpaidAmount) }}</span>
+				</template>
 				<template v-if="column.dataIndex === 'status'">
 					<a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
 				</template>
@@ -149,10 +161,33 @@
 		{ title: '性别', dataIndex: 'gender' },
 		{ title: '家长手机', dataIndex: 'parentPhone' },
 		{ title: '家长姓名', dataIndex: 'parentName' },
+		{ title: '剩余课时', dataIndex: 'remainLessons', width: 110, align: 'right' },
+		{ title: '课包到期', dataIndex: 'accountExpireTime', width: 120 },
+		{ title: '所在班级', dataIndex: 'classNames', width: 160 },
+		{ title: '待收款', dataIndex: 'unpaidAmount', width: 110, align: 'right' },
 		{ title: '状态', dataIndex: 'status' },
 		{ title: '创建时间', dataIndex: 'createTime' },
 		{ title: '操作', dataIndex: 'action', align: 'center', fixed: 'right' }
 	]
+	const formatLessons = (value) => {
+		const number = Number(value || 0)
+		return Number.isInteger(number) ? String(number) : number.toFixed(2)
+	}
+	const lessonText = (record) => (record.hasLessonAccount === false ? '未报名' : formatLessons(record.remainLessons))
+	const lessonTone = (record) => {
+		if (record.hasLessonAccount === false) return 'text-muted'
+		const number = Number(record.remainLessons || 0)
+		if (number <= 0) return 'text-danger'
+		if (number < 3) return 'text-warning'
+		return ''
+	}
+	const formatDate = (value) => (value ? String(value).slice(0, 10) : '-')
+	const isExpired = (value) => {
+		if (!value) return false
+		const date = new Date(String(value).replace(/-/g, '/'))
+		return !Number.isNaN(date.getTime()) && date < new Date()
+	}
+	const formatMoney = (value) => `¥${Number(value || 0).toFixed(2)}`
 	const loadData = (parameter) => {
 		return studentApi.studentPage(Object.assign(parameter, searchFormState.value)).then((data) => data)
 	}
@@ -271,3 +306,17 @@
 	}
 	loadPackages()
 </script>
+
+<style scoped lang="less">
+	.text-danger {
+		color: #cf1322;
+		font-weight: 600;
+	}
+	.text-warning {
+		color: var(--accent-6);
+		font-weight: 600;
+	}
+	.text-muted {
+		color: var(--text-color-secondary);
+	}
+</style>

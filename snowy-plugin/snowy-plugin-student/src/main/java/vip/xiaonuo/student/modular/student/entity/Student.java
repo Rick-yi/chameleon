@@ -12,12 +12,14 @@
  */
 package vip.xiaonuo.student.modular.student.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 import vip.xiaonuo.common.pojo.CommonEntity;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 /**
@@ -78,4 +80,29 @@ public class Student extends CommonEntity {
     /** 扩展信息 */
     @Schema(description = "扩展信息")
     private String extJson;
+
+    /** 剩余课时合计（列表/详情展示用，非数据库字段） */
+    @Schema(description = "剩余课时合计")
+    @TableField(exist = false)
+    private BigDecimal remainLessons;
+
+    /** 最近课包到期时间（非数据库字段） */
+    @Schema(description = "最近课包到期时间")
+    @TableField(exist = false)
+    private Date accountExpireTime;
+
+    /** 所在班级（非数据库字段） */
+    @Schema(description = "所在班级")
+    @TableField(exist = false)
+    private String classNames;
+
+    /** 待收款金额（非数据库字段） */
+    @Schema(description = "待收款金额")
+    @TableField(exist = false)
+    private BigDecimal unpaidAmount;
+
+    /** 是否已有课时账户（非数据库字段，用于区分“未报名”和“课时用完”） */
+    @Schema(description = "是否已有课时账户")
+    @TableField(exist = false)
+    private Boolean hasLessonAccount;
 }

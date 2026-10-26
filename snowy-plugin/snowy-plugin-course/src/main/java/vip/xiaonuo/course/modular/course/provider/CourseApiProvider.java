@@ -221,4 +221,35 @@ public class CourseApiProvider implements CourseApi {
         }
         return nameMap;
     }
+
+    @Override
+    public java.util.Map<String, String> listStudentClassNameMap(java.util.List<String> studentIdList) {
+        java.util.Map<String, String> resultMap = new java.util.HashMap<>();
+        if (ObjectUtil.isEmpty(studentIdList)) {
+            return resultMap;
+        }
+        List<CourseClassStudent> relationList = courseClassStudentMapper.selectList(
+                new LambdaQueryWrapper<CourseClassStudent>()
+                        .in(CourseClassStudent::getStudentId, studentIdList)
+                        .eq(CourseClassStudent::getStatus, CourseClassStudentStatusEnum.STUDYING.getValue()));
+        if (ObjectUtil.isEmpty(relationList)) {
+            return resultMap;
+        }
+        List<String> classIdList = relationList.stream().map(CourseClassStudent::getClassId)
+                .filter(StrUtil::isNotBlank).distinct().toList();
+        java.util.Map<String, String> classNameMap = new java.util.HashMap<>();
+        if (ObjectUtil.isNotEmpty(classIdList)) {
+            for (CourseClass courseClass : courseClassMapper.selectBatchIds(classIdList)) {
+                classNameMap.put(courseClass.getId(), courseClass.getName());
+            }
+        }
+        for (CourseClassStudent relation : relationList) {
+            String className = classNameMap.get(relation.getClassId());
+            if (StrUtil.isNotBlank(className)) {
+                resultMap.merge(relation.getStudentId(), className,
+                        (first, second) -> first.equals(second) ? first : first + "、" + second);
+            }
+        }
+        return resultMap;
+    }
 }
