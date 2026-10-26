@@ -52,7 +52,9 @@
 					>
 						<template #bodyCell="{ column, record }">
 							<template v-if="column.dataIndex === 'id'">
-								<a class="order-no" title="查看订单详情" @click="openOrderDetail(record)">{{ record.id }}</a>
+								<a-typography-text copyable>
+									<a class="order-no" title="查看订单详情" @click="openOrderDetail(record)">{{ record.id }}</a>
+								</a-typography-text>
 							</template>
 							<template v-if="column.dataIndex === 'status'">
 								<a-tag :color="orderStatusColor(record.status)">{{ orderStatusText(record.status) }}</a-tag>

@@ -31,7 +31,7 @@
 
 				<div class="od-section-title">订单信息</div>
 				<div class="od-grid">
-					<div class="od-row od-wide"><span>订单号</span><b class="od-order-no">{{ order.id }}</b></div>
+					<div class="od-row od-wide"><span>订单号</span><a-typography-text copyable class="od-order-no">{{ order.id }}</a-typography-text></div>
 					<div class="od-row"><span>课包</span><b>{{ order.packageName || '-' }}</b></div>
 					<div class="od-row"><span>合计课时</span><b>{{ totalLessons }}</b></div>
 					<div class="od-row"><span>正课</span><b>{{ lessons(order.packageLessons) }}</b></div>
