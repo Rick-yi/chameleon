@@ -42,6 +42,11 @@
 	--accent-6: #f37021;
 	--accent-7: #d45a12;
 
+	/* 主按钮：品牌绿底 + 深绿字，白字在 4BB964 上对比度仅 2.49:1 */
+	--primary-action-text: #123b2b;
+	--primary-action-hover: #5ec97a;
+	--primary-action-disabled: #d7e7dd;
+
 	--text-color: #26302a;
 	--text-color-secondary: #5b665e;
 	--heading-color: #1f2a23;
@@ -182,6 +187,24 @@ html {
 }
 .ant-btn-primary {
 	box-shadow: none;
+}
+/* 主按钮统一使用深绿文字：果子绿底 + 白字对比度不足，深绿字为 5.0:1 */
+.ant-btn-primary:not(.ant-btn-dangerous) {
+	color: var(--primary-action-text) !important;
+	font-weight: 600;
+}
+.ant-btn-primary:not(.ant-btn-dangerous):hover,
+.ant-btn-primary:not(.ant-btn-dangerous):focus,
+.ant-btn-primary:not(.ant-btn-dangerous):active {
+	background: var(--primary-action-hover) !important;
+	border-color: var(--primary-action-hover) !important;
+	color: var(--primary-action-text) !important;
+}
+.ant-btn-primary:not(.ant-btn-dangerous)[disabled],
+.ant-btn-primary:not(.ant-btn-dangerous).ant-btn-disabled {
+	background: var(--primary-action-disabled) !important;
+	border-color: var(--primary-action-disabled) !important;
+	color: var(--primary-action-text) !important;
 }
 .ant-btn-lg {
 	border-radius: var(--radius-control);

@@ -599,22 +599,6 @@
 		font-size: 12px;
 		color: var(--text-color-secondary);
 	}
-	/* 点名页主操作保留果子绿，但改用深色文字，白字对比度不足的问题在本页先解决 */
-	.attend-page :deep(.ant-btn-primary) {
-		color: #123b2b !important;
-		font-weight: 600;
-	}
-	.attend-page :deep(.ant-btn-primary:hover),
-	.attend-page :deep(.ant-btn-primary:focus) {
-		background: #5ec97a !important;
-		border-color: #5ec97a !important;
-		color: #123b2b !important;
-	}
-	.attend-page :deep(.ant-btn-primary[disabled]) {
-		background: #d7e7dd !important;
-		border-color: #d7e7dd !important;
-		color: #123b2b !important;
-	}
 	.attend-filter {
 		display: flex;
 		align-items: center;
