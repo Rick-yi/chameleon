@@ -308,32 +308,61 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
                           AND c.`CAMPUS_ID` IS NOT NULL
                       )
                     """);
+            // 单校区机构：把空校区或指向“公司根节点”等非校区组织的学员统一落到唯一校区
             int studentCampusDefaulted = jdbcTemplate.update("""
                     UPDATE `STUDENT` s
                     SET s.`CAMPUS_ID` = (
                         SELECT o.`ID`
                         FROM `SYS_ORG` o
                         WHERE o.`TENANT_ID` = s.`TENANT_ID`
-                          AND o.`CATEGORY` = 'DEPT'
+                          AND o.`CATEGORY` IN ('DEPT', 'CAMPUS')
                           AND o.`DELETE_FLAG` = 'NOT_DELETE'
                         ORDER BY o.`SORT_CODE`, o.`ID`
                         LIMIT 1
                     )
-                    WHERE s.`CAMPUS_ID` IS NULL
-                      AND s.`DELETE_FLAG` = 'NOT_DELETE'
+                    WHERE s.`DELETE_FLAG` = 'NOT_DELETE'
+                      AND (
+                        s.`CAMPUS_ID` IS NULL
+                        OR NOT EXISTS (
+                            SELECT 1 FROM `SYS_ORG` c
+                            WHERE c.`ID` = s.`CAMPUS_ID`
+                              AND c.`TENANT_ID` = s.`TENANT_ID`
+                              AND c.`CATEGORY` IN ('DEPT', 'CAMPUS')
+                              AND c.`DELETE_FLAG` = 'NOT_DELETE'
+                        )
+                      )
                       AND (
                         SELECT COUNT(*) FROM `SYS_ORG` o
                         WHERE o.`TENANT_ID` = s.`TENANT_ID`
-                          AND o.`CATEGORY` = 'DEPT'
+                          AND o.`CATEGORY` IN ('DEPT', 'CAMPUS')
                           AND o.`DELETE_FLAG` = 'NOT_DELETE'
                       ) = 1
                     """);
             if (studentCampusFilled + studentCampusDefaulted > 0) {
-                log.info(">>> 报表结构升级：回填学员校区 {} 条（班级 {} 条，默认校区 {} 条）",
+                log.info(">>> 报表结构升级：回填/规范学员校区 {} 条（班级 {} 条，单校区兜底 {} 条）",
                         studentCampusFilled + studentCampusDefaulted, studentCampusFilled, studentCampusDefaulted);
             }
-            // 历史订单按学员当前校区回填，避免按校区筛选时缺失
-            jdbcTemplate.update("UPDATE `STUDENT_ORDER` o JOIN `STUDENT` s ON o.`STUDENT_ID` = s.`ID` SET o.`CAMPUS_ID` = s.`CAMPUS_ID` WHERE o.`CAMPUS_ID` IS NULL");
+            // 订单校区以学员校区为准；空值或指向公司根节点的历史订单一并纠正
+            int orderCampusFilled = jdbcTemplate.update("""
+                    UPDATE `STUDENT_ORDER` o
+                    JOIN `STUDENT` s ON o.`STUDENT_ID` = s.`ID`
+                    SET o.`CAMPUS_ID` = s.`CAMPUS_ID`
+                    WHERE o.`DELETE_FLAG` = 'NOT_DELETE'
+                      AND s.`CAMPUS_ID` IS NOT NULL
+                      AND (
+                        o.`CAMPUS_ID` IS NULL
+                        OR NOT EXISTS (
+                            SELECT 1 FROM `SYS_ORG` c
+                            WHERE c.`ID` = o.`CAMPUS_ID`
+                              AND c.`TENANT_ID` = o.`TENANT_ID`
+                              AND c.`CATEGORY` IN ('DEPT', 'CAMPUS')
+                              AND c.`DELETE_FLAG` = 'NOT_DELETE'
+                        )
+                      )
+                    """);
+            if (orderCampusFilled > 0) {
+                log.info(">>> 报表结构升级：回填/规范订单校区 {} 条", orderCampusFilled);
+            }
             // 单校区机构的历史日汇总可直接落校区；多校区需按课程/班级人工重算，避免串校区
             int dailyStatCampusFilled = jdbcTemplate.update("""
                     UPDATE `FIN_DAILY_STAT` f
