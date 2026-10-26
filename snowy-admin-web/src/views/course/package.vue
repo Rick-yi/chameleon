@@ -87,7 +87,7 @@
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
-					<a-form-item label="赠课课时" name="giftLessons">
+					<a-form-item label="赠课课时" name="giftLessons" extra="总课时（含赠课）不能超过60">
 						<a-input-number v-model:value="formData.giftLessons" :min="0" style="width: 100%" />
 					</a-form-item>
 				</a-col>
@@ -99,6 +99,11 @@
 				<a-col :span="12">
 					<a-form-item label="有效期(天)" name="validityDays">
 						<a-input-number v-model:value="formData.validityDays" :min="0" style="width: 100%" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="赠送时长(天)" name="giftValidityDays">
+						<a-input-number v-model:value="formData.giftValidityDays" :min="0" style="width: 100%" />
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
@@ -127,6 +132,7 @@
 </template>
 
 <script setup name="coursePackage">
+	import { message } from 'ant-design-vue'
 	import courseApi from '@/api/course/courseApi'
 	const searchFormState = ref({})
 	const tableRef = ref()
@@ -145,6 +151,7 @@
 		{ title: '赠课', dataIndex: 'giftLessons' },
 		{ title: '价格(元)', dataIndex: 'price' },
 		{ title: '有效期(天)', dataIndex: 'validityDays' },
+		{ title: '赠送时长(天)', dataIndex: 'giftValidityDays' },
 		{ title: '状态', dataIndex: 'status' },
 		{ title: '操作', dataIndex: 'action', align: 'center', fixed: 'right' }
 	]
@@ -165,7 +172,7 @@
 		return item ? item.label : '-'
 	}
 	const onOpenAdd = () => {
-		formData.value = { status: 'ENABLE', giftLessons: 0 }
+		formData.value = { status: 'ENABLE', giftLessons: 0, giftValidityDays: 0 }
 		open.value = true
 	}
 	const onOpenEdit = (record) => {
@@ -178,6 +185,11 @@
 	}
 	const onSubmit = () => {
 		formRef.value.validate().then(() => {
+			const totalLessons = Number(formData.value.lessons || 0) + Number(formData.value.giftLessons || 0)
+			if (totalLessons > 60) {
+				message.warning('课包总课时（含赠课）不能超过60课时')
+				return
+			}
 			const edit = !!formData.value.id
 			const api = edit ? courseApi.packageEdit : courseApi.packageAdd
 			api(formData.value).then(() => {

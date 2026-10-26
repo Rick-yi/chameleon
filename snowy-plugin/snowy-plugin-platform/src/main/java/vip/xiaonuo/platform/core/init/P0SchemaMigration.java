@@ -494,6 +494,18 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
                 jdbcTemplate.execute("ALTER TABLE `COURSE_PACKAGE` ADD COLUMN `ABSENT_DEDUCT` tinyint NULL DEFAULT NULL COMMENT '缺勤是否扣课(为空沿用课程配置)' AFTER `LEAVE_DEDUCT`");
                 log.info(">>> 课务结构升级：COURSE_PACKAGE 扣课规则列已添加");
             }
+            if (!columnExists("COURSE_PACKAGE", "GIFT_VALIDITY_DAYS")) {
+                jdbcTemplate.execute("ALTER TABLE `COURSE_PACKAGE` ADD COLUMN `GIFT_VALIDITY_DAYS` int NULL DEFAULT 0 COMMENT '赠送时长(天)' AFTER `VALIDITY_DAYS`");
+                log.info(">>> 课务结构升级：COURSE_PACKAGE.GIFT_VALIDITY_DAYS 已添加");
+            }
+            Integer overLimitPackageCount = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*) FROM `COURSE_PACKAGE`
+                    WHERE `DELETE_FLAG` = 'NOT_DELETE'
+                      AND COALESCE(`LESSONS`, 0) + COALESCE(`GIFT_LESSONS`, 0) > 60
+                    """, Integer.class);
+            if (overLimitPackageCount != null && overLimitPackageCount > 0) {
+                log.warn(">>> 课务结构检查：有 {} 个存量课包总课时超过 60，编辑时会被要求整改", overLimitPackageCount);
+            }
             // 点名记录备注（未消课时记录原因）
             if (!columnExists("COURSE_CLASS_ATTEND", "REMARK")) {
                 jdbcTemplate.execute("ALTER TABLE `COURSE_CLASS_ATTEND` ADD COLUMN `REMARK` varchar(200) NULL DEFAULT NULL COMMENT '备注(未消课原因等)' AFTER `LESSONS_DEDUCTED`");

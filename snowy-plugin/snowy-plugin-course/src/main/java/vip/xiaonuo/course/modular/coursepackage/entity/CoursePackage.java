@@ -75,6 +75,10 @@ public class CoursePackage extends CommonEntity {
     @Schema(description = "有效期(天)")
     private Integer validityDays;
 
+    /** 赠送时长(天) */
+    @Schema(description = "赠送时长(天)")
+    private Integer giftValidityDays;
+
     /** 状态 */
     @Schema(description = "状态(上架/下架)")
     private String status;

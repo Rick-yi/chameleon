@@ -34,6 +34,7 @@ import vip.xiaonuo.course.modular.coursepackage.param.CoursePackageIdParam;
 import vip.xiaonuo.course.modular.coursepackage.param.CoursePackagePageParam;
 import vip.xiaonuo.course.modular.coursepackage.service.CoursePackageService;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -68,6 +69,7 @@ public class CoursePackageServiceImpl extends ServiceImpl<CoursePackageMapper, C
     @Override
     public void add(CoursePackageAddParam coursePackageAddParam) {
         CoursePackage coursePackage = BeanUtil.toBean(coursePackageAddParam, CoursePackage.class);
+        validatePackage(coursePackage);
         boolean repeatName = this.count(new LambdaQueryWrapper<CoursePackage>()
                 .eq(CoursePackage::getCourseId, coursePackage.getCourseId())
                 .eq(CoursePackage::getName, coursePackage.getName())) > 0;
@@ -85,6 +87,7 @@ public class CoursePackageServiceImpl extends ServiceImpl<CoursePackageMapper, C
     public void edit(CoursePackageEditParam coursePackageEditParam) {
         CoursePackage coursePackage = this.queryEntity(coursePackageEditParam.getId());
         BeanUtil.copyProperties(coursePackageEditParam, coursePackage);
+        validatePackage(coursePackage);
         boolean repeatName = this.count(new LambdaQueryWrapper<CoursePackage>()
                 .eq(CoursePackage::getCourseId, coursePackage.getCourseId())
                 .eq(CoursePackage::getName, coursePackage.getName())
@@ -95,10 +98,32 @@ public class CoursePackageServiceImpl extends ServiceImpl<CoursePackageMapper, C
         this.updateById(coursePackage);
     }
 
+    /**
+     * 课包合规校验：总课时（含赠课）不超过 60，赠课/赠送时长不能为负
+     */
+    private void validatePackage(CoursePackage coursePackage) {
+        BigDecimal lessons = ObjectUtil.defaultIfNull(coursePackage.getLessons(), BigDecimal.ZERO);
+        BigDecimal giftLessons = ObjectUtil.defaultIfNull(coursePackage.getGiftLessons(), BigDecimal.ZERO);
+        if (lessons.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new CommonException("课包课时数必须大于0");
+        }
+        if (giftLessons.compareTo(BigDecimal.ZERO) < 0) {
+            throw new CommonException("赠课课时不能为负数");
+        }
+        if (lessons.add(giftLessons).compareTo(new BigDecimal("60")) > 0) {
+            throw new CommonException("课包总课时（含赠课）不能超过60课时");
+        }
+        if (coursePackage.getValidityDays() != null && coursePackage.getValidityDays() < 0) {
+            throw new CommonException("有效期不能为负数");
+        }
+        if (coursePackage.getGiftValidityDays() != null && coursePackage.getGiftValidityDays() < 0) {
+            throw new CommonException("赠送时长不能为负数");
+        }
+    }
+
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public void delete(List<CoursePackageIdParam> coursePackageIdParamList) {
-        List<String> coursePackageIdList = CollStreamUtil.toList(coursePackageIdParamList, CoursePackageIdParam::getId);
+    public void delete(List<CoursePackageIdParam> coursePackageIdParamList) {        List<String> coursePackageIdList = CollStreamUtil.toList(coursePackageIdParamList, CoursePackageIdParam::getId);
         if (ObjectUtil.isNotEmpty(coursePackageIdList)) {
             this.removeByIds(coursePackageIdList);
         }

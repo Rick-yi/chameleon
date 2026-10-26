@@ -198,7 +198,8 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
         order.setPackagePrice(packageInfo.getBigDecimal("price"));
         order.setPackageLessons(packageInfo.getBigDecimal("lessons"));
         order.setPackageGiftLessons(packageInfo.getBigDecimal("giftLessons"));
-        order.setPackageValidityDays(packageInfo.getInt("validityDays"));
+        order.setPackageValidityDays(packageInfo.getInt("totalValidityDays",
+                packageInfo.getInt("validityDays", 0)));
         order.setAmount(packageInfo.getBigDecimal("price"));
         order.setPayChannel(ObjectUtil.isNotEmpty(studentOrderAddParam.getPayChannel())
                 ? studentOrderAddParam.getPayChannel() : "WECHAT");

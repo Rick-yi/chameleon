@@ -105,6 +105,8 @@ public class CourseApiProvider implements CourseApi {
         if (ObjectUtil.isEmpty(coursePackage)) {
             return null;
         }
+        int validityDays = ObjectUtil.defaultIfNull(coursePackage.getValidityDays(), 0);
+        int giftValidityDays = ObjectUtil.defaultIfNull(coursePackage.getGiftValidityDays(), 0);
         return JSONUtil.createObj()
                 .set("id", coursePackage.getId())
                 .set("courseId", coursePackage.getCourseId())
@@ -112,7 +114,9 @@ public class CourseApiProvider implements CourseApi {
                 .set("lessons", coursePackage.getLessons())
                 .set("giftLessons", coursePackage.getGiftLessons())
                 .set("price", coursePackage.getPrice())
-                .set("validityDays", coursePackage.getValidityDays())
+                .set("validityDays", validityDays)
+                .set("giftValidityDays", giftValidityDays)
+                .set("totalValidityDays", validityDays + giftValidityDays)
                 .set("lessonsPerClass", coursePackage.getLessonsPerClass())
                 .set("leaveDeduct", coursePackage.getLeaveDeduct())
                 .set("absentDeduct", coursePackage.getAbsentDeduct());
