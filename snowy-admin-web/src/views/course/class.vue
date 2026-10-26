@@ -170,6 +170,7 @@
 
 <script setup name="courseClass">
 	import { useRouter } from 'vue-router'
+	import { Modal } from 'ant-design-vue'
 	import courseApi from '@/api/course/courseApi'
 	import studentApi from '@/api/student/studentApi'
 	const router = useRouter()
@@ -375,11 +376,33 @@
 				return data
 			})
 	}
-	const onAddStudents = () => {
-		courseApi.classStudentAdd({ classId: currentClass.value.id, studentIdList: addStudentIds.value }).then(() => {
+	const doAddStudents = () => {
+		const addCount = addStudentIds.value.length
+		const currentCount = Number(currentClass.value.studentCount || 0)
+		return courseApi.classStudentAdd({ classId: currentClass.value.id, studentIdList: addStudentIds.value }).then(() => {
 			addStudentIds.value = []
+			// 当前弹窗和背后的列表都同步人数，避免连续加人时用旧容量判断
+			currentClass.value = { ...currentClass.value, studentCount: currentCount + addCount }
 			studentTableRef.value.refresh()
+			tableRef.value?.refresh()
 		})
+	}
+	const onAddStudents = () => {
+		const capacity = Number(currentClass.value.capacity || 0)
+		const currentCount = Number(currentClass.value.studentCount || 0)
+		const addCount = addStudentIds.value.length
+		if (capacity > 0 && currentCount + addCount > capacity) {
+			const exceed = currentCount + addCount - capacity
+			Modal.confirm({
+				title: '超出班级容量',
+				content: `当前 ${currentCount}/${capacity} 人，本次加入 ${addCount} 人，将超出 ${exceed} 人。仍要加入吗？`,
+				okText: '仍然加入',
+				cancelText: '取消',
+				onOk: doAddStudents
+			})
+			return
+		}
+		doAddStudents()
 	}
 	const onQuit = (record) => {
 		courseApi.classStudentDelete([{ id: record.id }]).then(() => studentTableRef.value.refresh())
