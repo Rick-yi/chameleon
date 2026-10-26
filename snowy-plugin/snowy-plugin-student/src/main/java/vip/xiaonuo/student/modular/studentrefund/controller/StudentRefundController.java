@@ -20,6 +20,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vip.xiaonuo.common.annotation.CommonLog;
 import vip.xiaonuo.common.pojo.CommonResult;
@@ -31,6 +32,7 @@ import vip.xiaonuo.student.modular.studentrefund.param.StudentRefundPageParam;
 import vip.xiaonuo.student.modular.studentrefund.service.StudentRefundService;
 
 import javax.validation.Valid;
+import java.util.Map;
 
 /**
  * 退费单控制器
@@ -56,6 +58,18 @@ public class StudentRefundController {
     @GetMapping("/student/refund/page")
     public CommonResult<Page<StudentRefund>> page(StudentRefundPageParam studentRefundPageParam) {
         return CommonResult.data(studentRefundService.page(studentRefundPageParam));
+    }
+
+    /**
+     * 退费试算
+     *
+     * @author 会飞的猪
+     * @date 2026/10/27
+     */
+    @Operation(summary = "退费试算")
+    @GetMapping("/student/refund/preview")
+    public CommonResult<Map<String, Object>> preview(@RequestParam String orderId) {
+        return CommonResult.data(studentRefundService.preview(orderId));
     }
 
     /**

@@ -19,6 +19,8 @@ import vip.xiaonuo.student.modular.studentrefund.param.StudentRefundApproveParam
 import vip.xiaonuo.student.modular.studentrefund.param.StudentRefundIdParam;
 import vip.xiaonuo.student.modular.studentrefund.param.StudentRefundPageParam;
 
+import java.util.Map;
+
 /**
  * 退费单Service接口
  *
@@ -32,6 +34,9 @@ public interface StudentRefundService {
 
     /** 退费申请（可退=剩余-赠课，折算单价=实付/课包课时） */
     void apply(StudentRefundAddParam studentRefundAddParam);
+
+    /** 退费试算（申请前展示可退课时/赠课/预计退款） */
+    Map<String, Object> preview(String orderId);
 
     /** 退费审批（通过→账户冻结；驳回→结束） */
     void approve(StudentRefundApproveParam studentRefundApproveParam);

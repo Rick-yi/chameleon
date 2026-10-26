@@ -74,6 +74,7 @@
 					可退 {{ item.refundLessons || 0 }} 课时
 					<template v-if="item.createTime"> · 申请 {{ shortTime(item.createTime) }}</template>
 				</div>
+				<div v-if="item.applyRemark" class="m-order-opinion">申请原因：{{ item.applyRemark }}</div>
 				<div v-if="item.opinion" class="m-order-opinion">审批意见：{{ item.opinion }}</div>
 				<div class="m-order-foot">
 					<a-tag :color="refundColor(item.status)">{{ refundText(item.status) }}</a-tag>

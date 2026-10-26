@@ -84,6 +84,9 @@ export default {
 	refundApply(data) {
 		return request('refund/apply', data)
 	},
+	refundPreview(data) {
+		return request('refund/preview', data, 'get')
+	},
 	refundApprove(data) {
 		return request('refund/approve', data)
 	},

@@ -463,6 +463,15 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
                 log.info(">>> P0 结构升级：STUDENT_REFUND.GIFT_LESSONS 已添加");
             }
             jdbcTemplate.update("UPDATE `STUDENT_REFUND` SET `GIFT_LESSONS` = 0.00 WHERE `GIFT_LESSONS` IS NULL");
+            if (!columnExists("STUDENT_REFUND", "APPLY_REMARK")) {
+                jdbcTemplate.execute("ALTER TABLE `STUDENT_REFUND` ADD COLUMN `APPLY_REMARK` varchar(500) NULL DEFAULT NULL COMMENT '申请原因' AFTER `GIFT_LESSONS`");
+                log.info(">>> 结构升级：STUDENT_REFUND.APPLY_REMARK 已添加");
+            }
+            // 旧数据把申请原因临时存在 OPINION；迁移到独立字段，避免审批时被覆盖
+            jdbcTemplate.update("UPDATE `STUDENT_REFUND` SET `APPLY_REMARK` = `OPINION` "
+                    + "WHERE `STATUS` = 'PENDING' AND `APPLY_REMARK` IS NULL AND `OPINION` IS NOT NULL");
+            jdbcTemplate.update("UPDATE `STUDENT_REFUND` SET `OPINION` = NULL "
+                    + "WHERE `STATUS` = 'PENDING' AND `APPLY_REMARK` IS NOT NULL");
             if (!columnExists("STUDENT_REFUND", "REFUND_TIME")) {
                 jdbcTemplate.execute("ALTER TABLE `STUDENT_REFUND` ADD COLUMN `REFUND_TIME` datetime NULL DEFAULT NULL COMMENT '退款完成时间' AFTER `APPROVE_TIME`");
                 log.info(">>> 报表结构升级：STUDENT_REFUND.REFUND_TIME 已添加");
@@ -803,6 +812,44 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
                     """);
             if (teacherMenuAdded > 0) {
                 log.info(">>> 课务结构升级：老师管理菜单已授权 {} 个租户超管", teacherMenuAdded);
+            }
+            // 退费试算按钮：复用已有退费申请权限的角色
+            jdbcTemplate.update("DELETE FROM `SYS_RESOURCE` WHERE `ID` = 'btn_refund_preview_0' AND `CODE` = '/student/refund/preview'");
+            jdbcTemplate.update("""
+                    INSERT IGNORE INTO `SYS_RESOURCE`
+                        (`ID`, `PARENT_ID`, `TITLE`, `CODE`, `CATEGORY`, `MENU_TYPE`, `VISIBLE`,
+                         `DISPLAY_LAYOUT`, `KEEP_LIVE`, `SORT_CODE`, `EXT_JSON`, `DELETE_FLAG`, `CREATE_TIME`, `CREATE_USER`)
+                    VALUES ('btn_refund_preview', 'menu_order_001', '退费试算', '/student/refund/preview',
+                            'BUTTON', 'BUTTON', 'YES', 'YES', 'YES', 0, '{\"action\":true}', 'NOT_DELETE', NOW(), '1')
+                    """);
+            int refundPreviewGranted = jdbcTemplate.update("""
+                    UPDATE `SYS_RELATION`
+                    SET `EXT_JSON` = JSON_ARRAY_APPEND(`EXT_JSON`, '$.buttonInfo', 'btn_refund_preview')
+                    WHERE `CATEGORY` = 'SYS_ROLE_HAS_RESOURCE'
+                      AND `TARGET_ID` = 'menu_order_001'
+                      AND JSON_CONTAINS(JSON_EXTRACT(`EXT_JSON`, '$.buttonInfo'), JSON_QUOTE('bac885ccf9ef936965a'))
+                      AND NOT JSON_CONTAINS(JSON_EXTRACT(`EXT_JSON`, '$.buttonInfo'), JSON_QUOTE('btn_refund_preview'))
+                    """);
+            if (refundPreviewGranted > 0) {
+                log.info(">>> 结构升级：退费试算权限已授权 {} 个角色", refundPreviewGranted);
+            }
+            int refundPreviewPermissionAdded = jdbcTemplate.update("""
+                    INSERT IGNORE INTO `SYS_RELATION`
+                        (`ID`, `TENANT_ID`, `OBJECT_ID`, `TARGET_ID`, `CATEGORY`, `EXT_JSON`)
+                    SELECT CONCAT('rmpp_', LEFT(MD5(CONCAT(r.`OBJECT_ID`, r.`TENANT_ID`)), 15)),
+                           r.`TENANT_ID`, r.`OBJECT_ID`, '/student/refund/preview', 'SYS_ROLE_HAS_PERMISSION',
+                           JSON_SET(r.`EXT_JSON`, '$.apiUrl', '/student/refund/preview')
+                    FROM `SYS_RELATION` r
+                    WHERE r.`CATEGORY` = 'SYS_ROLE_HAS_PERMISSION'
+                      AND r.`TARGET_ID` = '/student/refund/apply'
+                      AND NOT EXISTS (
+                          SELECT 1 FROM `SYS_RELATION` s
+                          WHERE s.`OBJECT_ID` = r.`OBJECT_ID` AND s.`TARGET_ID` = '/student/refund/preview'
+                            AND s.`CATEGORY` = 'SYS_ROLE_HAS_PERMISSION'
+                      )
+                    """);
+            if (refundPreviewPermissionAdded > 0) {
+                log.info(">>> 结构升级：退费试算接口权限已授权 {} 个角色", refundPreviewPermissionAdded);
             }
         } catch (Exception e) {
             log.error(">>> P0 结构升级失败，请手工执行 chameleon_p0_migration.sql", e);

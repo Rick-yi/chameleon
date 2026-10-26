@@ -199,9 +199,45 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
         refund.setRefundLessons(calc.refundLessons());
         refund.setGiftLessons(calc.giftLessons());
         refund.setRefundAmount(calc.refundLessons().multiply(unitPrice).setScale(2, RoundingMode.HALF_UP));
+        refund.setApplyRemark(studentRefundAddParam.getRemark());
         refund.setStatus(StudentRefundStatusEnum.PENDING.getValue());
-        refund.setOpinion(studentRefundAddParam.getRemark());
         this.save(refund);
+    }
+
+    @Override
+    public Map<String, Object> preview(String orderId) {
+        StudentOrder order = studentOrderService.queryEntity(orderId);
+        if (!StudentOrderStatusEnum.PAID.getValue().equals(order.getStatus())) {
+            throw new CommonException("仅已支付订单可申请退费");
+        }
+        if (ObjectUtil.isEmpty(order.getPackageLessons())
+                || order.getPackageLessons().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new CommonException("订单课时数异常，无法计算退费金额");
+        }
+        Student student = studentService.queryEntity(order.getStudentId());
+        StudentLessonAllocationService.RefundCalc calc = studentLessonAllocationService.calcRefund(order);
+        BigDecimal unitPrice = nvl(order.getPaidAmount()).divide(order.getPackageLessons(), 4, RoundingMode.HALF_UP);
+        BigDecimal refundAmount = calc.refundLessons().multiply(unitPrice).setScale(2, RoundingMode.HALF_UP);
+        boolean inflight = this.count(new LambdaQueryWrapper<StudentRefund>()
+                .eq(StudentRefund::getOrderId, order.getId())
+                .in(StudentRefund::getStatus, StudentRefundStatusEnum.PENDING.getValue(),
+                        StudentRefundStatusEnum.TO_REFUND.getValue())) > 0;
+        Map<String, Object> result = new HashMap<>();
+        result.put("orderId", order.getId());
+        result.put("studentId", order.getStudentId());
+        result.put("studentName", student.getName());
+        result.put("packageName", order.getPackageName());
+        result.put("packageLessons", nvl(order.getPackageLessons()));
+        result.put("packageGiftLessons", nvl(order.getPackageGiftLessons()));
+        result.put("consumedLessons", nvl(order.getConsumedLessons()));
+        result.put("paidAmount", nvl(order.getPaidAmount()));
+        result.put("unitPrice", unitPrice);
+        result.put("refundLessons", calc.refundLessons());
+        result.put("giftLessons", calc.giftLessons());
+        result.put("refundAmount", refundAmount);
+        result.put("refundable", calc.refundLessons().compareTo(BigDecimal.ZERO) > 0);
+        result.put("inflight", inflight);
+        return result;
     }
 
     @Transactional(rollbackFor = Exception.class)

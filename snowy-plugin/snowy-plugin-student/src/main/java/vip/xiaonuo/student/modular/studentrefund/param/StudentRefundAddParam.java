@@ -33,6 +33,7 @@ public class StudentRefundAddParam {
     private String orderId;
 
     /** 备注/原因 */
-    @Schema(description = "备注/原因")
+    @Schema(description = "备注/原因", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank(message = "退费原因不能为空")
     private String remark;
 }

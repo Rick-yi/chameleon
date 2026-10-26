@@ -111,17 +111,24 @@
 						:row-key="(r) => r.id"
 						:loading="loading"
 						bordered
-						size="middle"
-						:pagination="{ current: refundPage.current, pageSize: refundPage.size, total: refundPage.total, onChange: onRefundPageChange }"
-					>
-						<template #bodyCell="{ column, record }">
-							<template v-if="column.dataIndex === 'status'">
-								<a-tag :color="refundStatusColor(record.status)">{{ refundStatusText(record.status) }}</a-tag>
-							</template>
-							<template v-if="column.dataIndex === 'refundAmount'">¥{{ record.refundAmount }}</template>
-							<template v-if="column.dataIndex === 'studentName'">
-								<a @click="goStudent(record)">{{ record.studentName || record.studentId }}</a>
-							</template>
+							size="middle"
+							:scroll="{ x: 1180 }"
+							:pagination="{ current: refundPage.current, pageSize: refundPage.size, total: refundPage.total, onChange: onRefundPageChange }"
+						>
+							<template #bodyCell="{ column, record }">
+								<template v-if="column.dataIndex === 'status'">
+									<a-tag :color="refundStatusColor(record.status)">{{ refundStatusText(record.status) }}</a-tag>
+								</template>
+								<template v-if="column.dataIndex === 'refundAmount'">¥{{ record.refundAmount }}</template>
+								<template v-if="column.dataIndex === 'applyRemark'">
+									<span :title="record.applyRemark">{{ record.applyRemark || '-' }}</span>
+								</template>
+								<template v-if="column.dataIndex === 'opinion'">
+									<span :title="record.opinion">{{ record.opinion || '-' }}</span>
+								</template>
+								<template v-if="column.dataIndex === 'studentName'">
+									<a @click="goStudent(record)">{{ record.studentName || record.studentId }}</a>
+								</template>
 							<template v-if="column.dataIndex === 'action'">
 								<a-space>
 									<a-button v-if="record.status === 'PENDING' && hasPerm('/student/refund/approve')" type="link" size="small" @click="onOpenApprove(record)">审批</a-button>
@@ -161,21 +168,46 @@
 	</a-modal>
 
 	<!-- 退费申请 -->
-	<a-modal v-model:open="refundOpen" title="退费申请" :width="480" :destroy-on-close="true" @ok="onSubmitRefund">
+	<a-modal
+		v-model:open="refundOpen"
+		title="退费申请"
+		:width="520"
+		:destroy-on-close="true"
+		:ok-button-props="{ disabled: refundPreview?.inflight || refundPreview?.refundable === false }"
+		@ok="onSubmitRefund"
+	>
 		<a-form ref="refundFormRef" :model="refundFormData" layout="vertical">
 			<a-alert type="warning" show-icon message="退费只退该订单已购买但未消耗的课时，赠课随订单作废" style="margin-bottom: 16px" />
 			<a-form-item label="订单">
 				<a-input :value="`${refundFormData.studentName || ''} · ${refundFormData.packageName || ''}`" disabled />
 			</a-form-item>
-			<a-form-item label="退费原因" name="remark">
+			<a-spin :spinning="refundPreviewLoading">
+				<div v-if="refundPreview" class="refund-preview">
+					<div class="refund-preview-row"><span>课包课时</span><b>{{ lessons(refundPreview.packageLessons) }} 正课 + {{ lessons(refundPreview.packageGiftLessons) }} 赠课</b></div>
+					<div class="refund-preview-row"><span>已消耗</span><b>{{ lessons(refundPreview.consumedLessons) }} 课时</b></div>
+					<div class="refund-preview-row"><span>可退正课</span><b>{{ lessons(refundPreview.refundLessons) }} 课时</b></div>
+					<div class="refund-preview-row"><span>赠课作废</span><b>{{ lessons(refundPreview.giftLessons) }} 课时</b></div>
+					<div class="refund-preview-row"><span>实付 / 折算单价</span><b>¥{{ money(refundPreview.paidAmount) }} / ¥{{ money(refundPreview.unitPrice) }}</b></div>
+					<div class="refund-preview-row refund-preview-total"><span>预计退款</span><b>¥{{ money(refundPreview.refundAmount) }}</b></div>
+					<a-alert v-if="refundPreview.inflight" type="error" show-icon message="该订单已有在途退费单，不能重复申请" style="margin-top: 8px" />
+					<a-alert v-else-if="refundPreview.refundable === false" type="error" show-icon message="该订单课时已消耗完毕，无可退课时" style="margin-top: 8px" />
+				</div>
+			</a-spin>
+			<a-form-item label="退费原因" name="remark" :rules="[{ required: true, message: '请输入退费原因' }]" style="margin-top: 12px">
 				<a-input v-model:value="refundFormData.remark" placeholder="请输入退费原因" allow-clear />
 			</a-form-item>
 		</a-form>
 	</a-modal>
 
 	<!-- 退费审批 -->
-	<a-modal v-model:open="approveOpen" title="退费审批" :width="480" :destroy-on-close="true" :footer="null">
+	<a-modal v-model:open="approveOpen" title="退费审批" :width="520" :destroy-on-close="true" :footer="null">
 		<a-form ref="approveFormRef" :model="approveFormData" layout="vertical">
+			<div class="refund-approve-summary">
+				<div><span>学员</span><b>{{ approveFormData.studentName || '-' }}</b></div>
+				<div><span>可退</span><b>{{ lessons(approveFormData.refundLessons) }} 课时</b></div>
+				<div><span>预计退款</span><b>¥{{ money(approveFormData.refundAmount) }}</b></div>
+			</div>
+			<a-alert v-if="approveFormData.applyRemark" type="info" show-icon :message="`申请原因：${approveFormData.applyRemark}`" style="margin-bottom: 12px" />
 			<a-form-item label="审批意见" name="opinion">
 				<a-input v-model:value="approveFormData.opinion" placeholder="请输入审批意见" allow-clear />
 			</a-form-item>
@@ -251,8 +283,9 @@
 		{ title: '学员', dataIndex: 'studentName' },
 		{ title: '退费课时', dataIndex: 'refundLessons', width: 100 },
 		{ title: '退费金额', dataIndex: 'refundAmount', width: 110 },
+		{ title: '申请原因', dataIndex: 'applyRemark', width: 180, ellipsis: true },
 		{ title: '状态', dataIndex: 'status', width: 100 },
-		{ title: '审批意见', dataIndex: 'opinion' },
+		{ title: '审批意见', dataIndex: 'opinion', width: 180, ellipsis: true },
 		{ title: '创建时间', dataIndex: 'createTime', width: 170 },
 		{ title: '操作', dataIndex: 'action', align: 'center', width: 200 }
 	]
@@ -428,15 +461,30 @@
 	const refundOpen = ref(false)
 	const refundFormRef = ref()
 	const refundFormData = ref({})
+	const refundPreview = ref(null)
+	const refundPreviewLoading = ref(false)
+	const money = (value) => (Number(value) || 0).toFixed(2)
+	const lessons = (value) => {
+		const number = Number(value || 0)
+		return Number.isInteger(number) ? String(number) : number.toFixed(2)
+	}
 	const onOpenRefund = (record) => {
 		refundFormData.value = { orderId: record.id, studentName: record.studentName, packageName: record.packageName, remark: '' }
+		refundPreview.value = null
+		refundPreviewLoading.value = true
 		refundOpen.value = true
+		studentApi
+			.refundPreview({ orderId: record.id })
+			.then((data) => (refundPreview.value = data))
+			.catch(() => {})
+			.finally(() => (refundPreviewLoading.value = false))
 	}
 	const onSubmitRefund = () => {
 		refundFormRef.value.validate().then(() => {
 			studentApi.refundApply({ orderId: refundFormData.value.orderId, remark: refundFormData.value.remark }).then(() => {
 				refundOpen.value = false
 				loadRefund()
+				loadStatusCount()
 			})
 		})
 	}
@@ -444,14 +492,27 @@
 	const approveFormRef = ref()
 	const approveFormData = ref({})
 	const onOpenApprove = (record) => {
-		approveFormData.value = { refundId: record.id, opinion: '' }
+		approveFormData.value = {
+			refundId: record.id,
+			opinion: '',
+			studentName: record.studentName,
+			refundLessons: record.refundLessons,
+			refundAmount: record.refundAmount,
+			applyRemark: record.applyRemark
+		}
 		approveOpen.value = true
 	}
 	const onApprove = (pass) => {
-		studentApi.refundApprove({ ...approveFormData.value, pass }).then(() => {
-			approveOpen.value = false
-			loadRefund()
-		})
+		studentApi
+			.refundApprove({
+				refundId: approveFormData.value.refundId,
+				pass,
+				opinion: approveFormData.value.opinion
+			})
+			.then(() => {
+				approveOpen.value = false
+				loadRefund()
+			})
 	}
 	const onConfirmRefund = (record) => {
 		studentApi.refundConfirm({ id: record.id }).then(() => loadRefund())
@@ -508,6 +569,59 @@
 		&.active {
 			border-color: #4bb964;
 			box-shadow: 0 0 0 1px #4bb964;
+		}
+	}
+	.refund-preview {
+		padding: 10px 12px;
+		border: 1px solid var(--border-color-split);
+		border-radius: var(--radius-control);
+		background: var(--background-color-light);
+	}
+	.refund-preview-row {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 4px 0;
+		font-size: 13px;
+		span {
+			color: var(--text-color-secondary);
+		}
+		b {
+			text-align: right;
+			font-weight: 500;
+			color: var(--text-color);
+		}
+	}
+	.refund-preview-total {
+		margin-top: 4px;
+		padding-top: 8px;
+		border-top: 1px dashed var(--border-color-base);
+		b {
+			font-size: 17px;
+			color: var(--accent-text);
+		}
+	}
+	.refund-approve-summary {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 8px;
+		margin-bottom: 12px;
+		padding: 10px 12px;
+		border-radius: var(--radius-control);
+		background: var(--background-color-light);
+		div {
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+		}
+		span {
+			font-size: 11px;
+			color: var(--text-color-secondary);
+		}
+		b {
+			font-size: 14px;
+			color: var(--text-color);
 		}
 	}
 	.order-no {

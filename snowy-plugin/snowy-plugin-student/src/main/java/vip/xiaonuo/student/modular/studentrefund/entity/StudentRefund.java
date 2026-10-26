@@ -70,6 +70,10 @@ public class StudentRefund extends CommonEntity {
     @Schema(description = "随订单作废的赠课课时")
     private BigDecimal giftLessons;
 
+    /** 申请原因 */
+    @Schema(description = "申请原因")
+    private String applyRemark;
+
     /** 状态 */
     @Schema(description = "状态(待审批/待退款/已退款/已驳回/已撤销)")
     private String status;
