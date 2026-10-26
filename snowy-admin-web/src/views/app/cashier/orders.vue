@@ -14,10 +14,23 @@
 			</div>
 		</div>
 
+		<!-- 前台高频：按学员/手机/订单号直接搜，不用在 50 条里翻 -->
+		<div class="m-search">
+			<a-input-search
+				v-model:value="keyword"
+				placeholder="姓名 / 家长手机 / 订单号"
+				allow-clear
+				enter-button="搜索"
+				@search="onSearch"
+			/>
+		</div>
+
 		<!-- 订单列表 -->
 		<template v-if="tab === 'UNPAID' || tab === 'PAID'">
 			<div v-if="loading" class="m-empty">加载中…</div>
-			<div v-else-if="!orderList.length" class="m-empty">没有{{ tab === 'UNPAID' ? '待收款' : '已收款' }}订单</div>
+			<div v-else-if="!orderList.length" class="m-empty">
+				{{ keyword ? '没有匹配的订单' : `没有${tab === 'UNPAID' ? '待收款' : '已收款'}订单` }}
+			</div>
 			<div v-for="item in orderList" :key="item.id" class="m-card m-order" @click="openDetail(item)">
 				<div class="m-order-head">
 					<div class="m-order-name">{{ item.studentName || '学员' }}</div>
@@ -45,7 +58,7 @@
 		<!-- 退费单 -->
 		<template v-else>
 			<div v-if="loading" class="m-empty">加载中…</div>
-			<div v-else-if="!refundList.length" class="m-empty">没有退费单</div>
+			<div v-else-if="!refundList.length" class="m-empty">{{ keyword ? '没有匹配的退费单' : '没有退费单' }}</div>
 			<div v-for="item in refundList" :key="item.id" class="m-card m-order">
 				<div class="m-order-head">
 					<div class="m-order-name">{{ item.studentName || '学员' }}</div>
@@ -97,6 +110,7 @@
 	const route = useRoute()
 	const loading = ref(false)
 	const tab = ref(route.query.status || 'UNPAID')
+	const keyword = ref('')
 	const orderList = ref([])
 	const refundList = ref([])
 	const detailOpen = ref(false)
@@ -126,21 +140,33 @@
 		loading.value = true
 		try {
 			if (tab.value === 'REFUND') {
-				const res = await studentApi.refundPage({ current: 1, size: 50 }).catch(() => ({}))
+				const res = await studentApi
+					.refundPage({ current: 1, size: 50, searchKey: keyword.value.trim() || undefined })
+					.catch(() => ({}))
 				refundList.value = res?.records || []
-				tabs.value[2].count = res?.total || 0
+				if (!keyword.value.trim()) tabs.value[2].count = res?.total || 0
 			} else {
 				const res = await studentApi
-					.orderPage({ current: 1, size: 50, status: tab.value })
+					.orderPage({
+						current: 1,
+						size: 50,
+						status: tab.value,
+						searchKey: keyword.value.trim() || undefined
+					})
 					.catch(() => ({}))
 				orderList.value = res?.records || []
-				if (tab.value === 'UNPAID') tabs.value[0].count = res?.total || 0
-				else tabs.value[1].count = res?.total || 0
+				// 搜索时保留顶部全局状态数量，避免把“搜索结果数”误当成全部待办数
+				if (!keyword.value.trim()) {
+					if (tab.value === 'UNPAID') tabs.value[0].count = res?.total || 0
+					else tabs.value[1].count = res?.total || 0
+				}
 			}
 		} finally {
 			loading.value = false
 		}
 	}
+
+	const onSearch = () => load()
 
 	const onTab = (value) => {
 		tab.value = value
@@ -234,6 +260,15 @@
 </script>
 
 <style lang="less" scoped>
+	.m-search {
+		margin-bottom: 12px;
+		:deep(.ant-input) {
+			font-size: 16px;
+		}
+		:deep(.ant-btn) {
+			height: 40px;
+		}
+	}
 	.m-filter {
 		display: flex;
 		gap: 8px;
