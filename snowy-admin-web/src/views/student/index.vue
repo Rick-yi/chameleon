@@ -166,8 +166,8 @@
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
-					<a-form-item label="家长手机" name="parentPhone" :rules="[{ required: true, message: '请输入家长手机' }]">
-						<a-input v-model:value="formData.parentPhone" placeholder="用于家长端绑定与通知" allow-clear />
+					<a-form-item label="家长手机" name="parentPhone">
+						<a-input v-model:value="formData.parentPhone" placeholder="选填，用于家长端绑定与通知" allow-clear />
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">

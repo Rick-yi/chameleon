@@ -51,9 +51,8 @@ public class StudentEditParam {
     @Schema(description = "家长姓名")
     private String parentName;
 
-    /** 家长手机 */
-    @Schema(description = "家长手机", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotBlank(message = "家长手机不能为空")
+    /** 家长手机（选填） */
+    @Schema(description = "家长手机")
     private String parentPhone;
 
     /** 校区id */

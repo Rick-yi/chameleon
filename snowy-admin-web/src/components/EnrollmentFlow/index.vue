@@ -72,13 +72,17 @@
 						label="家长手机"
 						name="parentPhone"
 						:rules="[
-							{ required: true, message: '请输入家长手机' },
-							{ pattern: /^1\d{10}$/, message: '请输入 11 位手机号' }
+							{
+								validator: (_rule, value, callback) => {
+									if (!value || /^1\d{10}$/.test(value)) callback()
+									else callback('请输入 11 位手机号')
+								}
+							}
 						]"
 					>
 						<a-input
 							v-model:value="form.parentPhone"
-							placeholder="用于联系与后续续费"
+							placeholder="选填，用于联系与后续续费"
 							allow-clear
 							@blur="checkParentPhone"
 						/>
