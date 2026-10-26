@@ -47,12 +47,12 @@
 						:loading="loading"
 						bordered
 						size="middle"
-						:scroll="{ x: 'max-content' }"
+						:scroll="{ x: 1800 }"
 						:pagination="{ current: orderPage.current, pageSize: orderPage.size, total: orderPage.total, onChange: onOrderPageChange }"
 					>
 						<template #bodyCell="{ column, record }">
 							<template v-if="column.dataIndex === 'id'">
-								<a-typography-text class="order-no" copyable>{{ record.id }}</a-typography-text>
+								<a class="order-no" title="查看订单详情" @click="openOrderDetail(record)">{{ record.id }}</a>
 							</template>
 							<template v-if="column.dataIndex === 'status'">
 								<a-tag :color="orderStatusColor(record.status)">{{ orderStatusText(record.status) }}</a-tag>
@@ -77,10 +77,10 @@
 							</template>
 							<template v-if="column.dataIndex === 'action'">
 								<a-space>
+									<a-button type="link" size="small" @click="openOrderDetail(record)">详情</a-button>
 									<a-button v-if="record.status === 'UNPAID' && hasPerm('/student/order/offlinePay')" type="link" size="small" @click="onOpenPay(record)">收款</a-button>
 									<a-button v-if="record.status === 'UNPAID' && hasPerm('/student/order/cancel')" type="link" size="small" @click="onCancelOrder(record)">取消</a-button>
 									<a-button v-if="record.status === 'PAID' && hasPerm('/student/refund/apply')" type="link" size="small" @click="onOpenRefund(record)">退费</a-button>
-									<a-button type="link" size="small" @click="goStudent(record)">学员</a-button>
 								</a-space>
 							</template>
 						</template>
@@ -183,16 +183,27 @@
 			</div>
 		</a-form>
 	</a-modal>
+
+	<order-detail-drawer
+		v-model:open="detailOpen"
+		:order-id="detailOrderId"
+		:can-pay="hasPerm('/student/order/offlinePay')"
+		@pay="onPayFromDetail"
+		@view-student="onViewStudent"
+	/>
 </template>
 
 <script setup name="studentOrder">
 	import { useRoute, useRouter } from 'vue-router'
 	import studentApi from '@/api/student/studentApi'
+	import OrderDetailDrawer from '@/components/OrderDetail/index.vue'
 	import { payChannelText } from '@/utils/payChannel'
 	const route = useRoute()
 	const router = useRouter()
 	const loading = ref(false)
 	const activeTab = ref('order')
+	const detailOpen = ref(false)
+	const detailOrderId = ref('')
 	const queryForm = ref({ searchKey: undefined, status: undefined, dateRange: undefined })
 	const refundQuery = ref({ searchKey: undefined, status: undefined })
 	const orderList = ref([])
@@ -232,7 +243,7 @@
 		{ title: '经办人', dataIndex: 'operatorName', width: 100 },
 		{ title: '备注', dataIndex: 'remark', width: 160, ellipsis: true },
 		{ title: '状态', dataIndex: 'status', width: 100 },
-		{ title: '操作', dataIndex: 'action', align: 'center', width: 220 }
+		{ title: '操作', dataIndex: 'action', align: 'center', width: 190, fixed: 'right' }
 	]
 	const refundColumns = [
 		{ title: '学员', dataIndex: 'studentName' },
@@ -367,6 +378,18 @@
 			router.push({ path: '/student', query: { id: record.studentId } })
 		}
 	}
+	const openOrderDetail = (record) => {
+		detailOrderId.value = record.id
+		detailOpen.value = true
+	}
+	const onPayFromDetail = (order) => {
+		detailOpen.value = false
+		if (order?.id) onOpenPay(order)
+	}
+	const onViewStudent = (studentId) => {
+		detailOpen.value = false
+		if (studentId) goStudent({ studentId })
+	}
 
 	// 收款
 	const payOpen = ref(false)
@@ -444,6 +467,11 @@
 		if (route.query.tab === 'refund') {
 			activeTab.value = 'refund'
 		}
+		// 从工作台/消息直接带订单号进入，省去搜索这一步
+		if (route.query.orderId) {
+			detailOrderId.value = String(route.query.orderId)
+			detailOpen.value = true
+		}
 	}
 	// 工作台待办直达：收款 / 退费审批
 	const applyWorkbenchAction = () => {
@@ -483,8 +511,12 @@
 	.order-no {
 		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 		font-size: 12px;
-		color: var(--text-color-secondary);
+		color: var(--primary-6);
 		white-space: nowrap;
+		cursor: pointer;
+		&:hover {
+			text-decoration: underline;
+		}
 	}
 	.order-discount {
 		color: var(--accent-text);

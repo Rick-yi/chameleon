@@ -18,7 +18,7 @@
 		<template v-if="tab === 'UNPAID' || tab === 'PAID'">
 			<div v-if="loading" class="m-empty">加载中…</div>
 			<div v-else-if="!orderList.length" class="m-empty">没有{{ tab === 'UNPAID' ? '待收款' : '已收款' }}订单</div>
-			<div v-for="item in orderList" :key="item.id" class="m-card m-order">
+			<div v-for="item in orderList" :key="item.id" class="m-card m-order" @click="openDetail(item)">
 				<div class="m-order-head">
 					<div class="m-order-name">{{ item.studentName || '学员' }}</div>
 					<div class="m-order-amount">¥{{ Number(item.amount || 0).toFixed(2) }}</div>
@@ -26,15 +26,18 @@
 				<div class="m-order-sub">{{ item.packageName || '课包' }}</div>
 				<div class="m-order-foot">
 					<span>{{ String(item.createTime || '').slice(5, 16) }}</span>
-					<a-button
-						v-if="item.status === 'UNPAID' && hasPerm('/student/order/offlinePay')"
-						type="primary"
-						size="small"
-						@click.stop="openPay(item)"
-					>
-						收款
-					</a-button>
-					<a-tag v-else color="green">已收款</a-tag>
+					<div class="m-order-actions">
+						<a-button
+							v-if="item.status === 'UNPAID' && hasPerm('/student/order/offlinePay')"
+							type="primary"
+							size="small"
+							@click.stop="openPay(item)"
+						>
+							收款
+						</a-button>
+						<a-tag v-else color="green">已收款</a-tag>
+						<a-icon class="m-order-arrow"><right-outlined /></a-icon>
+					</div>
 				</div>
 			</div>
 		</template>
@@ -74,6 +77,14 @@
 				</a-form-item>
 			</a-form>
 		</a-modal>
+		<!-- 订单详情：列表点卡片直接看，不必再跳页面 -->
+		<order-detail-drawer
+			v-model:open="detailOpen"
+			:order-id="detailOrderId"
+			:can-pay="hasPerm('/student/order/offlinePay')"
+			:show-student-link="false"
+			@pay="onPayFromDetail"
+		/>
 	</div>
 </template>
 
@@ -81,12 +92,15 @@
 	import { useRoute } from 'vue-router'
 	import { message, Modal } from 'ant-design-vue'
 	import studentApi from '@/api/student/studentApi'
+	import OrderDetailDrawer from '@/components/OrderDetail/index.vue'
 
 	const route = useRoute()
 	const loading = ref(false)
 	const tab = ref(route.query.status || 'UNPAID')
 	const orderList = ref([])
 	const refundList = ref([])
+	const detailOpen = ref(false)
+	const detailOrderId = ref('')
 	const tabs = ref([
 		{ value: 'UNPAID', text: '待收款' },
 		{ value: 'PAID', text: '已收款' },
@@ -139,6 +153,16 @@
 		payOpen.value = true
 	}
 
+	const openDetail = (item) => {
+		detailOrderId.value = item.id
+		detailOpen.value = true
+	}
+
+	const onPayFromDetail = (order) => {
+		detailOpen.value = false
+		if (order?.id) openPay(order)
+	}
+
 	const onPay = async () => {
 		await studentApi.orderOfflinePay({
 			orderId: payOrder.value.id,
@@ -187,8 +211,13 @@
 		const refundId = route.query.refundId
 		if (orderId) {
 			const item = orderList.value.find((row) => row.id === orderId)
-			if (item) openPay(item)
-			else message.warning('该订单不在当前列表中，请重新搜索')
+			if (item && item.status === 'UNPAID') openPay(item)
+			else if (item) openDetail(item)
+			else {
+				// 不在当前列表也允许按订单号直接看详情
+				detailOrderId.value = String(orderId)
+				detailOpen.value = true
+			}
 		}
 		if (refundId) {
 			const item = refundList.value.find((row) => row.id === refundId)
@@ -236,6 +265,13 @@
 		padding: 12px 14px;
 		margin-bottom: 10px;
 	}
+	.m-order {
+		cursor: pointer;
+		transition: border-color 0.15s;
+		&:active {
+			border-color: var(--primary-4);
+		}
+	}
 	.m-order-head {
 		display: flex;
 		align-items: center;
@@ -263,6 +299,15 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		font-size: 12px;
+		color: var(--text-color-tertiary);
+	}
+	.m-order-actions {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.m-order-arrow {
 		font-size: 12px;
 		color: var(--text-color-tertiary);
 	}

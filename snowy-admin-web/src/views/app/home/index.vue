@@ -146,6 +146,7 @@
 			{ key: 'schedule', text: '我的课表', icon: CalendarOutlined, color: '#eaf2fd', path: '/app/teach/schedule' },
 			{ key: 'attend', text: '点名消课', icon: AuditOutlined, color: '#f3edfd', path: '/app/teach/attend' },
 			{ key: 'students', text: '学员名册', icon: TeamOutlined, color: '#e8f7f0', path: '/app/teach/students' },
+			{ key: 'teacher', text: '老师管理', icon: TeamOutlined, color: '#f3edfd', path: '/app/teacher', admin: true },
 			{ key: 'leads', text: '招生线索', icon: PhoneOutlined, color: '#e8f4f8', path: '/app/enroll/leads' },
 			{ key: 'renew', text: '续费预警', icon: AuditOutlined, color: '#fdf3e6', path: '/app/student/renew' },
 			{ key: 'report', text: '经营报表', icon: BarChartOutlined, color: '#fdf3e6', path: '/app/report' }
@@ -337,8 +338,20 @@
 		}
 	}
 
+	/** 老师管理只对管理员开放，老师本人不展示 */
+	const isAdmin = () =>
+		hasPerm('/sys/user/edit') ||
+		(appStore.userInfo?.roleCodeList || []).includes('superAdmin') ||
+		appStore.userInfo?.account === 'superAdmin'
+
 	/** 过滤当前视角不可访问的快捷入口 */
-	const filterQuick = (list) => list.filter((item) => (!item.perm || hasPerm(item.perm)) && appStore.canVisit(item.path))
+	const filterQuick = (list) =>
+		list.filter(
+			(item) =>
+				(!item.perm || hasPerm(item.perm)) &&
+				(!item.admin || isAdmin()) &&
+				appStore.canVisit(item.path)
+		)
 
 	const go = (path) => {
 		// 越权页面不跳转（视角内不可见的入口直接忽略）

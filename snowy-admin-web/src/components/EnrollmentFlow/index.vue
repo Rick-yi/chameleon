@@ -122,9 +122,9 @@
 						<a-form-item label="报读班级" name="classId">
 							<a-select
 								v-model:value="form.classId"
-								:options="classOptions"
+								:options="visibleClassOptions"
 								:loading="classLoading"
-								placeholder="选填，报名后老师点名可见"
+								:placeholder="classPlaceholder"
 								show-search
 								option-filter-prop="label"
 								allow-clear
@@ -170,7 +170,7 @@
 				<a-avatar :size="42" style="background: var(--primary-6)">{{ form.name.slice(0, 1) }}</a-avatar>
 				<div>
 					<div class="qe-student-name">{{ form.name }}</div>
-					<div class="qe-student-sub">{{ form.parentPhone }}</div>
+					<div class="qe-student-sub">{{ form.parentPhone || '未填手机号' }}</div>
 				</div>
 			</div>
 			<div class="qe-summary">
@@ -239,7 +239,7 @@
 						<div class="qe-detail-row"><span>合计课时</span><b>{{ totalLessons }}</b></div>
 						<div class="qe-detail-row"><span>有效期</span><b>{{ successOrder.packageValidityDays ? successOrder.packageValidityDays + ' 天' : '-' }}</b></div>
 						<div class="qe-detail-row"><span>应收</span><b>¥{{ fmt(successOrder.amount) }}</b></div>
-						<div class="qe-detail-row"><span>优惠</span><b class="qe-discount">-¥{{ fmt(orderDiscount) }}</b></div>
+						<div class="qe-detail-row"><span>优惠</span><b class="qe-discount">{{ orderDiscount > 0 ? '-¥' + fmt(orderDiscount) : '-' }}</b></div>
 						<div class="qe-detail-row"><span>实收</span><b class="qe-payable-text">¥{{ fmt(successOrder.paidAmount) }}</b></div>
 						<div class="qe-detail-row"><span>收款渠道</span><b>{{ channelText(successOrder.payChannel) }}</b></div>
 						<div class="qe-detail-row"><span>订单状态</span><b><a-tag :color="orderStatusColor">{{ orderStatusText }}</a-tag></b></div>
@@ -266,7 +266,7 @@
 		<template #footer>
 			<div v-if="step === 'form'" class="qe-footer">
 				<a-button :disabled="submitting" @click="onClose">取消</a-button>
-				<a-button v-if="canConfirmPay" type="primary" :disabled="submitting" @click="onNext">下一步</a-button>
+				<a-button v-if="canConfirmPay" type="primary" :disabled="submitting" @click="onNext">核对收款</a-button>
 				<a-button
 					v-else
 					type="primary"
@@ -291,7 +291,7 @@
 
 <script setup name="quickEnrollModal">
 	import { message } from 'ant-design-vue'
-	import { useRouter } from 'vue-router'
+	import { useRoute, useRouter } from 'vue-router'
 	import {
 		CheckCircleFilled,
 		WalletOutlined,
@@ -309,6 +309,7 @@
 		student: { type: Object, default: null }
 	})
 	const emit = defineEmits(['update:open', 'success'])
+	const route = useRoute()
 	const router = useRouter()
 	const store = globalStore()
 	const isExisting = computed(() => !!props.student?.id)
@@ -334,6 +335,14 @@
 		{ value: 'ALIPAY', label: '支付宝', icon: AlipayCircleOutlined },
 		{ value: 'OFFLINE', label: '银行转账', icon: BankOutlined }
 	]
+	const PAY_CHANNEL_KEY = 'enroll:lastPayChannel'
+	const defaultPayChannel = () => {
+		const saved = localStorage.getItem(PAY_CHANNEL_KEY)
+		return channelOptions.some((item) => item.value === saved) ? saved : 'WECHAT'
+	}
+	const rememberPayChannel = () => {
+		if (form.value.payChannel) localStorage.setItem(PAY_CHANNEL_KEY, form.value.payChannel)
+	}
 	const packagePrice = ref(0)
 	const nowText = ref('')
 	const lastStudentId = ref('')
@@ -365,6 +374,8 @@
 	})
 	const orderDiscount = computed(() => {
 		if (!successOrder.value) return 0
+		// 待支付订单还没收款，未收金额不能当成优惠
+		if (successOrder.value.status !== 'PAID' && successOrder.value.status !== 'REFUNDED') return 0
 		const diff = Number(successOrder.value.amount || 0) - Number(successOrder.value.paidAmount || 0)
 		return diff > 0 ? diff : 0
 	})
@@ -418,11 +429,12 @@
 		classId: undefined,
 		payNow: true,
 		paidAmount: null,
-		payChannel: 'WECHAT',
+		payChannel: defaultPayChannel(),
 		payRemark: ''
 	})
 	const form = ref(emptyForm())
 	let optionsLoaded = false
+	let draftEnabled = false
 
 	// 报名草稿：登录失效或误关页面后，重新打开可接着填
 	// 草稿按“租户 + 用户”隔离，避免换账号后看到其他人的未提交内容
@@ -430,8 +442,9 @@
 		`quickEnroll:draft:${store.userInfo?.tenantId || store.userInfo?.orgId || 'default'}:${store.userInfo?.id || 'anonymous'}`
 	const clearDraft = () => sessionStorage.removeItem(draftKey())
 	const saveDraft = () => {
-		if (isExisting.value || step.value !== 'form' || submitting.value) return
-		const meaningful = form.value.name || form.value.parentPhone || form.value.coursePackageId
+		if (!draftEnabled || isExisting.value || step.value !== 'form' || submitting.value) return
+		// 只保存用户真正填过的内容，自动带出的课包/校区不算草稿
+		const meaningful = form.value.name || form.value.parentPhone
 		if (!meaningful) {
 			sessionStorage.removeItem(draftKey())
 			return
@@ -458,6 +471,17 @@
 	const selectedPackage = computed(() => packageRaw.value.find((p) => p.id === form.value.coursePackageId) || null)
 	const classLabel = computed(() => classOptions.value.find((c) => c.value === form.value.classId)?.className || '')
 	const classTeacherName = computed(() => classOptions.value.find((c) => c.value === form.value.classId)?.teacherName || '')
+	// 校区改变后只展示本校区的班级；老数据没有校区时保留，避免班级直接消失
+	const visibleClassOptions = computed(() => {
+		const campusId = form.value.campusId
+		if (!campusId) return classOptions.value
+		return classOptions.value.filter((item) => !item.campusId || item.campusId === campusId)
+	})
+	const classPlaceholder = computed(() => {
+		if (classLoading.value) return '班级加载中…'
+		if (!visibleClassOptions.value.length) return '该校区暂无可选班级，可稍后分班'
+		return '选填，报名后老师点名可见'
+	})
 	const discount = computed(() => {
 		const price = Number(packagePrice.value) || 0
 		const paid = Number(form.value.paidAmount) || 0
@@ -477,24 +501,60 @@
 		}
 	}
 
+	/** 课包只有一个时直接带出，价格和班级一起准备 */
+	const applyDefaultPackage = () => {
+		if (form.value.coursePackageId || packageRaw.value.length !== 1) return
+		onPackageChange(packageRaw.value[0].id)
+	}
+
+	/** 当前校区只有一个班时直接选中，少一次下拉 */
+	const applyDefaultClass = () => {
+		// 校区还没选时不要跨校区猜班级，避免选错校区后又把班级清掉
+		if (!form.value.campusId) return
+		const options = visibleClassOptions.value
+		if (form.value.classId && !options.some((item) => item.value === form.value.classId)) {
+			form.value.classId = undefined
+		}
+		if (!form.value.classId && options.length === 1) {
+			form.value.classId = options[0].value
+		}
+	}
+
+	watch(() => form.value.campusId, () => applyDefaultClass())
+	watch(packageRaw, () => {
+		applyDefaultPackage()
+		applyDefaultClass()
+	})
+	watch(campusOptions, () => {
+		applyDefaultCampus()
+		applyDefaultClass()
+	})
+
 	const loadOptions = () => {
 		if (optionsLoaded) {
 			syncPackageFromForm()
 			applyDefaultCampus()
+			applyDefaultPackage()
+			applyDefaultClass()
 			return
 		}
 		optionsLoaded = true
-		courseApi.campusOptions().then((records) => {
-			campusOptions.value = (records || []).map((item) => ({
-				value: item.value ?? item.id,
-				label: item.label ?? item.name
-			}))
-			applyDefaultCampus()
-		})
+		courseApi
+			.campusOptions()
+			.then((records) => {
+				campusOptions.value = (records || []).map((item) => ({
+					value: item.value ?? item.id,
+					label: item.label ?? item.name
+				}))
+				applyDefaultCampus()
+				applyDefaultClass()
+			})
+			.catch(() => {})
+		// 任何一个下拉接口失败都不能拖住报名主流程，独立兜底
 		Promise.all([
-			courseApi.coursePage({ current: 1, size: 200 }),
-			courseApi.packagePage({ current: 1, size: 200 }),
-			courseApi.teacherOptions({})
+			courseApi.coursePage({ current: 1, size: 200 }).catch(() => ({ records: [] })),
+			courseApi.packagePage({ current: 1, size: 200 }).catch(() => ({ records: [] })),
+			courseApi.teacherOptions({}).catch(() => [])
 		]).then(([courseData, packageData, teacherData]) => {
 			const courseMap = {}
 			for (const item of courseData.records || []) courseMap[item.id] = item.name
@@ -505,18 +565,23 @@
 				label: `${courseMap[item.courseId] || '课程'} · ${item.name}（¥${item.price}）`
 			}))
 			syncPackageFromForm()
+			applyDefaultPackage()
 		})
 	}
 
 	// 草稿恢复或重复打开时，按已选课包补齐价格与班级
 	const syncPackageFromForm = () => {
 		const packageId = form.value.coursePackageId
-		if (!packageId) return
+		if (!packageId) {
+			applyDefaultPackage()
+			return
+		}
 		const item = packageRaw.value.find((p) => p.id === packageId)
 		if (!item) {
 			form.value.coursePackageId = undefined
 			form.value.paidAmount = null
 			packagePrice.value = 0
+			applyDefaultPackage()
 			return
 		}
 		packagePrice.value = Number(item.price)
@@ -524,9 +589,7 @@
 			form.value.paidAmount = Number(item.price)
 		}
 		loadClasses(item.courseId).then(() => {
-			if (form.value.classId && !classOptions.value.some((c) => c.value === form.value.classId)) {
-				form.value.classId = undefined
-			}
+			applyDefaultClass()
 		})
 	}
 
@@ -542,11 +605,13 @@
 					const teacherName = teacherMap.value[item.teacherId] || ''
 					return {
 						value: item.id,
+						campusId: item.campusId,
 						className,
 						teacherName,
 						label: `${className}${teacherName ? ' · ' + teacherName : ''}`
 					}
 				})
+				applyDefaultClass()
 			})
 			.finally(() => (classLoading.value = false))
 	}
@@ -555,6 +620,7 @@
 		() => props.open,
 		(open) => {
 			if (open) {
+				draftEnabled = true
 				step.value = 'form'
 				lastOrderId.value = ''
 				successStudent.value = null
@@ -603,6 +669,8 @@
 	}
 
 	const onPackageChange = (packageId) => {
+		// 代码自动带出课包时 v-model 还没更新，这里补上；手动选择时是幂等赋值
+		if (form.value.coursePackageId !== packageId) form.value.coursePackageId = packageId
 		const item = packageRaw.value.find((p) => p.id === packageId)
 		packagePrice.value = item ? Number(item.price) : 0
 		form.value.paidAmount = item ? Number(item.price) : null
@@ -636,6 +704,7 @@
 			message.warning('请选择课包')
 			return
 		}
+		rememberPayChannel()
 		submitting.value = true
 		if (isExisting.value) {
 			submitExisting()
@@ -730,8 +799,11 @@
 	}
 
 	const onEnrollAgain = () => {
+		draftEnabled = true
+		const campusId = form.value.campusId
+		const payChannel = form.value.payChannel
 		step.value = 'form'
-		form.value = emptyForm()
+		form.value = { ...emptyForm(), campusId, payChannel }
 		packagePrice.value = 0
 		classOptions.value = []
 		samePhoneStudents.value = []
@@ -740,11 +812,20 @@
 		successStudent.value = null
 		successOrder.value = null
 		clearDraft()
+		applyDefaultCampus()
+		applyDefaultPackage()
+	}
+
+	const goStudent = (studentId) => {
+		router.push({
+			path: route.path.startsWith('/app') ? '/app/teach/students' : '/student',
+			query: { id: studentId }
+		})
 	}
 
 	const onViewStudent = () => {
 		onClose()
-		router.push({ path: '/student', query: { id: lastStudentId.value } })
+		goStudent(lastStudentId.value)
 	}
 
 	// 已有学员先去看详情，草稿保留，回来后还能继续录入
@@ -752,10 +833,11 @@
 		const target = samePhoneStudents.value[0]
 		if (!target) return
 		emit('update:open', false)
-		router.push({ path: '/student', query: { id: target.id } })
+		goStudent(target.id)
 	}
 
 	const onClose = () => {
+		draftEnabled = false
 		clearDraft()
 		emit('update:open', false)
 	}

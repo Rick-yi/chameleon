@@ -67,8 +67,8 @@ export const useAppStore = defineStore('useAppStore', () => {
 
 	/** 各视角允许访问的页面前缀 */
 	const VIEW_PATH_PREFIX = {
-		teach: ['/app/home', '/app/teach', '/app/student', '/app/mine'],
-		enroll: ['/app/home', '/app/enroll', '/app/teach/students', '/app/cashier/orders', '/app/mine'],
+		teach: ['/app/home', '/app/teach', '/app/student', '/app/teacher', '/app/mine'],
+		enroll: ['/app/home', '/app/enroll', '/app/teach/students', '/app/cashier/orders', '/app/teacher', '/app/mine'],
 		cashier: ['/app/home', '/app/cashier', '/app/student', '/app/report', '/app/mine'],
 		all: ['/app']
 	}
