@@ -462,9 +462,17 @@
 	const canConfirmPay = computed(() => !!form.value.coursePackageId && form.value.payNow)
 	const samePhoneNames = computed(() => samePhoneStudents.value.map((item) => item.name).join('、'))
 
+	/** 只有一个校区时自动选中，避免每次报名都手点 */
+	const applyDefaultCampus = () => {
+		if (!form.value.campusId && campusOptions.value.length === 1) {
+			form.value.campusId = campusOptions.value[0].value
+		}
+	}
+
 	const loadOptions = () => {
 		if (optionsLoaded) {
 			syncPackageFromForm()
+			applyDefaultCampus()
 			return
 		}
 		optionsLoaded = true
@@ -473,9 +481,7 @@
 				value: item.value ?? item.id,
 				label: item.label ?? item.name
 			}))
-			if (!form.value.campusId && campusOptions.value.length === 1) {
-				form.value.campusId = campusOptions.value[0].value
-			}
+			applyDefaultCampus()
 		})
 		Promise.all([
 			courseApi.coursePage({ current: 1, size: 200 }),
@@ -558,6 +564,7 @@
 				}
 				packagePrice.value = 0
 				loadOptions()
+				applyDefaultCampus()
 				if (!isExisting.value && form.value.parentPhone) {
 					checkParentPhone()
 				}

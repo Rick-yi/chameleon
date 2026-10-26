@@ -262,6 +262,7 @@
 			.campusOptions()
 			.then((data) => {
 				campusOptions.value = data || []
+				applyDefaultCampus()
 			})
 			.catch(() => (campusOptions.value = []))
 		courseApi
@@ -280,14 +281,22 @@
 			return []
 		}
 	}
+	/** 只有一个校区时默认选中 */
+	const applyDefaultCampus = () => {
+		if (!formData.value.campusId && campusOptions.value.length === 1) {
+			formData.value.campusId = campusOptions.value[0].value
+		}
+	}
 	const onOpenAdd = () => {
 		formData.value = { status: 'ENABLE', capacity: 15 }
 		weekTemplate.value = []
+		applyDefaultCampus()
 		open.value = true
 	}
 	const onOpenEdit = (record) => {
 		formData.value = { ...record }
 		weekTemplate.value = parseTemplate(record.weekTemplateJson)
+		applyDefaultCampus()
 		open.value = true
 	}
 	const onSubmit = () => {

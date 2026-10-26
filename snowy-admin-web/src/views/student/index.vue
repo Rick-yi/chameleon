@@ -330,6 +330,9 @@
 	}
 	const onOpenEdit = (record) => {
 		formData.value = { ...record }
+		if (!formData.value.campusId && campusOptions.value.length === 1) {
+			formData.value.campusId = campusOptions.value[0].value
+		}
 		open.value = true
 	}
 	const onSubmit = () => {
