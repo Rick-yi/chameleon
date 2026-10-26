@@ -321,12 +321,9 @@
 		enrollOpen.value = true
 	}
 	const onOpenAdd = () => {
-		formData.value = {
-			status: 'STUDYING',
-			gender: '男',
-			campusId: campusOptions.value.length === 1 ? campusOptions.value[0].value : undefined
-		}
-		open.value = true
+		// 新增学员直接走三步报名：建档 + 课包/班级 + 收款，避免建档后再补报名
+		enrollStudent.value = null
+		enrollOpen.value = true
 	}
 	const onOpenEdit = (record) => {
 		formData.value = { ...record }
