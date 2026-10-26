@@ -99,7 +99,7 @@ public class CoursePackageServiceImpl extends ServiceImpl<CoursePackageMapper, C
     }
 
     /**
-     * 课包合规校验：总课时（含赠课）不超过 60，赠课/赠送时长不能为负
+     * 课包合规校验：正课课时不超过 60，赠课不限；赠课/赠送时长不能为负
      */
     private void validatePackage(CoursePackage coursePackage) {
         BigDecimal lessons = ObjectUtil.defaultIfNull(coursePackage.getLessons(), BigDecimal.ZERO);
@@ -110,8 +110,9 @@ public class CoursePackageServiceImpl extends ServiceImpl<CoursePackageMapper, C
         if (giftLessons.compareTo(BigDecimal.ZERO) < 0) {
             throw new CommonException("赠课课时不能为负数");
         }
-        if (lessons.add(giftLessons).compareTo(new BigDecimal("60")) > 0) {
-            throw new CommonException("课包总课时（含赠课）不能超过60课时");
+        // 应付检查只限制正课，赠课可以无限大（如正课60 + 赠送100）
+        if (lessons.compareTo(new BigDecimal("60")) > 0) {
+            throw new CommonException("正课课时不能超过60课时");
         }
         if (coursePackage.getValidityDays() != null && coursePackage.getValidityDays() < 0) {
             throw new CommonException("有效期不能为负数");

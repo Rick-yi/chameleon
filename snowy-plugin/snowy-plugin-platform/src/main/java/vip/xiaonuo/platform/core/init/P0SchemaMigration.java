@@ -501,10 +501,10 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
             Integer overLimitPackageCount = jdbcTemplate.queryForObject("""
                     SELECT COUNT(*) FROM `COURSE_PACKAGE`
                     WHERE `DELETE_FLAG` = 'NOT_DELETE'
-                      AND COALESCE(`LESSONS`, 0) + COALESCE(`GIFT_LESSONS`, 0) > 60
+                      AND COALESCE(`LESSONS`, 0) > 60
                     """, Integer.class);
             if (overLimitPackageCount != null && overLimitPackageCount > 0) {
-                log.warn(">>> 课务结构检查：有 {} 个存量课包总课时超过 60，编辑时会被要求整改", overLimitPackageCount);
+                log.warn(">>> 课务结构检查：有 {} 个存量课包正课课时超过 60，编辑时会被要求整改", overLimitPackageCount);
             }
             // 点名记录备注（未消课时记录原因）
             if (!columnExists("COURSE_CLASS_ATTEND", "REMARK")) {
