@@ -34,9 +34,15 @@
 			<div v-for="item in orderList" :key="item.id" class="m-card m-order" @click="openDetail(item)">
 				<div class="m-order-head">
 					<div class="m-order-name">{{ item.studentName || '学员' }}</div>
-					<div class="m-order-amount">¥{{ Number(item.amount || 0).toFixed(2) }}</div>
+					<div class="m-order-amount">
+						<span class="m-order-amount-label">{{ item.status === 'PAID' ? '实收' : '应收' }}</span>
+						¥{{ orderAmount(item).toFixed(2) }}
+					</div>
 				</div>
-				<div class="m-order-sub">{{ item.packageName || '课包' }}</div>
+				<div class="m-order-sub">
+					{{ item.packageName || '课包' }}
+					<template v-if="item.status === 'PAID' && item.payChannel"> · {{ payChannelText(item.payChannel) }}</template>
+				</div>
 				<div class="m-order-foot">
 					<span>{{ String(item.createTime || '').slice(5, 16) }}</span>
 					<div class="m-order-actions">
@@ -106,6 +112,7 @@
 	import { message, Modal } from 'ant-design-vue'
 	import studentApi from '@/api/student/studentApi'
 	import OrderDetailDrawer from '@/components/OrderDetail/index.vue'
+	import { payChannelText } from '@/utils/payChannel'
 
 	const route = useRoute()
 	const loading = ref(false)
@@ -135,6 +142,7 @@
 		({ PENDING: '待审批', TO_REFUND: '待退款', REFUNDED: '已退款', REJECTED: '已驳回', CANCELLED: '已撤销' }[s] || s)
 	const refundColor = (s) =>
 		({ PENDING: 'orange', TO_REFUND: 'blue', REFUNDED: 'green', REJECTED: 'red', CANCELLED: 'default' }[s] || 'default')
+	const orderAmount = (item) => Number((item.status === 'PAID' ? item.paidAmount : item.amount) || 0)
 
 	const load = async () => {
 		loading.value = true
@@ -319,10 +327,18 @@
 		color: var(--text-color);
 	}
 	.m-order-amount {
+		display: flex;
+		align-items: baseline;
+		gap: 4px;
 		font-size: 17px;
 		font-weight: 600;
 		color: var(--text-color);
 		font-variant-numeric: tabular-nums;
+	}
+	.m-order-amount-label {
+		font-size: 11px;
+		font-weight: 400;
+		color: var(--text-color-secondary);
 	}
 	.m-order-sub {
 		margin-top: 2px;
