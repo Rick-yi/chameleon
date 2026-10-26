@@ -19,24 +19,40 @@
 			</a-button>
 		</div>
 
-		<div v-for="item in list" :key="item.id" class="m-card m-student">
-			<a-avatar :size="40" style="background: var(--primary-1); color: var(--primary-6)">
-				{{ (item.name || '?').slice(0, 1) }}
-			</a-avatar>
-			<div class="m-student-main">
-				<div class="m-student-name">
-					{{ item.name }}
-					<a-tag :color="statusColor(item.status)" style="margin-left: 6px">{{ statusText(item.status) }}</a-tag>
+			<div v-for="item in list" :key="item.id" class="m-card m-student">
+				<div class="m-student-top">
+					<a-avatar :size="40" style="background: var(--primary-1); color: var(--primary-6)">
+						{{ (item.name || '?').slice(0, 1) }}
+					</a-avatar>
+					<div class="m-student-main">
+						<div class="m-student-name">
+							{{ item.name }}
+							<a-tag :color="statusColor(item.status)" style="margin-left: 6px">{{ statusText(item.status) }}</a-tag>
+						</div>
+						<div class="m-student-sub">
+							{{ genderText(item.gender) }} · 家长 {{ item.parentName || '-' }} {{ item.parentPhone || '' }}
+						</div>
+					</div>
+					<div class="m-student-actions">
+						<a-button v-if="hasPerm('/student/order/add')" size="small" @click.stop="openEnroll(item)">报名</a-button>
+						<a-icon class="m-student-arrow" @click.stop="openDetail(item)"><right-outlined /></a-icon>
+					</div>
 				</div>
-				<div class="m-student-sub">
-					{{ item.gender }} · 家长 {{ item.parentName || '-' }} {{ item.parentPhone || '' }}
+				<div class="m-student-extra">
+					<div>
+						<span>剩余</span>
+						<b :class="lessonTone(item)">{{ lessonText(item) }}</b>
+					</div>
+					<div>
+						<span>班级</span>
+						<b>{{ item.classNames || '未分班' }}</b>
+					</div>
+					<div>
+						<span>课包到期</span>
+						<b :class="{ 'm-text-danger': isExpired(item.accountExpireTime) }">{{ shortDate(item.accountExpireTime) }}</b>
+					</div>
 				</div>
 			</div>
-			<div class="m-student-actions">
-				<a-button v-if="hasPerm('/student/order/add')" size="small" @click.stop="openEnroll(item)">报名</a-button>
-				<a-icon class="m-student-arrow" @click.stop="openDetail(item)"><right-outlined /></a-icon>
-			</div>
-		</div>
 
 		<enrollment-flow v-model:open="enrollOpen" :student="enrollStudent" @success="onEnrollSuccess" />
 
@@ -44,7 +60,7 @@
 			<div v-if="currentStudent">
 				<div class="m-detail-name">{{ currentStudent.name }}</div>
 				<div class="m-detail-sub">
-					{{ currentStudent.gender }} · 家长 {{ currentStudent.parentName || '-' }} {{ currentStudent.parentPhone || '' }}
+					{{ genderText(currentStudent.gender) }} · 家长 {{ currentStudent.parentName || '-' }} {{ currentStudent.parentPhone || '' }}
 				</div>
 				<div class="m-detail-grid">
 					<div><span>剩余课时</span><b>{{ remainText }}</b></div>
@@ -85,11 +101,28 @@
 
 	const statusText = (status) => ({ STUDYING: '在读', STOP: '停课', REFUNDED: '已退费' }[status] || status)
 	const statusColor = (status) => (status === 'STUDYING' ? 'green' : status === 'STOP' ? 'orange' : 'red')
-	const detailDate = (value) => (value ? String(value).slice(0, 10) : '-')
+	const genderText = (gender) => ({ MALE: '男', FEMALE: '女' }[gender] || gender || '-')
+	const shortDate = (value) => (value ? String(value).slice(0, 10) : '-')
+	const detailDate = (value) => shortDate(value)
+	const lessonText = (item) => {
+		if (item.hasLessonAccount === false) return '未报名'
+		return `${Number(item.remainLessons || 0)} 课时`
+	}
+	const lessonTone = (item) => {
+		if (item.hasLessonAccount === false) return 'm-text-muted'
+		const remain = Number(item.remainLessons || 0)
+		if (remain <= 0) return 'm-text-danger'
+		if (remain < 3) return 'm-text-warning'
+		return ''
+	}
+	const isExpired = (value) => {
+		if (!value) return false
+		const date = new Date(String(value).replace(/-/g, '/'))
+		return !Number.isNaN(date.getTime()) && date < new Date()
+	}
 	const remainText = computed(() => {
 		if (!currentStudent.value) return '-'
-		if (currentStudent.value.hasLessonAccount === false) return '未报名'
-		return `${Number(currentStudent.value.remainLessons || 0)} 课时`
+		return lessonText(currentStudent.value)
 	})
 
 	const load = async () => {
@@ -175,6 +208,9 @@
 		margin-bottom: 10px;
 	}
 	.m-student {
+		display: block;
+	}
+	.m-student-top {
 		display: flex;
 		align-items: center;
 		gap: 12px;
@@ -197,6 +233,41 @@
 		margin-top: 2px;
 		font-size: 12px;
 		color: var(--text-color-secondary);
+	}
+	.m-student-extra {
+		display: grid;
+		grid-template-columns: 0.9fr 1.2fr 1fr;
+		gap: 8px;
+		margin-top: 10px;
+		padding-top: 10px;
+		border-top: 1px dashed var(--border-color-split);
+		div {
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+			min-width: 0;
+		}
+		span {
+			font-size: 11px;
+			color: var(--text-color-secondary);
+		}
+		b {
+			font-size: 13px;
+			font-weight: 600;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+	}
+	.m-text-muted {
+		color: var(--text-color-secondary);
+		font-weight: 400 !important;
+	}
+	.m-text-warning {
+		color: var(--warning-text);
+	}
+	.m-text-danger {
+		color: var(--danger-text);
 	}
 	.m-student-arrow {
 		color: var(--text-color-tertiary);
