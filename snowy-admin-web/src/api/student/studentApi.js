@@ -42,6 +42,9 @@ export default {
 	orderPage(data) {
 		return request('order/page', data, 'get')
 	},
+	orderDetail(data) {
+		return request('order/detail', data, 'get')
+	},
 	orderAdd(data) {
 		return request('order/add', data)
 	},

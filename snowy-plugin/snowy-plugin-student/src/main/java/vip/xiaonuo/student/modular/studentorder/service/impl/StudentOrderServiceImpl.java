@@ -333,7 +333,10 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
 
     @Override
     public StudentOrder detail(StudentOrderIdParam studentOrderIdParam) {
-        return this.queryEntity(studentOrderIdParam.getId());
+        StudentOrder order = this.queryEntity(studentOrderIdParam.getId());
+        // 详情页需要展示学员和经办人姓名，和列表保持同一套回填逻辑
+        fillStudentInfo(List.of(order));
+        return order;
     }
 
     @Override

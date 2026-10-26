@@ -366,7 +366,7 @@
 	const campusOptions = ref([])
 	const campusNameMap = computed(() => Object.fromEntries(campusOptions.value.map((item) => [item.value, item.label])))
 	courseApi.campusOptions().then((records) => {
-		campusOptions.value = (records || []).map((item) => ({ value: item.id, label: item.name }))
+		campusOptions.value = (records || []).map((item) => ({ value: item.value ?? item.id, label: item.label ?? item.name }))
 		if (open.value && !formData.value.campusId && campusOptions.value.length === 1) {
 			formData.value.campusId = campusOptions.value[0].value
 		}

@@ -198,14 +198,59 @@
 			</a-form-item>
 		</div>
 
-		<!-- 第三步：成功 -->
-		<div v-else class="qe-success">
-			<check-circle-filled class="qe-success-icon" />
-			<div class="qe-success-title">{{ form.name }} 报名成功</div>
-			<div class="qe-success-amount">实收 ¥{{ fmt(form.paidAmount) }}</div>
-			<div class="qe-success-sub">
-				{{ selectedPackage ? selectedPackage.name : '' }}{{ classLabel ? ' · ' + classLabel : '' }}
+		<!-- 第三步：报名结果/订单详情 -->
+		<div v-else class="qe-order-detail">
+			<div class="qe-success-head">
+				<check-circle-filled class="qe-success-icon" />
+				<div class="qe-success-main">
+					<div class="qe-success-title">{{ successOrder ? '报名成功' : '学员建档成功' }}</div>
+					<div class="qe-success-sub">{{ successSummary }}</div>
+				</div>
 			</div>
+
+			<a-spin :spinning="detailLoading">
+				<div class="qe-detail-section">学员信息</div>
+				<div class="qe-detail-grid">
+					<div class="qe-detail-row"><span>学员</span><b>{{ successStudent?.name || form.name }}</b></div>
+					<div class="qe-detail-row"><span>家长</span><b>{{ successStudent?.parentName || form.parentName || '-' }}</b></div>
+					<div class="qe-detail-row"><span>手机</span><b>{{ successStudent?.parentPhone || form.parentPhone || '-' }}</b></div>
+					<div class="qe-detail-row"><span>校区</span><b>{{ campusLabel || '-' }}</b></div>
+					<div class="qe-detail-row"><span>班级</span><b>{{ classLabel || successStudent?.classNames || '未分班' }}</b></div>
+					<div class="qe-detail-row"><span>剩余课时</span><b>{{ successRemainText }}</b></div>
+					<div class="qe-detail-row"><span>课包到期</span><b>{{ formatDate(successStudent?.accountExpireTime) }}</b></div>
+				</div>
+
+				<template v-if="successOrder">
+					<div class="qe-detail-section">订单信息</div>
+					<div class="qe-detail-grid">
+						<div class="qe-detail-row qe-detail-wide">
+							<span>订单号</span>
+							<b class="qe-order-no">{{ successOrder.id }}</b>
+						</div>
+						<div class="qe-detail-row"><span>课包</span><b>{{ successOrder.packageName || '-' }}</b></div>
+						<div class="qe-detail-row"><span>正课课时</span><b>{{ formatLessons(successOrder.packageLessons) }}</b></div>
+						<div class="qe-detail-row"><span>赠课课时</span><b>{{ formatLessons(successOrder.packageGiftLessons) }}</b></div>
+						<div class="qe-detail-row"><span>合计课时</span><b>{{ totalLessons }}</b></div>
+						<div class="qe-detail-row"><span>有效期</span><b>{{ successOrder.packageValidityDays ? successOrder.packageValidityDays + ' 天' : '-' }}</b></div>
+						<div class="qe-detail-row"><span>应收</span><b>¥{{ fmt(successOrder.amount) }}</b></div>
+						<div class="qe-detail-row"><span>优惠</span><b class="qe-discount">-¥{{ fmt(orderDiscount) }}</b></div>
+						<div class="qe-detail-row"><span>实收</span><b class="qe-payable-text">¥{{ fmt(successOrder.paidAmount) }}</b></div>
+						<div class="qe-detail-row"><span>收款渠道</span><b>{{ channelText(successOrder.payChannel) }}</b></div>
+						<div class="qe-detail-row"><span>订单状态</span><b><a-tag :color="orderStatusColor">{{ orderStatusText }}</a-tag></b></div>
+						<div class="qe-detail-row"><span>收款时间</span><b>{{ formatDate(successOrder.payTime) }}</b></div>
+						<div class="qe-detail-row"><span>经办人</span><b>{{ successOrder.operatorName || operatorName }}</b></div>
+						<div class="qe-detail-row qe-detail-wide"><span>备注</span><b>{{ successOrder.remark || form.payRemark || '-' }}</b></div>
+					</div>
+				</template>
+				<a-alert
+					v-else
+					type="info"
+					show-icon
+					message="本次只创建学员档案，未生成订单；之后可在学员详情里报名。"
+					style="margin-top: 4px"
+				/>
+			</a-spin>
+
 			<div class="qe-success-actions">
 				<a-button v-if="!isExisting" @click="onEnrollAgain">继续录入</a-button>
 				<a-button type="primary" @click="onViewStudent">查看学员</a-button>
@@ -231,7 +276,7 @@
 				<a-button type="primary" :loading="submitting" @click="submit">确认收款</a-button>
 			</div>
 			<div v-else class="qe-footer qe-footer-single">
-				<span class="qe-footer-hint">已生成订单与课时账户</span>
+				<span class="qe-footer-hint">{{ successFooterHint }}</span>
 				<a-button type="primary" @click="onClose">完成</a-button>
 			</div>
 		</template>
@@ -250,7 +295,6 @@
 	} from '@ant-design/icons-vue'
 	import studentApi from '@/api/student/studentApi'
 	import courseApi from '@/api/course/courseApi'
-	import orgApi from '@/api/sys/orgApi'
 	import { globalStore } from '@/store'
 
 	const props = defineProps({
@@ -263,7 +307,7 @@
 	const store = globalStore()
 	const isExisting = computed(() => !!props.student?.id)
 	const dialogTitle = computed(() => {
-		if (step.value === 'success') return '报名成功'
+		if (step.value === 'success') return successOrder.value ? '订单详情' : '学员详情'
 		return isExisting.value ? `报名购课 · ${props.student?.name || ''}` : '快速录入学员'
 	})
 
@@ -286,7 +330,74 @@
 	const packagePrice = ref(0)
 	const nowText = ref('')
 	const lastStudentId = ref('')
+	const lastOrderId = ref('')
+	const successStudent = ref(null)
+	const successOrder = ref(null)
+	const detailLoading = ref(false)
 	const operatorName = computed(() => store.userInfo?.name || store.userInfo?.account || '当前用户')
+
+	const channelText = (value) => channelOptions.find((item) => item.value === value)?.label || value || '-'
+	const formatLessons = (value) => {
+		const number = Number(value || 0)
+		return Number.isInteger(number) ? String(number) : number.toFixed(2)
+	}
+	const formatDate = (value) => (value ? String(value).slice(0, 19).replace('T', ' ') : '-')
+	const campusLabel = computed(() => {
+		const campusId = successStudent.value?.campusId || form.value.campusId
+		return campusOptions.value.find((item) => item.value === campusId)?.label || '-'
+	})
+	const successRemainText = computed(() => {
+		if (!successStudent.value) return '-'
+		if (successOrder.value?.status === 'UNPAID') return '待收款后入账'
+		if (successStudent.value.hasLessonAccount === false) return '未报名'
+		return `${formatLessons(successStudent.value.remainLessons)} 课时`
+	})
+	const totalLessons = computed(() => {
+		if (!successOrder.value) return '-'
+		return formatLessons(Number(successOrder.value.packageLessons || 0) + Number(successOrder.value.packageGiftLessons || 0))
+	})
+	const orderDiscount = computed(() => {
+		if (!successOrder.value) return 0
+		const diff = Number(successOrder.value.amount || 0) - Number(successOrder.value.paidAmount || 0)
+		return diff > 0 ? diff : 0
+	})
+	const orderStatusText = computed(() => {
+		const status = successOrder.value?.status
+		return ({ UNPAID: '待支付', PAID: '已支付', REFUNDED: '已退费', CANCELED: '已取消' })[status] || status || '-'
+	})
+	const orderStatusColor = computed(() => {
+		const status = successOrder.value?.status
+		return status === 'PAID' ? 'green' : status === 'UNPAID' ? 'orange' : status === 'REFUNDED' ? 'red' : 'default'
+	})
+	const successSummary = computed(() => {
+		if (!successOrder.value) return '学员档案已创建，可稍后报名'
+		return `${successOrder.value.packageName || '课包'} · 实收 ¥${fmt(successOrder.value.paidAmount)} · ${orderStatusText.value}`
+	})
+	const successFooterHint = computed(() => {
+		if (!successOrder.value) return '学员档案已创建'
+		return successOrder.value.status === 'UNPAID' ? '订单已生成，待收款' : '已生成订单与课时账户'
+	})
+
+	/** 报名成功后加载学员与订单详情，成功页直接作为订单详情页 */
+	const loadSuccessDetail = async (studentId, orderId) => {
+		detailLoading.value = true
+		try {
+			const [student, order] = await Promise.all([
+				studentApi.studentDetail({ id: studentId }).catch(() => null),
+				orderId ? studentApi.orderDetail({ id: orderId }).catch(() => null) : Promise.resolve(null)
+			])
+			successStudent.value = student
+			successOrder.value = order
+		} finally {
+			detailLoading.value = false
+		}
+	}
+	const showSuccess = (studentId, orderId) => {
+		lastStudentId.value = studentId
+		lastOrderId.value = orderId
+		step.value = 'success'
+		loadSuccessDetail(studentId, orderId)
+	}
 
 	const emptyForm = () => ({
 		name: '',
@@ -357,11 +468,13 @@
 			return
 		}
 		optionsLoaded = true
-		orgApi.orgPage({ current: 1, size: 100 }).then((data) => {
-			const records = data.records || []
-			campusOptions.value = records.map((item) => ({ value: item.id, label: item.name }))
-			if (!form.value.campusId && records.length === 1) {
-				form.value.campusId = records[0].id
+		courseApi.campusOptions().then((records) => {
+			campusOptions.value = (records || []).map((item) => ({
+				value: item.value ?? item.id,
+				label: item.label ?? item.name
+			}))
+			if (!form.value.campusId && campusOptions.value.length === 1) {
+				form.value.campusId = campusOptions.value[0].value
 			}
 		})
 		Promise.all([
@@ -421,6 +534,10 @@
 		(open) => {
 			if (open) {
 				step.value = 'form'
+				lastOrderId.value = ''
+				successStudent.value = null
+				successOrder.value = null
+				detailLoading.value = false
 				if (isExisting.value) {
 					// 已有学员：只补课包/班级/收款，不修改档案
 					form.value = {
@@ -535,12 +652,8 @@
 				clearDraft()
 				assignClass(studentId)
 				emit('success')
-				if (payload.coursePackageId && payload.payNow) {
-					step.value = 'success'
-				} else {
-					message.success(`已录入学员：${form.value.name}`)
-					onClose()
-				}
+				// 建档后统一进入详情页：有课包展示订单，没有课包展示学员信息
+				showSuccess(studentId, data?.orderId || null)
 			})
 			.catch(() => {})
 			.finally(() => {
@@ -549,6 +662,7 @@
 	}
 
 	const submitExisting = () => {
+		lastStudentId.value = props.student.id
 		studentApi
 			.orderAdd({
 				studentId: props.student.id,
@@ -560,11 +674,11 @@
 					message.error('下单失败，请重试')
 					return
 				}
+				lastOrderId.value = orderId
 				if (!form.value.payNow) {
 					assignClass(props.student.id)
 					emit('success')
-					message.success('已生成待收款订单')
-					onClose()
+					showSuccess(props.student.id, orderId)
 					return
 				}
 				return studentApi
@@ -577,13 +691,13 @@
 					.then(() => {
 						assignClass(props.student.id)
 						emit('success')
-						step.value = 'success'
+						showSuccess(props.student.id, orderId)
 					})
 					.catch(() => {
-						// 订单已生成，收款失败时引导去收款台，避免重复下单
+						// 订单已生成，收款失败时仍展示订单详情，并引导去收款台
 						message.warning('订单已生成，请到收款台完成收款')
 						emit('success')
-						onClose()
+						showSuccess(props.student.id, orderId)
 					})
 			})
 			.catch(() => {})
@@ -599,6 +713,9 @@
 		classOptions.value = []
 		samePhoneStudents.value = []
 		restoredFromDraft.value = false
+		lastOrderId.value = ''
+		successStudent.value = null
+		successOrder.value = null
 		clearDraft()
 	}
 
@@ -766,36 +883,107 @@
 		flex-wrap: wrap;
 	}
 
-	/* 成功 */
-	.qe-success {
-		text-align: center;
-		padding: 20px 0 8px;
+	/* 报名结果/订单详情 */
+	.qe-order-detail {
+		max-height: 66vh;
+		overflow-y: auto;
+		padding-right: 4px;
+	}
+	.qe-success-head {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin-bottom: 8px;
 	}
 	.qe-success-icon {
-		font-size: 64px;
+		font-size: 42px;
 		color: var(--primary-6);
+		flex: none;
+	}
+	.qe-success-main {
+		min-width: 0;
 	}
 	.qe-success-title {
-		margin-top: 12px;
 		font-size: 18px;
 		font-weight: 600;
-	}
-	.qe-success-amount {
-		margin-top: 8px;
-		font-size: 26px;
-		font-weight: 700;
-		color: var(--accent-text);
+		color: var(--text-color);
 	}
 	.qe-success-sub {
-		margin-top: 6px;
+		margin-top: 4px;
 		font-size: 13px;
 		color: var(--text-color-secondary);
+	}
+	.qe-detail-section {
+		margin: 14px 0 8px;
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--text-color);
+		padding-left: 8px;
+		border-left: 3px solid var(--primary-6);
+		line-height: 16px;
+	}
+	.qe-detail-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0 18px;
+		padding: 6px 12px;
+		background: var(--background-color-light);
+		border: 1px solid var(--border-color-split);
+		border-radius: var(--radius-control);
+	}
+	.qe-detail-row {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 7px 0;
+		border-bottom: 1px dashed var(--border-color-split);
+		font-size: 13px;
+		span {
+			flex: none;
+			color: var(--text-color-secondary);
+		}
+		b {
+			min-width: 0;
+			text-align: right;
+			font-weight: 500;
+			color: var(--text-color);
+			word-break: break-all;
+		}
+	}
+	.qe-detail-row:last-child,
+	.qe-detail-row:nth-last-child(2) {
+		border-bottom: none;
+	}
+	.qe-detail-wide {
+		grid-column: 1 / -1;
+	}
+	.qe-order-no {
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 12px;
+		color: var(--text-color-secondary) !important;
+	}
+	.qe-payable-text {
+		color: var(--accent-text) !important;
+		font-weight: 600 !important;
 	}
 	.qe-success-actions {
 		display: flex;
 		justify-content: center;
 		gap: 10px;
-		margin-top: 22px;
+		margin-top: 16px;
+	}
+	@media (max-width: 576px) {
+		.qe-detail-grid {
+			grid-template-columns: 1fr;
+		}
+		.qe-order-detail {
+			max-height: none;
+		}
+		.qe-success-actions {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+		}
 	}
 </style>
 
