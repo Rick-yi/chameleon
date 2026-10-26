@@ -44,7 +44,7 @@
 					<template v-if="item.status === 'PAID' && item.payChannel"> · {{ payChannelText(item.payChannel) }}</template>
 				</div>
 				<div class="m-order-foot">
-					<span>{{ String(item.createTime || '').slice(5, 16) }}</span>
+					<span>{{ shortTime(item.createTime) }}</span>
 					<div class="m-order-actions">
 						<a-button
 							v-if="item.status === 'UNPAID' && hasPerm('/student/order/offlinePay')"
@@ -70,7 +70,11 @@
 					<div class="m-order-name">{{ item.studentName || '学员' }}</div>
 					<div class="m-order-amount">¥{{ Number(item.refundAmount || 0).toFixed(2) }}</div>
 				</div>
-				<div class="m-order-sub">可退 {{ item.refundLessons || 0 }} 课时</div>
+				<div class="m-order-sub">
+					可退 {{ item.refundLessons || 0 }} 课时
+					<template v-if="item.createTime"> · 申请 {{ shortTime(item.createTime) }}</template>
+				</div>
+				<div v-if="item.opinion" class="m-order-opinion">审批意见：{{ item.opinion }}</div>
 				<div class="m-order-foot">
 					<a-tag :color="refundColor(item.status)">{{ refundText(item.status) }}</a-tag>
 					<a-space v-if="item.status === 'PENDING'">
@@ -143,6 +147,7 @@
 	const refundColor = (s) =>
 		({ PENDING: 'orange', TO_REFUND: 'blue', REFUNDED: 'green', REJECTED: 'red', CANCELLED: 'default' }[s] || 'default')
 	const orderAmount = (item) => Number((item.status === 'PAID' ? item.paidAmount : item.amount) || 0)
+	const shortTime = (value) => (value ? String(value).slice(5, 16) : '')
 
 	const load = async () => {
 		loading.value = true
@@ -343,6 +348,14 @@
 	.m-order-sub {
 		margin-top: 2px;
 		font-size: 13px;
+		color: var(--text-color-secondary);
+	}
+	.m-order-opinion {
+		margin-top: 8px;
+		padding: 6px 8px;
+		border-radius: var(--radius-control);
+		background: var(--background-color-light);
+		font-size: 12px;
 		color: var(--text-color-secondary);
 	}
 	.m-order-foot {
