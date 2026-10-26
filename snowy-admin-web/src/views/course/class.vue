@@ -47,7 +47,9 @@
 					{{ teacherName(record.teacherId) }}
 				</template>
 				<template v-if="column.dataIndex === 'studentCount'">
-					<a-tag :color="record.studentCount > 0 ? 'blue' : 'default'">{{ record.studentCount || 0 }}</a-tag>
+					<a-tooltip :title="capacityTitle(record)">
+						<a-tag :color="capacityColor(record)">{{ record.studentCount || 0 }} / {{ record.capacity || '-' }}</a-tag>
+					</a-tooltip>
 				</template>
 				<template v-if="column.dataIndex === 'weekTemplateJson'">
 					<span v-if="templateSummary(record)">{{ templateSummary(record) }}</span>
@@ -196,7 +198,7 @@
 		{ title: '课程', dataIndex: 'courseId' },
 		{ title: '授课教师', dataIndex: 'teacherId', width: 120 },
 		{ title: '教室', dataIndex: 'classroom', width: 110 },
-		{ title: '学员', dataIndex: 'studentCount', width: 90 },
+		{ title: '在学/容量', dataIndex: 'studentCount', width: 120 },
 		{ title: '固定课表', dataIndex: 'weekTemplateJson' },
 		{ title: '状态', dataIndex: 'status', width: 90 },
 		{ title: '操作', dataIndex: 'action', align: 'center', fixed: 'right' }
@@ -238,6 +240,21 @@
 	const teacherName = (id) => {
 		const item = teacherOptions.value.find((i) => i.value === id)
 		return item ? item.label : '未指定'
+	}
+	// 容量提示：满班红色、80% 以上橙色，避免前台继续加人
+	const capacityTitle = (record) => {
+		const capacity = Number(record.capacity || 0)
+		if (!capacity) return '未设置容量'
+		const remain = capacity - Number(record.studentCount || 0)
+		return remain > 0 ? `剩余 ${remain} 个名额` : '已满班'
+	}
+	const capacityColor = (record) => {
+		const capacity = Number(record.capacity || 0)
+		const count = Number(record.studentCount || 0)
+		if (!capacity) return 'default'
+		if (count >= capacity) return 'red'
+		if (count / capacity >= 0.8) return 'orange'
+		return 'blue'
 	}
 	// 固定课表摘要：周二 09:00-10:30 等
 	const templateSummary = (record) => {
