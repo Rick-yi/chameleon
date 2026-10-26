@@ -12,6 +12,8 @@
  */
 package vip.xiaonuo.sys.modular.audit.controller;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
+import cn.dev33.satoken.annotation.SaMode;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,6 +35,7 @@ import vip.xiaonuo.sys.modular.audit.service.SysAuthAuditService;
 @Tag(name = "权限变更审计")
 @RestController
 @Validated
+@SaCheckRole(value = {"superAdmin", "platformAdmin"}, mode = SaMode.OR)
 public class SysAuthAuditController {
 
     @Resource

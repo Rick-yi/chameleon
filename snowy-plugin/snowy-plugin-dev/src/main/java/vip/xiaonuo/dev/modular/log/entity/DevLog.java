@@ -18,6 +18,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 import java.util.Date;
 
@@ -29,6 +30,7 @@ import java.util.Date;
  */
 @Getter
 @Setter
+@ToString(exclude = "signData")
 @TableName("DEV_LOG")
 public class DevLog {
 
