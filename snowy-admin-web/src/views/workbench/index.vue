@@ -45,6 +45,36 @@
 			</a-col>
 		</a-row>
 
+		<!-- 今日教学指标 -->
+		<a-row :gutter="12" class="wb-kpi">
+			<a-col :xs="12" :sm="12" :md="6" :xl="6">
+				<div class="ent-stat kpi-link" @click="go({ path: '/course/schedule' })">
+					<div class="ent-stat-label">今日应到</div>
+					<div class="ent-stat-value">{{ teaching.expected }}<span class="wb-unit">人</span></div>
+				</div>
+			</a-col>
+			<a-col :xs="12" :sm="12" :md="6" :xl="6">
+				<div class="ent-stat kpi-link" @click="go({ path: '/course/attend' })">
+					<div class="ent-stat-label">已点名</div>
+					<div class="ent-stat-value">{{ teaching.attended }}<span class="wb-unit">人</span></div>
+				</div>
+			</a-col>
+			<a-col :xs="12" :sm="12" :md="6" :xl="6">
+				<div class="ent-stat kpi-link" @click="go({ path: '/course/attend' })">
+					<div class="ent-stat-label">未点名课节</div>
+					<div class="ent-stat-value" :style="{ color: teaching.pending > 0 ? '#d89614' : undefined }">
+						{{ teaching.pending }}<span class="wb-unit">节</span>
+					</div>
+				</div>
+			</a-col>
+			<a-col :xs="12" :sm="12" :md="6" :xl="6">
+				<div class="ent-stat kpi-link" @click="go({ path: '/course/attend' })">
+					<div class="ent-stat-label">点名进度</div>
+					<div class="ent-stat-value">{{ teaching.progress }}<span class="wb-unit">%</span></div>
+				</div>
+			</a-col>
+		</a-row>
+
 		<!-- 快捷入口 -->
 		<div class="ent-shortcut" style="margin-bottom: 12px">
 			<div v-for="item in visibleShortcuts" :key="item.key" class="ent-shortcut-item" @click="onShortcut(item)">
@@ -79,6 +109,10 @@
 								<div class="ent-list-extra">
 									<span class="ent-list-amount">¥{{ item.amount }}</span>
 									<span class="ent-list-time">{{ formatTime(item.createTime) }}</span>
+									<div class="ent-list-actions">
+										<a-tag v-if="overdueDays(item.createTime) > 0" color="red">逾期 {{ overdueDays(item.createTime) }} 天</a-tag>
+										<a-button v-if="hasPerm('/student/order/offlinePay')" type="link" size="small" @click.stop="openPay(item)">收款</a-button>
+									</div>
 								</div>
 							</li>
 						</ul>
@@ -97,11 +131,20 @@
 						<template #extra>
 							<a @click="go({ path: '/course/schedule' })">课表 ›</a>
 						</template>
-						<div v-if="!todaySchedule.length" class="ent-empty">今天没有排课</div>
+						<div v-if="!todaySchedule.length" class="ent-empty">
+							<div>今天没有排课</div>
+							<a-space style="margin-top: 8px">
+								<a-button size="small" type="primary" @click="go({ path: '/course/schedule' })">去排课</a-button>
+								<a-button size="small" @click="go({ path: '/course/schedule' })">查看本周课表</a-button>
+							</a-space>
+						</div>
 						<ul v-else class="ent-list">
-							<li v-for="item in todaySchedule" :key="item.id" class="ent-list-item" @click="goAttend(item)">
+							<li v-for="item in sortedTodaySchedule" :key="item.id" class="ent-list-item" @click="goAttend(item)">
 								<div>
-									<div class="ent-list-title">{{ item.className }}</div>
+									<div class="ent-list-title">
+										{{ item.className }}
+										<a-tag v-if="item.attendStatus !== 'DONE'" color="red" style="margin-left: 6px">待点名</a-tag>
+									</div>
 									<div class="ent-list-sub">
 										{{ item.startTime }} - {{ item.endTime }} · {{ item.classroom || '未定教室' }}
 										{{ item.teacherName ? ' · ' + item.teacherName : '' }}
@@ -109,6 +152,7 @@
 								</div>
 								<div class="ent-list-extra">
 									<a-tag :color="attendColor(item.attendStatus)">{{ attendText(item.attendStatus) }}</a-tag>
+									<span class="ent-list-time">应到 {{ item.studentCount || 0 }} · 已点 {{ item.attendCount || 0 }}</span>
 								</div>
 							</li>
 						</ul>
@@ -137,6 +181,10 @@
 								<div class="ent-list-extra">
 									<span class="ent-list-amount">¥{{ item.refundAmount }}</span>
 									<span class="ent-list-time">{{ formatTime(item.createTime) }}</span>
+									<div class="ent-list-actions">
+										<a-tag v-if="overdueDays(item.createTime) > 0" color="red">逾期 {{ overdueDays(item.createTime) }} 天</a-tag>
+										<a-button v-if="hasPerm('/student/refund/approve')" type="link" size="small" @click.stop="openApprove(item)">审批</a-button>
+									</div>
 								</div>
 							</li>
 						</ul>
@@ -163,6 +211,13 @@
 									<div class="ent-list-sub">{{ item.parentPhone }} · 跟进人 {{ item.followUserName || '-' }}</div>
 								</div>
 								<div class="ent-list-extra">
+									<div class="ent-list-actions">
+										<a-tag v-if="followOverdueDays(item.nextFollowTime) > 0" color="red">
+											逾期 {{ followOverdueDays(item.nextFollowTime) }} 天
+										</a-tag>
+										<a-tag v-else-if="followOverdueDays(item.nextFollowTime) === 0" color="orange">今日跟进</a-tag>
+										<a-button v-if="hasPerm('/crm/follow/add')" type="link" size="small" @click.stop="openFollow(item)">跟进</a-button>
+									</div>
 									<span class="ent-list-time">{{ formatTime(item.nextFollowTime) }}</span>
 								</div>
 							</li>
@@ -312,6 +367,65 @@
 	const attendText = (status) => ({ NONE: '待点名', PARTIAL: '部分点名', DONE: '已点名' }[status] || '待点名')
 	const attendColor = (status) => ({ NONE: 'orange', PARTIAL: 'gold', DONE: 'green' }[status] || 'default')
 
+	// 今日教学汇总：应到/已点名/未点名课节/点名进度
+	const teaching = computed(() => {
+		let expected = 0
+		let attended = 0
+		let pending = 0
+		for (const item of todaySchedule.value) {
+			expected += Number(item.studentCount || 0)
+			attended += Number(item.attendCount || 0)
+			if (item.attendStatus !== 'DONE') pending += 1
+		}
+		return {
+			expected,
+			attended,
+			pending,
+			progress: expected ? Math.round((attended * 100) / expected) : 0
+		}
+	})
+	// 待点名的课节排前面
+	const sortedTodaySchedule = computed(() => {
+		const weight = (status) => (status === 'NONE' ? 0 : status === 'PARTIAL' ? 1 : 2)
+		return [...todaySchedule.value].sort((a, b) => {
+			const byStatus = weight(a.attendStatus) - weight(b.attendStatus)
+			return byStatus !== 0 ? byStatus : String(a.startTime || '').localeCompare(String(b.startTime || ''))
+		})
+	})
+	const dayDiff = (value) => {
+		if (!value) return null
+		const normalized = String(value).replace(/-/g, '/').replace('T', ' ').slice(0, 19)
+		const date = new Date(normalized)
+		if (Number.isNaN(date.getTime())) return null
+		const startOfToday = new Date()
+		startOfToday.setHours(0, 0, 0, 0)
+		const target = new Date(date)
+		target.setHours(0, 0, 0, 0)
+		return Math.floor((startOfToday.getTime() - target.getTime()) / (24 * 60 * 60 * 1000))
+	}
+	const overdueDays = (value) => {
+		const days = dayDiff(value)
+		return days === null ? -1 : days
+	}
+	const followOverdueDays = overdueDays
+
+	// 把待办记录带到目标页面，由目标页面打开对应弹窗
+	const stashAction = (type, record) => {
+		sessionStorage.setItem('workbench:action', JSON.stringify({ type, record }))
+	}
+	const openPay = (item) => {
+		stashAction('pay', item)
+		go({ path: '/student/order', query: { status: 'UNPAID' } })
+	}
+	const openApprove = (item) => {
+		stashAction('refund', item)
+		go({ path: '/student/order', query: { tab: 'refund', status: 'PENDING' } })
+	}
+	const openFollow = (item) => {
+		stashAction('follow', item)
+		go({ path: '/crm', query: { todo: '1' } })
+	}
+
 	// 单个板块取数失败不影响其它板块（无权限时降级为空）
 	const safe = (promise, fallback) => promise.catch(() => fallback)
 
@@ -337,17 +451,20 @@
 				{ total: 0, records: [] }
 			),
 			safe(courseApi.scheduleWeek({ startDate: dayStart, endDate: dayEnd }), []),
-			safe(studentApi.orderPage({ current: 1, size: 5, status: 'PAID' }), { total: 0, records: [] }),
-			safe(reportApi.dashboard({ startDate: monthStart, endDate: todayStr }), {})
+			safe(studentApi.orderPage({ current: 1, size: 20, status: 'PAID' }), { total: 0, records: [] }),
+			safe(reportApi.dashboard({ startTime: `${monthStart} 00:00:00`, endTime: dayEnd }), {}),
+			safe(reportApi.dashboard({ startTime: dayStart, endTime: dayEnd }), null)
 		])
-			.then(([order, refund, warn, lead, schedule, paid, dashboard]) => {
+			.then(([order, refund, warn, lead, schedule, paid, dashboard, todayDashboard]) => {
 				unpaid.value = { total: order.total || 0, list: order.records || [] }
 				pendingRefund.value = { total: refund.total || 0, list: refund.records || [] }
 				renewWarn.value = { total: warn.total || 0, list: warn.records || [] }
 				leadFollow.value = { total: lead.total || 0, list: lead.records || [] }
 				todaySchedule.value = schedule || []
 				todayPaidList.value = (paid.records || []).filter((item) => item.payTime && String(item.payTime).slice(0, 10) === todayStr)
-				todayPaid.value = todayPaidList.value.reduce((sum, item) => sum + Number(item.paidAmount || 0), 0)
+				const paidFromList = todayPaidList.value.reduce((sum, item) => sum + Number(item.paidAmount || 0), 0)
+				// 今日收款以报表日汇总为准，避免只统计到前几条订单；取不到时退回列表合计
+				todayPaid.value = Number(todayDashboard?.summary?.paidAmount ?? paidFromList)
 				monthSummary.value = dashboard?.summary || {}
 			})
 			.finally(() => (loading.value = false))
@@ -369,5 +486,18 @@
 	}
 	.wb-kpi {
 		margin-bottom: 12px;
+	}
+	.wb-unit {
+		margin-left: 2px;
+		font-size: 13px;
+		color: #86909c;
+		font-weight: 400;
+	}
+	.ent-list-actions {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 6px;
+		margin-top: 2px;
 	}
 </style>

@@ -417,4 +417,20 @@
 	}
 	loadCourses()
 	loadPackages()
+
+	// 工作台待办直达：打开线索跟进弹窗
+	const applyWorkbenchAction = () => {
+		const raw = sessionStorage.getItem('workbench:action')
+		if (!raw) return
+		sessionStorage.removeItem('workbench:action')
+		try {
+			const action = JSON.parse(raw)
+			if (action.type === 'follow' && action.record) {
+				onOpenFollow(action.record)
+			}
+		} catch (e) {
+			// 忽略损坏的跳转参数，保持页面正常
+		}
+	}
+	applyWorkbenchAction()
 </script>

@@ -411,10 +411,27 @@
 			activeTab.value = 'refund'
 		}
 	}
+	// 工作台待办直达：收款 / 退费审批
+	const applyWorkbenchAction = () => {
+		const raw = sessionStorage.getItem('workbench:action')
+		if (!raw) return
+		sessionStorage.removeItem('workbench:action')
+		try {
+			const action = JSON.parse(raw)
+			if (action.type === 'pay' && action.record) {
+				onOpenPay(action.record)
+			} else if (action.type === 'refund' && action.record) {
+				onOpenApprove(action.record)
+			}
+		} catch (e) {
+			// 忽略损坏的跳转参数，保持页面正常
+		}
+	}
 	applyRouteQuery()
 	loadOrder()
 	loadRefund()
 	loadStatusCount()
+	applyWorkbenchAction()
 </script>
 
 <style lang="less" scoped>
