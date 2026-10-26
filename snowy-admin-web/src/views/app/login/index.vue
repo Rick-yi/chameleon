@@ -116,7 +116,7 @@
 	.m-login-tip {
 		margin-top: 14px;
 		font-size: 12px;
-		color: #86909c;
+		color: var(--text-color-tertiary);
 		text-align: center;
 	}
 </style>

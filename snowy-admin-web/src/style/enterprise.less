@@ -47,6 +47,13 @@
 	--primary-action-hover: #5ec97a;
 	--primary-action-disabled: #d7e7dd;
 
+	/* 语义文字色：保证白底对比度 >= 4.5:1 */
+	--text-color-tertiary: #6b7280;
+	--accent-text: #b84a0a;
+	--warning-text: #9a6700;
+	--danger-text: #cf1322;
+	--success-text: #237a52;
+
 	--text-color: #26302a;
 	--text-color-secondary: #5b665e;
 	--heading-color: #1f2a23;
@@ -315,7 +322,7 @@ html {
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	color: #86909c;
+	color: var(--text-color-tertiary);
 	font-size: 13px;
 }
 .s-table-tool .s-tool-item {
@@ -367,7 +374,7 @@ html {
 }
 .ent-page-bar-desc {
 	font-size: 13px;
-	color: #86909c;
+	color: var(--text-color-tertiary);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -400,7 +407,7 @@ html {
 .page-header-desc {
 	margin-top: 2px;
 	font-size: 13px;
-	color: #86909c;
+	color: var(--text-color-tertiary);
 	line-height: 20px;
 }
 .page-header-extra {
@@ -449,7 +456,7 @@ html {
 }
 .ent-stat-label {
 	font-size: 13px;
-	color: #86909c;
+	color: var(--text-color-tertiary);
 }
 .ent-stat-value {
 	margin-top: 4px;
@@ -487,7 +494,7 @@ html {
 .ent-list-sub {
 	margin-top: 2px;
 	font-size: 12px;
-	color: #86909c;
+	color: var(--text-color-tertiary);
 }
 .ent-list-extra {
 	display: flex;
@@ -503,7 +510,7 @@ html {
 }
 .ent-list-time {
 	font-size: 12px;
-	color: #86909c;
+	color: var(--text-color-tertiary);
 }
 
 /* ---------- 16·补 · 轻量空态（不用大插画，避免卡片高度失衡） ---------- */
@@ -511,7 +518,7 @@ html {
 	padding: 18px 0;
 	text-align: center;
 	font-size: 13px;
-	color: #86909c;
+	color: var(--text-color-tertiary);
 }
 
 /* ---------- 16·补 · 轻提示条（替代大面积 info 提示框） ---------- */
@@ -525,7 +532,7 @@ html {
 	border-radius: var(--radius-control);
 }
 .ent-note.is-error {
-	color: #e5484d;
+	color: var(--danger-text);
 	background: #fef0f0;
 	border-color: #f5b9bb;
 }
@@ -636,7 +643,7 @@ html {
 }
 .ent-schedule-meta {
 	font-size: 11px;
-	color: #86909c;
+	color: var(--text-color-tertiary);
 	line-height: 16px;
 }
 
@@ -731,7 +738,7 @@ html {
 }
 .sched-card-sub2 {
 	font-size: 11px;
-	color: #86909c;
+	color: var(--text-color-tertiary);
 }
 .sched-card-link {
 	padding: 0;

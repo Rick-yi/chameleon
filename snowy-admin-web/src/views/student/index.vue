@@ -351,7 +351,7 @@
 		font-weight: 600;
 	}
 	.text-warning {
-		color: var(--accent-6);
+		color: var(--accent-text);
 		font-weight: 600;
 	}
 	.text-muted {

@@ -14,7 +14,7 @@
 			<a-col v-for="item in statusCards" :key="item.value" :xs="12" :sm="8" :md="6">
 				<div class="ent-stat status-card" :class="{ active: isCardActive(item) }" @click="pickStatus(item)">
 					<div class="ent-stat-label">{{ item.label }}</div>
-					<div class="ent-stat-value" :style="{ color: item.color }">{{ item.count ?? '-' }}</div>
+					<div class="ent-stat-value" :style="{ color: statusTextColor(item.color) }">{{ item.count ?? '-' }}</div>
 				</div>
 			</a-col>
 		</a-row>
@@ -222,11 +222,17 @@
 		{ title: '操作', dataIndex: 'action', align: 'center', width: 200 }
 	]
 	// 统计卡：订单与退费单是两张表，指标要分别取，否则「已退费」永远是 0
+	const statusTextColor = (color) => {
+		if (color === '#d89614') return 'var(--warning-text)'
+		if (color === '#e5484d') return 'var(--danger-text)'
+		if (color === '#2ba471' || color === '#4bb964') return 'var(--success-text)'
+		return color
+	}
 	const statusCards = ref([
 		{ scope: 'order', value: 'UNPAID', label: '待收款订单', color: '#d89614', count: null },
 		{ scope: 'order', value: 'PAID', label: '已收款订单', color: '#2ba471', count: null },
 		{ scope: 'refund', value: 'PENDING', label: '待审批退费', color: '#e5484d', count: null },
-		{ scope: 'refund', value: 'REFUNDED', label: '已退费单', color: '#86909c', count: null }
+		{ scope: 'refund', value: 'REFUNDED', label: '已退费单', color: 'var(--text-color-tertiary)', count: null }
 	])
 
 	const orderStatusText = (s) => ({ UNPAID: '待支付', PAID: '已支付', REFUNDED: '已退费', CANCELED: '已取消' }[s] || s)

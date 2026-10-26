@@ -480,7 +480,7 @@
 		color: #cf1322;
 	}
 	.kpi-warning {
-		color: var(--accent-6);
+		color: var(--accent-text);
 	}
 	.kpi-muted {
 		font-size: 14px !important;

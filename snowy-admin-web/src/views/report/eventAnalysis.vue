@@ -201,7 +201,7 @@
 	}
 	.funnel-name {
 		font-size: 13px;
-		color: #86909c;
+		color: var(--text-color-tertiary);
 	}
 	.funnel-count {
 		margin-top: 4px;

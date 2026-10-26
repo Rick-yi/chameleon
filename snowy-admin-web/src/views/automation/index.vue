@@ -287,7 +287,7 @@
 		color: var(--text-color-secondary);
 	}
 	.auto-param-help {
-		color: #86909c;
+		color: var(--text-color-tertiary);
 		margin-left: 4px;
 	}
 	.auto-card-foot {
@@ -306,13 +306,13 @@
 	}
 	.auto-last-msg {
 		margin-top: 2px;
-		color: #86909c;
+		color: var(--text-color-tertiary);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 	.auto-last-muted {
-		color: #86909c;
+		color: var(--text-color-tertiary);
 	}
 	.auto-log-msg {
 		color: var(--text-color-secondary);

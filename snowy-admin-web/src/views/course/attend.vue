@@ -486,7 +486,7 @@
 		border-radius: 10px;
 		border: 1px solid;
 		&.st-attend {
-			color: #2ba471;
+			color: var(--success-text);
 			background: #f6ffed;
 			border-color: #b7eb8f;
 		}
@@ -496,7 +496,7 @@
 			border-color: #ffe58f;
 		}
 		&.st-absent {
-			color: #e5484d;
+			color: var(--danger-text);
 			background: #fff1f0;
 			border-color: #ffa39e;
 		}
@@ -572,7 +572,7 @@
 			color: #d48806;
 		}
 		&.is-danger {
-			color: #e5484d;
+			color: var(--danger-text);
 		}
 	}
 	.attend-tile-status {
@@ -592,7 +592,7 @@
 	.attend-undo {
 		margin-left: auto;
 		font-size: 12px;
-		color: #e5484d;
+		color: var(--danger-text);
 	}
 	.attend-skip-line {
 		margin-top: 4px;

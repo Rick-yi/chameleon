@@ -236,7 +236,7 @@
 		display: flex;
 		justify-content: space-between;
 		font-size: 12px;
-		color: #86909c;
+		color: var(--text-color-tertiary);
 	}
 	.m-follow-type {
 		color: var(--primary-6);
@@ -250,7 +250,7 @@
 	.m-follow-next {
 		margin-top: 4px;
 		font-size: 12px;
-		color: #d89614;
+		color: var(--warning-text);
 	}
 	.m-foot-bar {
 		position: fixed;

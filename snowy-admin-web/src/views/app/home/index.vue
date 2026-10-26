@@ -4,7 +4,7 @@
 		<div class="m-stat-grid">
 			<div v-for="item in statList" :key="item.key" class="m-stat" :class="{ link: appStore.canVisit(item.path) }" @click="go(item.path)">
 				<div class="m-stat-label">{{ item.label }}</div>
-				<div class="m-stat-value" :style="{ color: item.color }">{{ item.value }}</div>
+				<div class="m-stat-value" :style="{ color: statTextColor(item.color) }">{{ item.value }}</div>
 				<div class="m-stat-sub">{{ item.sub }}</div>
 			</div>
 		</div>
@@ -60,6 +60,13 @@
 	const loading = ref(false)
 
 	const statList = ref([])
+	// 指标数字用语义文字色，图标背景继续用品牌色
+	const statTextColor = (color) => {
+		if (color === '#d89614') return 'var(--warning-text)'
+		if (color === '#e5484d') return 'var(--danger-text)'
+		if (color === '#2ba471' || color === '#4bb964') return 'var(--success-text)'
+		return color
+	}
 	const todoList = ref([])
 	const quickList = ref([])
 
@@ -231,7 +238,7 @@
 	.m-stat-sub {
 		margin-top: 2px;
 		font-size: 11px;
-		color: #86909c;
+		color: var(--text-color-tertiary);
 	}
 	.m-section-title {
 		margin: 16px 2px 8px;
@@ -275,7 +282,7 @@
 		color: var(--text-color-secondary);
 	}
 	.m-todo-arrow {
-		color: #86909c;
+		color: var(--text-color-tertiary);
 	}
 	.m-empty,
 	.m-skeleton {

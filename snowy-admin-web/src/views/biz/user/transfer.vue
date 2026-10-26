@@ -3,13 +3,13 @@
 		<a-row :gutter="16" align="middle" style="margin-bottom: 12px">
 			<a-col>
 				<a-space :size="12">
-					<span style="color: #86909c; font-size: 13px">被调整人：</span>
+					<span style="color: var(--text-color-tertiary); font-size: 13px">被调整人：</span>
 					<a-tag color="blue">{{ sourceUser.name }}（{{ sourceUser.account }}）</a-tag>
 				</a-space>
 			</a-col>
 			<a-col>
 				<a-space :size="12">
-					<span style="color: #86909c; font-size: 13px">调整方式：</span>
+					<span style="color: var(--text-color-tertiary); font-size: 13px">调整方式：</span>
 					<a-radio-group v-model:value="transferMode" button-style="solid" size="small">
 						<a-radio-button value="TRANSFER">转移</a-radio-button>
 						<a-radio-button value="COPY">复制</a-radio-button>
@@ -19,7 +19,7 @@
 			</a-col>
 			<a-col v-if="transferMode !== 'DELETE'">
 				<a-space :size="12">
-					<span style="color: #86909c; font-size: 13px">调整对象：</span>
+					<span style="color: var(--text-color-tertiary); font-size: 13px">调整对象：</span>
 					<template v-if="targetUser.id">
 						<a-tag color="green" closable @close="clearTargetUser">
 							{{ targetUser.name }}（{{ targetUser.account }}）

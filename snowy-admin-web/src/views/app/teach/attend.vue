@@ -207,10 +207,10 @@
 			color: var(--text-color);
 		}
 		.ok {
-			color: #2ba471;
+			color: var(--success-text);
 		}
 		.warn {
-			color: #e5484d;
+			color: var(--danger-text);
 		}
 	}
 	.m-attend-row {
@@ -235,7 +235,7 @@
 	.m-attend-remain {
 		margin-top: 2px;
 		font-size: 12px;
-		color: #86909c;
+		color: var(--text-color-tertiary);
 	}
 	.m-attend-acts {
 		display: flex;

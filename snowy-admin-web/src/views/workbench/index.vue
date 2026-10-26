@@ -31,9 +31,9 @@
 			<a-col :xs="12" :sm="12" :md="6" :xl="6">
 				<div class="ent-stat kpi-link" @click="go({ path: '/student/order', query: { status: 'UNPAID' } })">
 					<div class="ent-stat-label">待收款订单</div>
-					<div class="ent-stat-value" :style="{ color: unpaid.total > 0 ? '#d89614' : undefined }">
+					<div class="ent-stat-value" :style="{ color: unpaid.total > 0 ? 'var(--warning-text)' : undefined }">
 						{{ unpaid.total || 0 }}
-						<span style="font-size: 13px; color: #86909c">笔</span>
+						<span style="font-size: 13px; color: var(--text-color-tertiary)">笔</span>
 					</div>
 				</div>
 			</a-col>
@@ -62,7 +62,7 @@
 			<a-col :xs="12" :sm="12" :md="6" :xl="6">
 				<div class="ent-stat kpi-link" @click="go({ path: '/course/attend' })">
 					<div class="ent-stat-label">未点名课节</div>
-					<div class="ent-stat-value" :style="{ color: teaching.pending > 0 ? '#d89614' : undefined }">
+					<div class="ent-stat-value" :style="{ color: teaching.pending > 0 ? 'var(--warning-text)' : undefined }">
 						{{ teaching.pending }}<span class="wb-unit">节</span>
 					</div>
 				</div>
@@ -490,7 +490,7 @@
 	.wb-unit {
 		margin-left: 2px;
 		font-size: 13px;
-		color: #86909c;
+		color: var(--text-color-tertiary);
 		font-weight: 400;
 	}
 	.ent-list-actions {

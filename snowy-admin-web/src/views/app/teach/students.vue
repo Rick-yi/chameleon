@@ -114,7 +114,7 @@
 		color: var(--text-color-secondary);
 	}
 	.m-student-arrow {
-		color: #86909c;
+		color: var(--text-color-tertiary);
 	}
 	.m-detail-name {
 		font-size: 18px;

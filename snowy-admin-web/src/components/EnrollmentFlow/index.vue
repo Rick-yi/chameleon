@@ -659,7 +659,7 @@
 	.qe-money-off {
 		margin-left: 8px;
 		font-size: 12px;
-		color: var(--accent-6);
+		color: var(--accent-text);
 	}
 	.qe-footer {
 		display: flex;
@@ -710,7 +710,7 @@
 		}
 	}
 	.qe-discount {
-		color: var(--accent-6) !important;
+		color: var(--accent-text) !important;
 	}
 	.qe-payable {
 		border-top: 1px dashed var(--border-color-base);
@@ -718,7 +718,7 @@
 		padding-top: 8px;
 		b {
 			font-size: 18px;
-			color: var(--accent-6) !important;
+			color: var(--accent-text) !important;
 		}
 	}
 	.qe-channels {
@@ -778,7 +778,7 @@
 		margin-top: 8px;
 		font-size: 26px;
 		font-weight: 700;
-		color: var(--accent-6);
+		color: var(--accent-text);
 	}
 	.qe-success-sub {
 		margin-top: 6px;

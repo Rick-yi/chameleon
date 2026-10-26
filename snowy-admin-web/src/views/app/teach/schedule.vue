@@ -229,7 +229,7 @@
 	}
 	.m-class-end {
 		font-size: 12px;
-		color: #86909c;
+		color: var(--text-color-tertiary);
 		font-variant-numeric: tabular-nums;
 	}
 	.m-class-main {
@@ -253,7 +253,7 @@
 		flex-wrap: wrap;
 	}
 	.m-class-arrow {
-		color: #86909c;
+		color: var(--text-color-tertiary);
 	}
 	.m-empty {
 		background: #fff;
@@ -266,6 +266,6 @@
 	.m-empty-sub {
 		margin-top: 6px;
 		font-size: 12px;
-		color: #86909c;
+		color: var(--text-color-tertiary);
 	}
 </style>

@@ -32,11 +32,11 @@
 					</div>
 					<div class="m-stat">
 						<div class="m-stat-label">退费</div>
-						<div class="m-stat-value" style="color: #e5484d">¥{{ money(summary.refundAmount) }}</div>
+						<div class="m-stat-value" style="color: var(--danger-text)">¥{{ money(summary.refundAmount) }}</div>
 					</div>
 					<div class="m-stat">
 						<div class="m-stat-label">净营收</div>
-						<div class="m-stat-value" style="color: #2ba471">¥{{ money(summary.netAmount) }}</div>
+						<div class="m-stat-value" style="color: var(--success-text)">¥{{ money(summary.netAmount) }}</div>
 					</div>
 					<div class="m-stat">
 						<div class="m-stat-label">课消课时</div>
@@ -48,7 +48,7 @@
 					</div>
 					<div class="m-stat">
 						<div class="m-stat-label">续费预警</div>
-						<div class="m-stat-value" style="color: #d89614">{{ summary.renewWarnCount || 0 }}</div>
+						<div class="m-stat-value" style="color: var(--warning-text)">{{ summary.renewWarnCount || 0 }}</div>
 					</div>
 				</div>
 
@@ -88,11 +88,11 @@
 					</div>
 					<div class="m-stat">
 						<div class="m-stat-label">缺勤人次</div>
-						<div class="m-stat-value" style="color: #e5484d">{{ attendance.absentCount || 0 }}</div>
+						<div class="m-stat-value" style="color: var(--danger-text)">{{ attendance.absentCount || 0 }}</div>
 					</div>
 					<div class="m-stat">
 						<div class="m-stat-label">到课率</div>
-						<div class="m-stat-value" style="color: #2ba471">{{ attendance.attendRate || 0 }}%</div>
+						<div class="m-stat-value" style="color: var(--success-text)">{{ attendance.attendRate || 0 }}%</div>
 					</div>
 				</div>
 
@@ -154,11 +154,11 @@
 					</div>
 					<div class="m-stat">
 						<div class="m-stat-label">收款率</div>
-						<div class="m-stat-value" style="color: #2ba471">{{ summary.collectionRate || 0 }}%</div>
+						<div class="m-stat-value" style="color: var(--success-text)">{{ summary.collectionRate || 0 }}%</div>
 					</div>
 					<div class="m-stat">
 						<div class="m-stat-label">退费率</div>
-						<div class="m-stat-value" style="color: #e5484d">{{ summary.refundRate || 0 }}%</div>
+						<div class="m-stat-value" style="color: var(--danger-text)">{{ summary.refundRate || 0 }}%</div>
 					</div>
 				</div>
 
@@ -414,6 +414,6 @@
 		padding: 14px 0;
 		text-align: center;
 		font-size: 13px;
-		color: #86909c;
+		color: var(--text-color-tertiary);
 	}
 </style>

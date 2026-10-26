@@ -12,19 +12,19 @@
 				<a-col :xs="12" :sm="12" :md="8" :xl="6">
 					<div class="ent-stat kpi-link" @click="drillFinance('refund')">
 						<div class="ent-stat-label">本月退费</div>
-						<div class="ent-stat-value" style="color: #e5484d">¥{{ fmt(summary.refundAmount) }}</div>
+						<div class="ent-stat-value" style="color: var(--danger-text)">¥{{ fmt(summary.refundAmount) }}</div>
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="12" :md="8" :xl="6">
 					<div class="ent-stat kpi-link" @click="drillFinance('payment')">
 						<div class="ent-stat-label">净营收</div>
-						<div class="ent-stat-value" style="color: #2ba471">¥{{ fmt(summary.netAmount) }}</div>
+						<div class="ent-stat-value" style="color: var(--success-text)">¥{{ fmt(summary.netAmount) }}</div>
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="12" :md="8" :xl="6">
 					<div class="ent-stat kpi-link" @click="drillAcademic()">
 						<div class="ent-stat-label">课消课时</div>
-						<div class="ent-stat-value">{{ fmt(summary.attendLessons) }} <span style="font-size: 13px; color: #86909c">课时</span></div>
+						<div class="ent-stat-value">{{ fmt(summary.attendLessons) }} <span style="font-size: 13px; color: var(--text-color-tertiary)">课时</span></div>
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="12" :md="8" :xl="6">
@@ -48,7 +48,7 @@
 				<a-col :xs="12" :sm="12" :md="8" :xl="6">
 					<div class="ent-stat kpi-link" @click="drillRenewWarn()">
 						<div class="ent-stat-label">待续费预警</div>
-						<div class="ent-stat-value" style="color: #d89614">{{ summary.renewWarnCount || 0 }}</div>
+						<div class="ent-stat-value" style="color: var(--warning-text)">{{ summary.renewWarnCount || 0 }}</div>
 					</div>
 				</a-col>
 			</a-row>

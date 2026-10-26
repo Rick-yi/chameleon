@@ -45,11 +45,11 @@
 		color: var(--text-color-secondary);
 
 		&.up {
-			color: #2ba471;
+			color: var(--success-text);
 		}
 
 		&.down {
-			color: #e5484d;
+			color: var(--danger-text);
 		}
 	}
 </style>

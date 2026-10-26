@@ -49,14 +49,14 @@
 				<a-col :xs="12" :sm="8" :md="8" :xl="8">
 					<div class="ent-stat kpi-link" @click="activeTab = 'refund'">
 						<div class="ent-stat-label">退费</div>
-						<div class="ent-stat-value" style="color: #e5484d">¥{{ money(summary.refundAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+						<div class="ent-stat-value" style="color: var(--danger-text)">¥{{ money(summary.refundAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
 						<kpi-delta :current="summary.refundAmount" :previous="prevSummary.refundAmount" invert />
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="8" :md="8" :xl="8">
 					<div class="ent-stat">
 						<div class="ent-stat-label">净营收</div>
-						<div class="ent-stat-value" style="color: #2ba471">¥{{ money(summary.netAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+						<div class="ent-stat-value" style="color: var(--success-text)">¥{{ money(summary.netAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
 						<kpi-delta :current="summary.netAmount" :previous="prevSummary.netAmount" />
 					</div>
 				</a-col>

@@ -141,7 +141,7 @@
 							<a-divider type="vertical" />
 							<a @click="onOpenChange(record)">调课</a>
 							<a-divider type="vertical" />
-							<a style="color: #e5484d" @click="onCancelScheduleConfirm(record)">取消</a>
+							<a style="color: var(--danger-text)" @click="onCancelScheduleConfirm(record)">取消</a>
 						</a-space>
 					</template>
 				</template>
@@ -196,7 +196,7 @@
 					<template #bodyCell="{ column, record }">
 						<template v-if="column.dataIndex === 'closureDate'">{{ (record.closureDate || '').slice(0, 10) }}</template>
 						<template v-if="column.dataIndex === 'action'">
-							<a style="color: #e5484d" @click="deleteClosure(record)">删除</a>
+							<a style="color: var(--danger-text)" @click="deleteClosure(record)">删除</a>
 						</template>
 					</template>
 				</a-table>
@@ -229,7 +229,7 @@
 						</template>
 						<template v-if="column.dataIndex === 'reason'">{{ record.reason || '-' }}</template>
 						<template v-if="column.dataIndex === 'action'">
-							<a style="color: #e5484d" @click="deleteUnavailable(record)">删除</a>
+							<a style="color: var(--danger-text)" @click="deleteUnavailable(record)">删除</a>
 						</template>
 					</template>
 				</a-table>
@@ -337,7 +337,7 @@
 				<div v-if="generateResult.conflicts && generateResult.conflicts.length" style="color: #ff4d4f; font-size: 12px">
 					<div v-for="(item, index) in generateResult.conflicts" :key="index">· {{ item }}</div>
 				</div>
-				<div v-if="generateResult.skipReasons && generateResult.skipReasons.length" style="color: #86909c; font-size: 12px; margin-top: 4px">
+				<div v-if="generateResult.skipReasons && generateResult.skipReasons.length" style="color: var(--text-color-tertiary); font-size: 12px; margin-top: 4px">
 					<div v-for="(item, index) in generateResult.skipReasons" :key="index">· {{ item }}</div>
 				</div>
 			</div>
@@ -1279,7 +1279,7 @@
 
 	.sched-card-cancel {
 		font-size: 12px;
-		color: #e5484d;
+		color: var(--danger-text);
 		cursor: pointer;
 
 		&:hover {
@@ -1316,6 +1316,6 @@
 	.suggest-empty {
 		margin-top: 8px;
 		font-size: 12px;
-		color: #86909c;
+		color: var(--text-color-tertiary);
 	}
 </style>

@@ -558,6 +558,6 @@
 		font-family: Consolas, monospace;
 		font-size: 16px;
 		letter-spacing: 1px;
-		color: var(--accent-6);
+		color: var(--accent-text);
 	}
 </style>

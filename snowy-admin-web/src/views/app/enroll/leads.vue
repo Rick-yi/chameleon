@@ -139,7 +139,7 @@
 		display: flex;
 		justify-content: space-between;
 		font-size: 12px;
-		color: #86909c;
+		color: var(--text-color-tertiary);
 	}
 	.m-lead-next {
 		color: var(--primary-6);
