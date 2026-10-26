@@ -176,6 +176,7 @@
 			<div class="qe-summary">
 				<div class="qe-summary-row"><span>报名课包</span><b>{{ selectedPackage ? selectedPackage.name : '-' }}</b></div>
 				<div class="qe-summary-row"><span>报读班级</span><b>{{ classLabel || '未分班' }}</b></div>
+				<div class="qe-summary-row"><span>授课老师</span><b>{{ classTeacherName || '未指定' }}</b></div>
 				<div class="qe-summary-row"><span>应收</span><b>¥{{ fmt(packagePrice) }}</b></div>
 				<div class="qe-summary-row"><span>优惠</span><b class="qe-discount">-¥{{ fmt(discount) }}</b></div>
 				<div class="qe-summary-row qe-payable"><span>实收</span><b>¥{{ fmt(form.paidAmount) }}</b></div>
@@ -220,6 +221,7 @@
 					<div class="qe-detail-row"><span>手机</span><b>{{ successStudent?.parentPhone || form.parentPhone || '-' }}</b></div>
 					<div class="qe-detail-row"><span>校区</span><b>{{ campusLabel || '-' }}</b></div>
 					<div class="qe-detail-row"><span>班级</span><b>{{ classLabel || successStudent?.classNames || '未分班' }}</b></div>
+					<div class="qe-detail-row"><span>授课老师</span><b>{{ classTeacherName || successStudent?.teacherNames || '-' }}</b></div>
 					<div class="qe-detail-row"><span>剩余课时</span><b>{{ successRemainText }}</b></div>
 					<div class="qe-detail-row"><span>课包到期</span><b>{{ formatDate(successStudent?.accountExpireTime) }}</b></div>
 				</div>
@@ -322,6 +324,7 @@
 	const packageOptions = ref([])
 	const packageRaw = ref([])
 	const classOptions = ref([])
+	const teacherMap = ref({})
 	const classLoading = ref(false)
 	const samePhoneStudents = ref([])
 	const restoredFromDraft = ref(false)
@@ -453,7 +456,8 @@
 	watch(form, saveDraft, { deep: true })
 
 	const selectedPackage = computed(() => packageRaw.value.find((p) => p.id === form.value.coursePackageId) || null)
-	const classLabel = computed(() => classOptions.value.find((c) => c.value === form.value.classId)?.label || '')
+	const classLabel = computed(() => classOptions.value.find((c) => c.value === form.value.classId)?.className || '')
+	const classTeacherName = computed(() => classOptions.value.find((c) => c.value === form.value.classId)?.teacherName || '')
 	const discount = computed(() => {
 		const price = Number(packagePrice.value) || 0
 		const paid = Number(form.value.paidAmount) || 0
@@ -489,10 +493,12 @@
 		})
 		Promise.all([
 			courseApi.coursePage({ current: 1, size: 200 }),
-			courseApi.packagePage({ current: 1, size: 200 })
-		]).then(([courseData, packageData]) => {
+			courseApi.packagePage({ current: 1, size: 200 }),
+			courseApi.teacherOptions({})
+		]).then(([courseData, packageData, teacherData]) => {
 			const courseMap = {}
 			for (const item of courseData.records || []) courseMap[item.id] = item.name
+			teacherMap.value = Object.fromEntries((teacherData || []).map((item) => [item.value, item.label]))
 			packageRaw.value = packageData.records || []
 			packageOptions.value = packageRaw.value.map((item) => ({
 				value: item.id,
@@ -531,10 +537,16 @@
 		return courseApi
 			.classPage({ current: 1, size: 200, courseId })
 			.then((data) => {
-				classOptions.value = (data.records || []).map((item) => ({
-					value: item.id,
-					label: `${item.name}${item.classroom ? ' · ' + item.classroom : ''}`
-				}))
+				classOptions.value = (data.records || []).map((item) => {
+					const className = `${item.name}${item.classroom ? ' · ' + item.classroom : ''}`
+					const teacherName = teacherMap.value[item.teacherId] || ''
+					return {
+						value: item.id,
+						className,
+						teacherName,
+						label: `${className}${teacherName ? ' · ' + teacherName : ''}`
+					}
+				})
 			})
 			.finally(() => (classLoading.value = false))
 	}
