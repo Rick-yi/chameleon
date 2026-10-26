@@ -36,6 +36,22 @@ export default {
 	tenantCheckExpired() {
 		return request('tenant/checkExpired', null)
 	},
+	// 租户生命周期
+	tenantRenew(data) {
+		return request('tenant/renew', data)
+	},
+	tenantStatus(data) {
+		return request('tenant/status', data)
+	},
+	tenantResetPassword(data) {
+		return request('tenant/resetAdminPassword', data)
+	},
+	tenantLoginRecords(data) {
+		return request('tenant/loginRecords', data, 'get')
+	},
+	tenantRenewRecords(data) {
+		return request('tenant/renewRecords', data, 'get')
+	},
 	// 套餐
 	packagePage(data) {
 		return request('package/page', data, 'get')

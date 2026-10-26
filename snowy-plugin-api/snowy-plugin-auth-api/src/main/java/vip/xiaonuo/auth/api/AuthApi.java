@@ -151,4 +151,13 @@ public interface AuthApi {
      * @date 2022/7/9 14:58
      */
     void removeThirdUserByUserIdList(List<String> userIdList);
+
+    /**
+     * 踢出指定用户的全部B端会话（停用租户、重置密码后使用）
+     *
+     * @param userIdList 用户id集合
+     * @author 会飞的猪
+     * @date 2026/10/26 09:00
+     */
+    void logoutByUserIdList(List<String> userIdList);
 }

@@ -50,12 +50,28 @@
 					<a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
 				</template>
 				<template v-if="column.dataIndex === 'action'">
-					<a-space>
+					<a-space :size="4">
 						<a @click="onOpenEdit(record)">编辑</a>
 						<a-divider type="vertical" />
-						<a-popconfirm title="确定删除该租户吗？" @confirm="onDelete(record)">
-							<a-button type="link" danger size="small">删除</a-button>
+						<a @click="onOpenRenew(record)">续费</a>
+						<a-divider type="vertical" />
+						<a v-if="record.status !== 'STOP'" @click="onOpenStop(record)">停用</a>
+						<a-popconfirm v-else title="确定启用该租户吗？" @confirm="onEnable(record)">
+							<a>启用</a>
 						</a-popconfirm>
+						<a-divider type="vertical" />
+						<a-dropdown>
+							<a @click.prevent>更多 <down-outlined /></a>
+							<template #overlay>
+								<a-menu>
+									<a-menu-item @click="onResetPassword(record)">重置管理员密码</a-menu-item>
+									<a-menu-item @click="onOpenLoginRecords(record)">登录记录</a-menu-item>
+									<a-menu-item @click="onOpenRenewRecords(record)">续费记录</a-menu-item>
+									<a-menu-divider />
+									<a-menu-item danger @click="onDelete(record)">删除租户</a-menu-item>
+								</a-menu>
+							</template>
+						</a-dropdown>
 					</a-space>
 				</template>
 			</template>
@@ -137,17 +153,190 @@
 				</a-col>
 			</a-row>
 		</a-form>
-	</a-modal>
-</template>
+		</a-modal>
+
+		<!-- 续费 -->
+		<a-modal
+			v-model:open="renewOpen"
+			title="租户续费"
+			:width="520"
+			:confirm-loading="renewSubmitting"
+			:destroy-on-close="true"
+			@ok="onSubmitRenew"
+		>
+			<a-alert
+				type="info"
+				show-icon
+				style="margin-bottom: 16px"
+				:message="`当前到期：${renewData.expireTime || '未设置'}；续费后预计至 ${renewPreview}`"
+			/>
+			<a-form ref="renewFormRef" :model="renewData" layout="vertical">
+				<a-form-item label="续费时长" name="days" :rules="[{ required: true, message: '请填写续费天数' }]">
+					<a-input-number v-model:value="renewData.days" :min="1" :max="3650" :precision="0" style="width: 100%" addon-after="天" />
+					<div class="renew-presets">
+						<a v-for="item in renewPresets" :key="item.days" @click="renewData.days = item.days">{{ item.label }}</a>
+					</div>
+				</a-form-item>
+				<a-form-item label="续费套餐" name="packageId">
+					<a-select v-model:value="renewData.packageId" :options="packageOptions" placeholder="不选则沿用当前套餐" allow-clear />
+				</a-form-item>
+				<a-form-item label="续费金额（元）" name="amount">
+					<a-input-number v-model:value="renewData.amount" :min="0" :precision="2" style="width: 100%" />
+				</a-form-item>
+				<a-form-item label="备注" name="remark">
+					<a-input v-model:value="renewData.remark" placeholder="选填，如合同号、收款方式" allow-clear />
+				</a-form-item>
+			</a-form>
+		</a-modal>
+
+		<!-- 停用 -->
+		<a-modal
+			v-model:open="stopOpen"
+			title="停用租户"
+			:width="480"
+			:confirm-loading="stopSubmitting"
+			:destroy-on-close="true"
+			@ok="onSubmitStop"
+		>
+			<a-alert
+				type="warning"
+				show-icon
+				style="margin-bottom: 16px"
+				message="停用后该机构所有账号立即下线，且无法再登录。"
+			/>
+			<a-form layout="vertical">
+				<a-form-item label="停用原因" required>
+					<a-textarea v-model:value="stopReason" :rows="3" placeholder="如：欠费、合同到期、客户申请停用" />
+				</a-form-item>
+			</a-form>
+		</a-modal>
+
+		<!-- 重置密码结果 -->
+		<a-modal v-model:open="resetOpen" title="管理员密码已重置" :width="460" :footer="null">
+			<a-alert
+				type="warning"
+				show-icon
+				style="margin-bottom: 16px"
+				message="此密码只显示一次，请立即复制并通知机构管理员；原密码和已登录会话均已失效。"
+			/>
+			<div class="reset-row">
+				<span>机构编码</span>
+				<b>{{ resetResult.tenantCode }}</b>
+			</div>
+			<div class="reset-row">
+				<span>管理员账号</span>
+				<b>{{ resetResult.account }}</b>
+			</div>
+			<div class="reset-row">
+				<span>新密码</span>
+				<b class="reset-password">{{ resetResult.password }}</b>
+				<a-button size="small" type="link" @click="copyText(resetResult.password)">复制</a-button>
+			</div>
+		</a-modal>
+
+		<!-- 登录记录 -->
+		<a-drawer v-model:open="loginOpen" title="最近登录记录" :width="520">
+			<a-table
+				size="small"
+				:columns="loginColumns"
+				:data-source="loginList"
+				:loading="loginLoading"
+				:pagination="false"
+				:row-key="(row) => row.account + '-' + row.loginTime"
+			/>
+		</a-drawer>
+
+		<!-- 续费记录 -->
+		<a-drawer v-model:open="renewRecordsOpen" title="续费记录" :width="720">
+			<a-table
+				size="small"
+				:columns="renewColumns"
+				:data-source="renewList"
+				:loading="renewLoading"
+				:pagination="false"
+				:row-key="(row) => row.createTime + '-' + row.newExpireTime"
+			/>
+		</a-drawer>
+	</template>
 
 <script setup name="platformTenant">
-	import { message } from 'ant-design-vue'
+	import { message, Modal } from 'ant-design-vue'
 	import tenantApi from '@/api/platform/tenantApi'
 	const searchFormState = ref({})
 	const tableRef = ref()
 	const formRef = ref()
 	const formData = ref({})
 	const open = ref(false)
+
+	// 续费
+	const renewOpen = ref(false)
+	const renewFormRef = ref()
+	const renewSubmitting = ref(false)
+	const renewData = ref({})
+	const renewPresets = [
+		{ label: '1 个月', days: 30 },
+		{ label: '3 个月', days: 90 },
+		{ label: '6 个月', days: 180 },
+		{ label: '1 年', days: 365 }
+	]
+	const parseDate = (value) => {
+		if (!value) return null
+		const date = new Date(String(value).replace(/-/g, '/'))
+		return Number.isNaN(date.getTime()) ? null : date
+	}
+	const formatDate = (date) => {
+		if (!date) return '-'
+		const pad = (n) => String(n).padStart(2, '0')
+		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+	}
+	const renewPreview = computed(() => {
+		const days = Number(renewData.value.days) || 0
+		if (days <= 0) return '-'
+		const now = new Date()
+		const current = parseDate(renewData.value.expireTime)
+		const base = current && current > now ? current : now
+		base.setDate(base.getDate() + days)
+		return formatDate(base)
+	})
+
+	// 停用
+	const stopOpen = ref(false)
+	const stopSubmitting = ref(false)
+	const stopReason = ref('')
+	const selectedTenant = ref({})
+
+	// 重置密码
+	const resetOpen = ref(false)
+	const resetResult = ref({})
+	const copyText = async (text) => {
+		try {
+			await navigator.clipboard.writeText(text)
+			message.success('已复制')
+		} catch (e) {
+			message.warning('复制失败，请手动选择密码')
+		}
+	}
+
+	// 记录抽屉
+	const loginOpen = ref(false)
+	const loginLoading = ref(false)
+	const loginList = ref([])
+	const loginColumns = [
+		{ title: '账号', dataIndex: 'account' },
+		{ title: '登录时间', dataIndex: 'loginTime' }
+	]
+	const renewRecordsOpen = ref(false)
+	const renewLoading = ref(false)
+	const renewList = ref([])
+	const renewColumns = [
+		{ title: '续费天数', dataIndex: 'days' },
+		{ title: '金额', dataIndex: 'amount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
+		{ title: '原到期', dataIndex: 'oldExpireTime' },
+		{ title: '新到期', dataIndex: 'newExpireTime' },
+		{ title: '操作人', dataIndex: 'operatorName' },
+		{ title: '备注', dataIndex: 'remark' },
+		{ title: '操作时间', dataIndex: 'createTime' }
+	]
 	const statusOptions = [
 		{ value: 'TRIAL', label: '试用' },
 		{ value: 'NORMAL', label: '正常' },
@@ -229,7 +418,146 @@
 		})
 	}
 	const onDelete = (record) => {
-		tenantApi.tenantDelete([{ id: record.id }]).then(() => tableRef.value.refresh())
+		Modal.confirm({
+			title: '删除租户',
+			content: `确定删除「${record.name}」吗？删除后该机构的业务数据仍保留在库中，但无法再登录。`,
+			okText: '删除',
+			okType: 'danger',
+			onOk: () => {
+				return tenantApi.tenantDelete([{ id: record.id }]).then(() => tableRef.value.refresh())
+			}
+		})
 	}
+
+	const onOpenRenew = (record) => {
+		selectedTenant.value = record
+		renewData.value = {
+			id: record.id,
+			days: 90,
+			packageId: record.packageId,
+			amount: undefined,
+			remark: '',
+			expireTime: record.expireTime
+		}
+		renewOpen.value = true
+	}
+	const onSubmitRenew = () => {
+		renewFormRef.value.validate().then(() => {
+			renewSubmitting.value = true
+			const { expireTime, ...payload } = renewData.value
+			tenantApi
+				.tenantRenew(payload)
+				.then((data) => {
+					message.success(`已续费至 ${formatDate(parseDate(data.expireTime))}`)
+					renewOpen.value = false
+					tableRef.value.refresh()
+				})
+				.finally(() => {
+					renewSubmitting.value = false
+				})
+		})
+	}
+
+	const onOpenStop = (record) => {
+		selectedTenant.value = record
+		stopReason.value = ''
+		stopOpen.value = true
+	}
+	const onSubmitStop = () => {
+		if (!stopReason.value.trim()) {
+			message.warning('请填写停用原因')
+			return
+		}
+		stopSubmitting.value = true
+		tenantApi
+			.tenantStatus({ id: selectedTenant.value.id, status: 'STOP', reason: stopReason.value.trim() })
+			.then(() => {
+				message.success('已停用，该机构账号已全部下线')
+				stopOpen.value = false
+				tableRef.value.refresh()
+			})
+			.finally(() => {
+				stopSubmitting.value = false
+			})
+	}
+	const onEnable = (record) => {
+		tenantApi.tenantStatus({ id: record.id, status: 'NORMAL' }).then(() => {
+			message.success('已启用')
+			tableRef.value.refresh()
+		})
+	}
+
+	const onResetPassword = (record) => {
+		Modal.confirm({
+			title: '重置管理员密码',
+			content: `确定重置「${record.name}」的管理员密码吗？原密码和该管理员已登录的会话会立即失效。`,
+			okText: '重置',
+			okType: 'danger',
+			onOk: () => {
+				return tenantApi.tenantResetPassword({ id: record.id }).then((data) => {
+					resetResult.value = data
+					resetOpen.value = true
+				})
+			}
+		})
+	}
+
+	const onOpenLoginRecords = (record) => {
+		loginOpen.value = true
+		loginLoading.value = true
+		loginList.value = []
+		tenantApi
+			.tenantLoginRecords({ id: record.id })
+			.then((data) => {
+				loginList.value = data || []
+			})
+			.finally(() => {
+				loginLoading.value = false
+			})
+	}
+	const onOpenRenewRecords = (record) => {
+		renewRecordsOpen.value = true
+		renewLoading.value = true
+		renewList.value = []
+		tenantApi
+			.tenantRenewRecords({ id: record.id })
+			.then((data) => {
+				renewList.value = data || []
+			})
+			.finally(() => {
+				renewLoading.value = false
+			})
+	}
+
 	loadPackages()
 </script>
+
+<style scoped lang="less">
+	.renew-presets {
+		display: flex;
+		gap: 14px;
+		margin-top: 8px;
+		font-size: 12px;
+	}
+	.reset-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 10px 0;
+		border-bottom: 1px dashed var(--border-color-split);
+		span {
+			color: var(--text-color-secondary);
+			font-size: 13px;
+		}
+		b {
+			font-weight: 600;
+		}
+	}
+	.reset-password {
+		font-family: Consolas, monospace;
+		font-size: 16px;
+		letter-spacing: 1px;
+		color: var(--accent-6);
+	}
+</style>

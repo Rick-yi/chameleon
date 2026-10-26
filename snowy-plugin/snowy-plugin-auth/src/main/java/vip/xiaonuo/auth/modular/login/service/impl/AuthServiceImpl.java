@@ -731,8 +731,12 @@ public class AuthServiceImpl implements AuthService {
      **/
     private void validateTenantAvailable() {
         String tenantId = TenantContext.getTenantId();
-        if (ObjectUtil.isNotEmpty(tenantId) && !tenantApi.isTenantAvailable(tenantId)) {
-            throw new CommonException("机构已停用或已到期，请联系平台运营");
+        if (ObjectUtil.isEmpty(tenantId)) {
+            return;
+        }
+        String unavailableReason = tenantApi.getTenantUnavailableReason(tenantId);
+        if (ObjectUtil.isNotEmpty(unavailableReason)) {
+            throw new CommonException(unavailableReason);
         }
     }
 

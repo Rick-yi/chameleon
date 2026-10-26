@@ -42,11 +42,14 @@ public class TenantAddParam {
     private String name;
 
     /** 联系人 */
-    @Schema(description = "联系人")
+    @Schema(description = "联系人", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank(message = "联系人不能为空")
     private String contactName;
 
     /** 联系电话 */
-    @Schema(description = "联系电话")
+    @Schema(description = "联系电话", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank(message = "联系电话不能为空")
+    @Pattern(regexp = "^1\\d{10}$", message = "请输入11位手机号")
     private String contactPhone;
 
     /** 套餐id */

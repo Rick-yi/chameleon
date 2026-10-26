@@ -229,6 +229,25 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
             ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '报表异步导出任务' ROW_FORMAT = Dynamic
             """;
 
+    private static final String TENANT_RENEW_DDL = """
+            CREATE TABLE IF NOT EXISTS `T_TENANT_RENEW` (
+              `ID` varchar(20) NOT NULL COMMENT '主键',
+              `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '租户id',
+              `PACKAGE_ID` varchar(20) NULL DEFAULT NULL COMMENT '续费套餐id',
+              `DAYS` int NULL DEFAULT 0 COMMENT '续费天数',
+              `AMOUNT` decimal(12,2) NULL DEFAULT 0.00 COMMENT '续费金额',
+              `OLD_EXPIRE_TIME` datetime NULL DEFAULT NULL COMMENT '原到期时间',
+              `NEW_EXPIRE_TIME` datetime NULL DEFAULT NULL COMMENT '新到期时间',
+              `REMARK` varchar(500) NULL DEFAULT NULL COMMENT '备注',
+              `OPERATOR_ID` varchar(20) NULL DEFAULT NULL COMMENT '操作人id',
+              `OPERATOR_NAME` varchar(100) NULL DEFAULT NULL COMMENT '操作人',
+              `DELETE_FLAG` varchar(255) NULL DEFAULT 'NOT_DELETE' COMMENT '删除标志',
+              `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+              PRIMARY KEY (`ID`) USING BTREE,
+              INDEX `IDX_TENANT_RENEW_TENANT` (`TENANT_ID`, `CREATE_TIME`)
+            ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '租户续费记录' ROW_FORMAT = Dynamic
+            """;
+
     @Resource
     private JdbcTemplate jdbcTemplate;
     @Override
@@ -450,6 +469,11 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
             if (!tableExists("T_TENANT_LOGIN")) {
                 jdbcTemplate.execute(TENANT_LOGIN_DDL);
                 log.info(">>> 平台结构升级：T_TENANT_LOGIN 已创建");
+            }
+
+            if (!tableExists("T_TENANT_RENEW")) {
+                jdbcTemplate.execute(TENANT_RENEW_DDL);
+                log.info(">>> 平台结构升级：T_TENANT_RENEW 已创建");
             }
 
             if (!tableExists("FIN_EXPORT_TASK")) {

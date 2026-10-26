@@ -15,7 +15,11 @@ package vip.xiaonuo.dev.modular.log.util;
 import cn.hutool.core.date.DateTime;
 import cn.hutool.core.exceptions.ExceptionUtil;
 import cn.hutool.core.thread.ThreadUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.extra.spring.SpringUtil;
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.JoinPoint;
 import vip.xiaonuo.common.annotation.CommonLog;
@@ -54,8 +58,8 @@ public class DevLogUtil {
             devLog.setMethodName(joinPoint.getSignature().getName());
             devLog.setReqMethod(method);
             devLog.setReqUrl(requestURI);
-            devLog.setParamJson(CommonJoinPointUtil.getArgsJsonString(joinPoint));
-            devLog.setResultJson(resultJson);
+            devLog.setParamJson(maskSensitive(CommonJoinPointUtil.getArgsJsonString(joinPoint)));
+            devLog.setResultJson(maskSensitive(resultJson));
             devLog.setOpTime(DateTime.now());
             devLog.setOpUser(userName);
             creatLogSignValue(devLog);
@@ -83,7 +87,7 @@ public class DevLogUtil {
             devLog.setMethodName(joinPoint.getSignature().getName());
             devLog.setReqMethod(method);
             devLog.setReqUrl(requestURI);
-            devLog.setParamJson(CommonJoinPointUtil.getArgsJsonString(joinPoint));
+            devLog.setParamJson(maskSensitive(CommonJoinPointUtil.getArgsJsonString(joinPoint)));
             devLog.setOpTime(DateTime.now());
             devLog.setOpUser(userName);
             creatLogSignValue(devLog);
@@ -152,5 +156,38 @@ public class DevLogUtil {
     private static void creatLogSignValue (DevLog devLog) {
         String logStr = devLog.toString().replaceAll(" +","");
         devLog.setSignData(CommonCryptogramUtil.doSignature(logStr));
+    }
+
+    /**
+     * 操作日志脱敏：任何名称包含 password 的字段不落库
+     * <p>
+     * 用于重置密码、开通租户等接口，避免一次性密码或初始密码进入审计日志。
+     * </p>
+     */
+    private static String maskSensitive(String json) {
+        if (StrUtil.isBlank(json)) {
+            return json;
+        }
+        try {
+            Object parsed = JSONUtil.parse(json);
+            maskNode(parsed);
+            return JSONUtil.toJsonStr(parsed);
+        } catch (Exception e) {
+            return json;
+        }
+    }
+
+    private static void maskNode(Object node) {
+        if (node instanceof JSONObject jsonObject) {
+            for (String key : jsonObject.keySet()) {
+                if (key != null && key.toLowerCase().contains("password")) {
+                    jsonObject.set(key, "******");
+                } else {
+                    maskNode(jsonObject.get(key));
+                }
+            }
+        } else if (node instanceof JSONArray jsonArray) {
+            jsonArray.forEach(DevLogUtil::maskNode);
+        }
     }
 }

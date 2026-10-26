@@ -167,4 +167,12 @@ public class AuthApiProvider implements AuthApi {
     public void removeThirdUserByUserIdList(List<String> userIdList) {
         authThirdService.deleteByUserIdList(userIdList);
     }
+
+    @Override
+    public void logoutByUserIdList(List<String> userIdList) {
+        if (ObjectUtil.isEmpty(userIdList)) {
+            return;
+        }
+        userIdList.stream().filter(StrUtil::isNotBlank).distinct().forEach(StpUtil::logout);
+    }
 }

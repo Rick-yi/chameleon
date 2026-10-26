@@ -17,18 +17,27 @@ import cn.hutool.core.collection.CollStreamUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.util.RandomUtil;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vip.xiaonuo.auth.api.AuthApi;
+import vip.xiaonuo.auth.core.pojo.SaBaseLoginUser;
+import vip.xiaonuo.auth.core.util.StpLoginUserUtil;
 import vip.xiaonuo.common.enums.CommonSortOrderEnum;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
+import vip.xiaonuo.common.util.CommonCryptogramUtil;
 import vip.xiaonuo.platform.core.service.TenantCapabilityService;
 import vip.xiaonuo.platform.modular.tenantpackage.entity.TenantPackage;
 import vip.xiaonuo.platform.modular.tenantpackage.mapper.TenantPackageMapper;
@@ -40,6 +49,8 @@ import vip.xiaonuo.platform.modular.tenant.param.TenantAddParam;
 import vip.xiaonuo.platform.modular.tenant.param.TenantEditParam;
 import vip.xiaonuo.platform.modular.tenant.param.TenantIdParam;
 import vip.xiaonuo.platform.modular.tenant.param.TenantPageParam;
+import vip.xiaonuo.platform.modular.tenant.param.TenantRenewParam;
+import vip.xiaonuo.platform.modular.tenant.param.TenantStatusParam;
 import vip.xiaonuo.platform.modular.tenant.service.TenantInitService;
 import vip.xiaonuo.platform.modular.tenant.service.TenantService;
 
@@ -77,6 +88,9 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
 
     @Resource
     private TenantInitService tenantInitService;
+
+    @Resource
+    private AuthApi authApi;
 
     @Override
     public Page<Tenant> page(TenantPageParam tenantPageParam) {
@@ -302,5 +316,177 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
             expiredList.forEach(tenant -> log.info(">>> 租户已到期，自动停用：{}（{}）", tenant.getName(), tenant.getId()));
         }
         return expiredList.size();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public Map<String, Object> renew(TenantRenewParam tenantRenewParam) {
+        if ("0".equals(tenantRenewParam.getId())) {
+            throw new CommonException("平台运营租户不需要续费");
+        }
+        Tenant tenant = this.queryEntity(tenantRenewParam.getId());
+        Date oldExpireTime = tenant.getExpireTime();
+        Date now = new Date();
+        // 已过期从今天续，未过期从原到期日续
+        Date baseTime = ObjectUtil.isEmpty(oldExpireTime) || oldExpireTime.before(now) ? now : oldExpireTime;
+        Date newExpireTime = DateUtil.offsetDay(baseTime, tenantRenewParam.getDays());
+        if (StrUtil.isNotBlank(tenantRenewParam.getPackageId())) {
+            TenantPackage tenantPackage = tenantPackageService.queryEntity(tenantRenewParam.getPackageId());
+            tenant.setPackageId(tenantPackage.getId());
+        }
+        tenant.setExpireTime(newExpireTime);
+        tenant.setStatus(TenantStatusEnum.NORMAL.getValue());
+        this.updateById(tenant);
+        tenantCapabilityService.refresh(tenant.getId());
+
+        SaBaseLoginUser loginUser = StpLoginUserUtil.getLoginUser();
+        jdbcTemplate.update("""
+                        INSERT INTO `T_TENANT_RENEW` (`ID`, `TENANT_ID`, `PACKAGE_ID`, `DAYS`, `AMOUNT`,
+                        `OLD_EXPIRE_TIME`, `NEW_EXPIRE_TIME`, `REMARK`, `OPERATOR_ID`, `OPERATOR_NAME`,
+                        `DELETE_FLAG`, `CREATE_TIME`)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'NOT_DELETE', ?)
+                        """,
+                IdUtil.getSnowflakeNextIdStr(), tenant.getId(), tenant.getPackageId(), tenantRenewParam.getDays(),
+                ObjectUtil.defaultIfNull(tenantRenewParam.getAmount(), BigDecimal.ZERO),
+                oldExpireTime, newExpireTime, tenantRenewParam.getRemark(),
+                loginUser == null ? null : loginUser.getId(), loginUser == null ? null : loginUser.getName(), now);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", tenant.getId());
+        result.put("expireTime", newExpireTime);
+        result.put("status", tenant.getStatus());
+        result.put("days", tenantRenewParam.getDays());
+        return result;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public void changeStatus(TenantStatusParam tenantStatusParam) {
+        if ("0".equals(tenantStatusParam.getId())) {
+            throw new CommonException("平台运营租户不允许停用");
+        }
+        String targetStatus = StrUtil.blankToDefault(tenantStatusParam.getStatus(), "").toUpperCase();
+        if (!TenantStatusEnum.STOP.getValue().equals(targetStatus)
+                && !TenantStatusEnum.NORMAL.getValue().equals(targetStatus)) {
+            throw new CommonException("不支持的目标状态：{}", tenantStatusParam.getStatus());
+        }
+        if (TenantStatusEnum.STOP.getValue().equals(targetStatus) && StrUtil.isBlank(tenantStatusParam.getReason())) {
+            throw new CommonException("停用租户必须填写原因");
+        }
+        Tenant tenant = this.queryEntity(tenantStatusParam.getId());
+        SaBaseLoginUser loginUser = StpLoginUserUtil.getLoginUser();
+        JSONObject extJson = StrUtil.isBlank(tenant.getExtJson()) ? new JSONObject() : JSONUtil.parseObj(tenant.getExtJson());
+        tenant.setStatus(targetStatus);
+        if (TenantStatusEnum.STOP.getValue().equals(targetStatus)) {
+            extJson.set("stopReason", tenantStatusParam.getReason());
+            extJson.set("stopTime", DateUtil.formatDateTime(new Date()));
+            extJson.set("stopBy", loginUser == null ? null : loginUser.getName());
+        } else {
+            extJson.set("resumeTime", DateUtil.formatDateTime(new Date()));
+            extJson.set("resumeBy", loginUser == null ? null : loginUser.getName());
+        }
+        tenant.setExtJson(JSONUtil.toJsonStr(extJson));
+        this.updateById(tenant);
+        if (TenantStatusEnum.STOP.getValue().equals(targetStatus)) {
+            // 停用后立即失效该租户全部登录态
+            List<String> userIdList = jdbcTemplate.queryForList(
+                    "SELECT `ID` FROM `SYS_USER` WHERE `TENANT_ID` = ? AND `DELETE_FLAG` = 'NOT_DELETE'",
+                    String.class, tenant.getId());
+            authApi.logoutByUserIdList(userIdList);
+            log.info(">>> 租户已停用：{}（{}），原因：{}，踢出会话 {} 个", tenant.getName(), tenant.getId(),
+                    tenantStatusParam.getReason(), userIdList.size());
+        } else {
+            log.info(">>> 租户已启用：{}（{}）", tenant.getName(), tenant.getId());
+        }
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public Map<String, Object> resetAdminPassword(TenantIdParam tenantIdParam) {
+        if ("0".equals(tenantIdParam.getId())) {
+            throw new CommonException("平台运营租户不支持重置");
+        }
+        Tenant tenant = this.queryEntity(tenantIdParam.getId());
+        Map<String, Object> adminUser;
+        try {
+            adminUser = jdbcTemplate.queryForMap("""
+                    SELECT `ID` AS id, `ACCOUNT` AS account FROM `SYS_USER`
+                    WHERE `TENANT_ID` = ? AND `DELETE_FLAG` = 'NOT_DELETE'
+                    ORDER BY CASE WHEN `ACCOUNT` = 'admin' THEN 0 ELSE 1 END, `CREATE_TIME` ASC
+                    LIMIT 1
+                    """, tenant.getId());
+        } catch (EmptyResultDataAccessException e) {
+            throw new CommonException("该租户还没有可重置的管理员账号");
+        }
+        String userId = String.valueOf(adminUser.get("id"));
+        String account = String.valueOf(adminUser.get("account"));
+        String newPassword = RandomUtil.randomString(
+                "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789", 12);
+        jdbcTemplate.update("UPDATE `SYS_USER` SET `PASSWORD` = ?, `UPDATE_TIME` = NOW() WHERE `ID` = ?",
+                CommonCryptogramUtil.doHashValue(newPassword), userId);
+        // 记录重置痕迹（不保存密码本身）
+        SaBaseLoginUser operator = StpLoginUserUtil.getLoginUser();
+        JSONObject tenantExt = StrUtil.isBlank(tenant.getExtJson())
+                ? new JSONObject() : JSONUtil.parseObj(tenant.getExtJson());
+        tenantExt.set("passwordResetTime", DateUtil.formatDateTime(new Date()));
+        tenantExt.set("passwordResetBy", operator == null ? null : operator.getName());
+        tenant.setExtJson(JSONUtil.toJsonStr(tenantExt));
+        this.updateById(tenant);
+        // 旧密码已失效，立即踢出该管理员的所有会话
+        authApi.logoutByUserIdList(List.of(userId));
+        log.info(">>> 已重置租户管理员密码：{} / {}（{}）", tenant.getName(), account, tenant.getId());
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("tenantId", tenant.getId());
+        result.put("tenantCode", tenant.getCode());
+        result.put("tenantName", tenant.getName());
+        result.put("account", account);
+        result.put("password", newPassword);
+        return result;
+    }
+
+    @Override
+    public List<Map<String, Object>> loginRecords(TenantIdParam tenantIdParam) {
+        this.queryEntity(tenantIdParam.getId());
+        return jdbcTemplate.queryForList("""
+                SELECT `ACCOUNT` AS account,
+                       DATE_FORMAT(`LOGIN_TIME`, '%Y-%m-%d %H:%i:%s') AS loginTime
+                FROM `T_TENANT_LOGIN`
+                WHERE `TENANT_ID` = ? AND `DELETE_FLAG` = 'NOT_DELETE'
+                ORDER BY `LOGIN_TIME` DESC LIMIT 20
+                """, tenantIdParam.getId());
+    }
+
+    @Override
+    public List<Map<String, Object>> renewRecords(TenantIdParam tenantIdParam) {
+        this.queryEntity(tenantIdParam.getId());
+        return jdbcTemplate.queryForList("""
+                SELECT `DAYS` AS days, `AMOUNT` AS amount,
+                       DATE_FORMAT(`OLD_EXPIRE_TIME`, '%Y-%m-%d %H:%i:%s') AS oldExpireTime,
+                       DATE_FORMAT(`NEW_EXPIRE_TIME`, '%Y-%m-%d %H:%i:%s') AS newExpireTime,
+                       `REMARK` AS remark, `OPERATOR_NAME` AS operatorName,
+                       DATE_FORMAT(`CREATE_TIME`, '%Y-%m-%d %H:%i:%s') AS createTime
+                FROM `T_TENANT_RENEW` WHERE `TENANT_ID` = ? AND `DELETE_FLAG` = 'NOT_DELETE'
+                ORDER BY `CREATE_TIME` DESC LIMIT 20
+                """, tenantIdParam.getId());
+    }
+
+    @Override
+    public String getTenantUnavailableReason(String tenantId) {
+        // 平台运营租户不参与到期/停用校验，避免平台自己把自己锁在门外
+        if ("0".equals(tenantId)) {
+            return null;
+        }
+        Tenant tenant = this.getTenantById(tenantId);
+        if (ObjectUtil.isEmpty(tenant)) {
+            return "机构不存在或已删除，请联系平台运营";
+        }
+        if (TenantStatusEnum.STOP.getValue().equals(tenant.getStatus())) {
+            return "机构已停用，请联系平台运营";
+        }
+        if (tenant.getExpireTime() != null && tenant.getExpireTime().before(new Date())) {
+            return "机构已于 " + DateUtil.formatDate(tenant.getExpireTime()) + " 到期，请联系平台运营续费";
+        }
+        return null;
     }
 }

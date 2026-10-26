@@ -58,6 +58,7 @@
 							size="large"
 							allow-clear
 							@blur="onTenantCodeChange"
+							@change="onTenantCodeChange"
 							@pressEnter="onTenantCodeChange"
 						/>
 						<div style="margin-top: 6px; font-size: 12px; color: rgba(0, 0, 0, 0.45)">

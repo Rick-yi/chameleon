@@ -39,6 +39,16 @@ public interface TenantApi {
     boolean isTenantAvailable(String tenantId);
 
     /**
+     * 获取租户不可用原因（不存在/已停用/已到期），可用时返回 null
+     *
+     * @param tenantId 租户id
+     * @return 面向登录用户的提示文案
+     * @author 会飞的猪
+     * @date 2026/10/26 09:00
+     **/
+    String getTenantUnavailableReason(String tenantId);
+
+    /**
      * 根据租户编码获取租户id，不存在返回 null
      *
      * @author 会飞的猪

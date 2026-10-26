@@ -30,9 +30,13 @@ import vip.xiaonuo.platform.modular.tenant.param.TenantAddParam;
 import vip.xiaonuo.platform.modular.tenant.param.TenantEditParam;
 import vip.xiaonuo.platform.modular.tenant.param.TenantIdParam;
 import vip.xiaonuo.platform.modular.tenant.param.TenantPageParam;
+import vip.xiaonuo.platform.modular.tenant.param.TenantRenewParam;
+import vip.xiaonuo.platform.modular.tenant.param.TenantStatusParam;
 import vip.xiaonuo.platform.modular.tenant.service.TenantService;
 
 import javax.validation.Valid;
+import java.util.List;
+import java.util.Map;
 import java.util.List;
 
 /**
@@ -131,5 +135,69 @@ public class TenantController {
     @PostMapping("/platform/tenant/checkExpired")
     public CommonResult<Integer> checkExpired() {
         return CommonResult.data(tenantService.checkExpired());
+    }
+
+    /**
+     * 租户续费/延期
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 09:00
+     */
+    @Operation(summary = "租户续费")
+    @CommonLog("租户续费")
+    @PostMapping("/platform/tenant/renew")
+    public CommonResult<Map<String, Object>> renew(@RequestBody @Valid TenantRenewParam tenantRenewParam) {
+        return CommonResult.data(tenantService.renew(tenantRenewParam));
+    }
+
+    /**
+     * 停用/启用租户
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 09:00
+     */
+    @Operation(summary = "停用/启用租户")
+    @CommonLog("变更租户状态")
+    @PostMapping("/platform/tenant/status")
+    public CommonResult<String> changeStatus(@RequestBody @Valid TenantStatusParam tenantStatusParam) {
+        tenantService.changeStatus(tenantStatusParam);
+        return CommonResult.ok();
+    }
+
+    /**
+     * 重置租户管理员密码（一次性密码只在本次响应返回）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 09:00
+     */
+    @Operation(summary = "重置租户管理员密码")
+    @CommonLog("重置租户管理员密码")
+    @PostMapping("/platform/tenant/resetAdminPassword")
+    public CommonResult<Map<String, Object>> resetAdminPassword(@RequestBody @Valid TenantIdParam tenantIdParam) {
+        return CommonResult.data(tenantService.resetAdminPassword(tenantIdParam));
+    }
+
+    /**
+     * 最近登录记录
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 09:00
+     */
+    @Operation(summary = "租户最近登录记录")
+    @GetMapping("/platform/tenant/loginRecords")
+    public CommonResult<List<Map<String, Object>>> loginRecords(@Valid TenantIdParam tenantIdParam) {
+        return CommonResult.data(tenantService.loginRecords(tenantIdParam));
+    }
+
+    /**
+     * 续费记录
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 09:00
+     */
+    @Operation(summary = "租户续费记录")
+    @GetMapping("/platform/tenant/renewRecords")
+    public CommonResult<List<Map<String, Object>>> renewRecords(@Valid TenantIdParam tenantIdParam) {
+        return CommonResult.data(tenantService.renewRecords(tenantIdParam));
     }
 }

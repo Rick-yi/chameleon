@@ -18,8 +18,11 @@ import vip.xiaonuo.platform.modular.tenant.param.TenantAddParam;
 import vip.xiaonuo.platform.modular.tenant.param.TenantEditParam;
 import vip.xiaonuo.platform.modular.tenant.param.TenantIdParam;
 import vip.xiaonuo.platform.modular.tenant.param.TenantPageParam;
+import vip.xiaonuo.platform.modular.tenant.param.TenantRenewParam;
+import vip.xiaonuo.platform.modular.tenant.param.TenantStatusParam;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 租户Service接口
@@ -58,4 +61,22 @@ public interface TenantService {
 
     /** 到期扫描：将已过期租户置为停用，返回处理数量 */
     int checkExpired();
+
+    /** 续费/延期：更新到期时间并恢复状态，返回新的到期信息 */
+    Map<String, Object> renew(TenantRenewParam tenantRenewParam);
+
+    /** 停用/启用租户；停用时踢出该租户全部会话 */
+    void changeStatus(TenantStatusParam tenantStatusParam);
+
+    /** 重置租户管理员密码，返回一次性密码（仅本次返回） */
+    Map<String, Object> resetAdminPassword(TenantIdParam tenantIdParam);
+
+    /** 最近登录记录 */
+    List<Map<String, Object>> loginRecords(TenantIdParam tenantIdParam);
+
+    /** 续费记录 */
+    List<Map<String, Object>> renewRecords(TenantIdParam tenantIdParam);
+
+    /** 租户不可用原因；可用时返回 null */
+    String getTenantUnavailableReason(String tenantId);
 }
