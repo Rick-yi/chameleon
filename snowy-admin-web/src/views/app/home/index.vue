@@ -51,6 +51,7 @@
 	import courseApi from '@/api/course/courseApi'
 	import studentApi from '@/api/student/studentApi'
 	import crmApi from '@/api/crm/crmApi'
+	import reportApi from '@/api/report/reportApi'
 	import EnrollmentFlow from '@/components/EnrollmentFlow/index.vue'
 	import {
 		CalendarOutlined,
@@ -88,23 +89,36 @@
 	const todayStart = () => `${today()} 00:00:00`
 	const todayEnd = () => `${today()} 23:59:59`
 
+	/** 今日收款优先用财务日报汇总，避免只统计最近 20 条订单导致少算 */
+	const resolveTodayPaid = (dashboard, paidRes) => {
+		const paidList = (paidRes?.records || []).filter(
+			(item) => item.payTime && String(item.payTime).slice(0, 10) === today()
+		)
+		const listAmount = paidList.reduce((sum, item) => sum + Number(item.paidAmount || 0), 0)
+		const summary = dashboard?.summary
+		return {
+			amount: Number(summary?.paidAmount ?? listAmount),
+			count: Number(summary?.orderCount ?? paidList.length)
+		}
+	}
+
 	/** 各视角的指标与待办 */
 	const loadTeach = async () => {
-		const [scheduleRes, unpaidRes, paidRes, leadRes, renewRes] = await Promise.all([
+		const [scheduleRes, unpaidRes, paidRes, leadRes, renewRes, todaySummary] = await Promise.all([
 			courseApi.scheduleWeek({ startDate: todayStart(), endDate: todayEnd() }).catch(() => []),
 			studentApi.orderPage({ current: 1, size: 5, status: 'UNPAID' }).catch(() => ({})),
-			studentApi.orderPage({ current: 1, size: 20, status: 'PAID' }).catch(() => ({})),
+			studentApi.orderPage({ current: 1, size: 200, status: 'PAID' }).catch(() => ({})),
 			crmApi.leadPage({ current: 1, size: 5, nextFollowBefore: todayEnd(), excludeStatus: 'ENROLLED,LOST' }).catch(() => ({})),
-			studentApi.renewWarnPage({ current: 1, size: 5, status: 'PENDING' }).catch(() => ({}))
+			studentApi.renewWarnPage({ current: 1, size: 5, status: 'PENDING' }).catch(() => ({})),
+			reportApi.dashboard({ startTime: todayStart(), endTime: todayEnd() }).catch(() => null)
 		])
 		const scheduleList = scheduleRes || []
 		const unpaidTotal = unpaidRes?.total || 0
 		const leadTotal = leadRes?.total || 0
-		const paidList = (paidRes?.records || []).filter((item) => item.payTime && String(item.payTime).slice(0, 10) === today())
-		const todayPaid = paidList.reduce((sum, item) => sum + Number(item.paidAmount || 0), 0)
+		const todayPaid = resolveTodayPaid(todaySummary, paidRes)
 
 		statList.value = [
-			{ key: 'paid', label: '今日收款', value: `¥${todayPaid.toLocaleString('zh-CN')}`, sub: `${paidList.length} 笔`, color: '#2ba471', path: '/app/cashier/orders' },
+			{ key: 'paid', label: '今日收款', value: `¥${todayPaid.amount.toLocaleString('zh-CN')}`, sub: `${todayPaid.count} 笔`, color: '#2ba471', path: '/app/cashier/orders' },
 			{ key: 'class', label: '今日课节', value: `${scheduleList.length} 节`, sub: '待点名优先', color: '#4bb964', path: '/app/teach/schedule' },
 			{ key: 'unpaid', label: '待收款', value: `${unpaidTotal} 笔`, sub: '需跟进', color: '#d89614', path: '/app/cashier/orders' },
 			{ key: 'lead', label: '待跟进线索', value: `${leadTotal} 条`, sub: '今日到期', color: '#6f5bd8', path: '/app/enroll/leads' }
@@ -198,15 +212,15 @@
 	}
 
 	const loadCashier = async () => {
-		const [unpaidRes, paidRes, refundRes] = await Promise.all([
+		const [unpaidRes, paidRes, refundRes, todaySummary] = await Promise.all([
 			studentApi.orderPage({ current: 1, size: 5, status: 'UNPAID' }).catch(() => ({})),
-			studentApi.orderPage({ current: 1, size: 20, status: 'PAID' }).catch(() => ({})),
-			studentApi.refundPage({ current: 1, size: 5, status: 'PENDING' }).catch(() => ({}))
+			studentApi.orderPage({ current: 1, size: 200, status: 'PAID' }).catch(() => ({})),
+			studentApi.refundPage({ current: 1, size: 5, status: 'PENDING' }).catch(() => ({})),
+			reportApi.dashboard({ startTime: todayStart(), endTime: todayEnd() }).catch(() => null)
 		])
-		const paidList = (paidRes?.records || []).filter((item) => item.payTime && String(item.payTime).slice(0, 10) === today())
-		const todayPaid = paidList.reduce((sum, item) => sum + Number(item.paidAmount || 0), 0)
+		const todayPaid = resolveTodayPaid(todaySummary, paidRes)
 		statList.value = [
-			{ key: 'paid', label: '今日收款', value: `¥${todayPaid.toLocaleString('zh-CN')}`, sub: `${paidList.length} 笔`, color: '#2ba471', path: '/app/cashier/orders' },
+			{ key: 'paid', label: '今日收款', value: `¥${todayPaid.amount.toLocaleString('zh-CN')}`, sub: `${todayPaid.count} 笔`, color: '#2ba471', path: '/app/cashier/orders' },
 			{ key: 'unpaid', label: '待收款', value: `${unpaidRes?.total || 0} 笔`, sub: '需催收', color: '#d89614', path: '/app/cashier/orders' },
 			{ key: 'refund', label: '待审批退费', value: `${refundRes?.total || 0} 笔`, sub: '待处理', color: '#e5484d', path: '/app/cashier/orders' },
 			{ key: 'report', label: '收款报表', value: '查看', sub: '趋势/渠道', color: '#4bb964', path: '/app/report' }
@@ -244,19 +258,19 @@
 
 	/** 经营总览：保持 APP 的指标 + 待办结构，功能覆盖工作台 */
 	const loadOverview = async () => {
-		const [unpaidRes, refundRes, warnRes, leadRes, scheduleRes, paidRes] = await Promise.all([
+		const [unpaidRes, refundRes, warnRes, leadRes, scheduleRes, paidRes, todaySummary] = await Promise.all([
 			studentApi.orderPage({ current: 1, size: 5, status: 'UNPAID' }).catch(() => ({})),
 			studentApi.refundPage({ current: 1, size: 5, status: 'PENDING' }).catch(() => ({})),
 			studentApi.renewWarnPage({ current: 1, size: 5, status: 'PENDING' }).catch(() => ({})),
 			crmApi.leadPage({ current: 1, size: 5, nextFollowBefore: todayEnd(), excludeStatus: 'ENROLLED,LOST' }).catch(() => ({})),
 			courseApi.scheduleWeek({ startDate: todayStart(), endDate: todayEnd() }).catch(() => []),
-			studentApi.orderPage({ current: 1, size: 20, status: 'PAID' }).catch(() => ({}))
+			studentApi.orderPage({ current: 1, size: 200, status: 'PAID' }).catch(() => ({})),
+			reportApi.dashboard({ startTime: todayStart(), endTime: todayEnd() }).catch(() => null)
 		])
 		const scheduleList = scheduleRes || []
-		const paidList = (paidRes?.records || []).filter((item) => item.payTime && String(item.payTime).slice(0, 10) === today())
-		const todayPaid = paidList.reduce((sum, item) => sum + Number(item.paidAmount || 0), 0)
+		const todayPaid = resolveTodayPaid(todaySummary, paidRes)
 		statList.value = [
-			{ key: 'paid', label: '今日收款', value: `¥${todayPaid.toLocaleString('zh-CN')}`, sub: `${paidList.length} 笔`, color: '#2ba471', path: '/app/cashier/orders' },
+			{ key: 'paid', label: '今日收款', value: `¥${todayPaid.amount.toLocaleString('zh-CN')}`, sub: `${todayPaid.count} 笔`, color: '#2ba471', path: '/app/cashier/orders' },
 			{ key: 'unpaid', label: '待收款', value: `${unpaidRes?.total || 0} 笔`, sub: '需跟进', color: '#d89614', path: '/app/cashier/orders' },
 			{ key: 'class', label: '今日课节', value: `${scheduleList.length} 节`, sub: '待点名优先', color: '#4bb964', path: '/app/teach/schedule' },
 			{ key: 'lead', label: '待跟进线索', value: `${leadRes?.total || 0} 条`, sub: '今日到期', color: '#6f5bd8', path: '/app/enroll/leads' }
