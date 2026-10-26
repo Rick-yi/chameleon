@@ -320,6 +320,7 @@
 			{ key: 'students', text: '学员名册', icon: TeamOutlined, color: '#e8f7f0', path: '/app/teach/students' },
 			{ key: 'leads', text: '招生线索', icon: PhoneOutlined, color: '#e8f4f8', path: '/app/enroll/leads' },
 			{ key: 'renew', text: '续费预警', icon: AuditOutlined, color: '#fdf3e6', path: '/app/student/renew' },
+			{ key: 'teacher', text: '老师管理', icon: TeamOutlined, color: '#f3edfd', path: '/app/teacher' },
 			{ key: 'report', text: '经营看板', icon: BarChartOutlined, color: '#fdedf0', path: '/app/report' }
 		])
 	}

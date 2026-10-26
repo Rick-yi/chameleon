@@ -109,6 +109,7 @@
 			'/app/teach/attend': '点名消课',
 			'/app/teach/students': '学员名册',
 			'/app/student/renew': '续费预警',
+			'/app/teacher': '老师管理',
 			'/app/enroll/leads': '我的线索',
 			'/app/enroll/lead': '线索详情',
 			'/app/cashier/orders': '收款台',

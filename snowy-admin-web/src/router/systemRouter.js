@@ -107,6 +107,11 @@ const routes = [
 				meta: { title: '续费预警' }
 			},
 			{
+				path: 'teacher',
+				component: () => import('@/views/app/teacher/index.vue'),
+				meta: { title: '老师管理' }
+			},
+			{
 				path: 'enroll/leads',
 				component: () => import('@/views/app/enroll/leads.vue'),
 				meta: { title: '我的线索' }
