@@ -284,12 +284,51 @@
 			</a-row>
 		</a-spin>
 
+		<!-- 工作台内直接收款，处理完立即刷新待办 -->
+		<a-modal v-model:open="payOpen" title="收款" :width="480" :destroy-on-close="true" @ok="onSubmitPay">
+			<div class="wb-pay-amount">¥{{ Number(payForm.amount || 0).toFixed(2) }}</div>
+			<a-form ref="payFormRef" :model="payForm" layout="vertical">
+				<a-form-item label="订单">
+					<a-input :value="`${payForm.studentName || ''} · ${payForm.packageName || ''}`" disabled />
+				</a-form-item>
+				<a-form-item label="收款渠道">
+					<a-select v-model:value="payForm.payChannel" :options="payChannelOptions" />
+				</a-form-item>
+				<a-form-item label="实收金额" name="paidAmount" :rules="[{ required: true, message: '请输入实收金额' }]">
+					<a-input-number v-model:value="payForm.paidAmount" :min="0.01" :precision="2" style="width: 100%" />
+				</a-form-item>
+				<a-form-item label="备注">
+					<a-input v-model:value="payForm.remark" placeholder="如：收款人、转账流水号" allow-clear />
+				</a-form-item>
+			</a-form>
+		</a-modal>
+
+		<!-- 工作台内直接审批退费，处理完立即刷新待办 -->
+		<a-modal v-model:open="approveOpen" title="退费审批" :width="520" :destroy-on-close="true" :footer="null">
+			<div class="wb-refund-summary">
+				<div><span>学员</span><b>{{ approveForm.studentName || '-' }}</b></div>
+				<div><span>可退课时</span><b>{{ approveForm.refundLessons || 0 }} 课时</b></div>
+				<div><span>预计退款</span><b>¥{{ Number(approveForm.refundAmount || 0).toFixed(2) }}</b></div>
+			</div>
+			<a-alert v-if="approveForm.applyRemark" type="info" show-icon :message="`申请原因：${approveForm.applyRemark}`" style="margin-bottom: 12px" />
+			<a-form layout="vertical">
+				<a-form-item label="审批意见">
+					<a-input v-model:value="approveForm.opinion" placeholder="请输入审批意见" allow-clear />
+				</a-form-item>
+				<div class="wb-approve-actions">
+					<a-button type="primary" @click="onApprove(true)">通过（冻结账户）</a-button>
+					<a-button danger @click="onApprove(false)">驳回</a-button>
+				</div>
+			</a-form>
+		</a-modal>
+
 		<enrollment-flow v-model:open="enrollOpen" @success="onEnrollSuccess" />
 	</div>
 </template>
 
 <script setup name="workbenchIndex">
 	import { useRouter } from 'vue-router'
+	import { message } from 'ant-design-vue'
 	import {
 		ShoppingCartOutlined,
 		WalletOutlined,
@@ -318,6 +357,17 @@
 	const monthSummary = ref({})
 
 	const enrollOpen = ref(false)
+	const payOpen = ref(false)
+	const payFormRef = ref()
+	const payForm = ref({})
+	const payChannelOptions = [
+		{ value: 'OFFLINE', label: '线下转账' },
+		{ value: 'CASH', label: '现金' },
+		{ value: 'WECHAT', label: '微信' },
+		{ value: 'ALIPAY', label: '支付宝' }
+	]
+	const approveOpen = ref(false)
+	const approveForm = ref({})
 	const shortcuts = [
 		{ key: 'quickEnroll', text: '录入学员', icon: UserAddOutlined, color: '#fff1e6', action: 'quickEnroll', perm: '/student/add' },
 		{ key: 'order', text: '报名购课', icon: ShoppingCartOutlined, path: '/student', color: '#eaf2fd' },
@@ -414,12 +464,56 @@
 		sessionStorage.setItem('workbench:action', JSON.stringify({ type, record }))
 	}
 	const openPay = (item) => {
-		stashAction('pay', item)
-		go({ path: '/student/order', query: { status: 'UNPAID' } })
+		payForm.value = {
+			orderId: item.id,
+			studentName: item.studentName,
+			packageName: item.packageName,
+			amount: item.amount,
+			paidAmount: Number(item.amount || 0),
+			payChannel: 'OFFLINE',
+			remark: ''
+		}
+		payOpen.value = true
+	}
+	const onSubmitPay = () => {
+		payFormRef.value.validate().then(() => {
+			studentApi
+				.orderOfflinePay({
+					orderId: payForm.value.orderId,
+					paidAmount: payForm.value.paidAmount,
+					payChannel: payForm.value.payChannel,
+					remark: payForm.value.remark
+				})
+				.then(() => {
+					message.success('收款成功，课时已入账')
+					payOpen.value = false
+					loadAll()
+				})
+		})
 	}
 	const openApprove = (item) => {
-		stashAction('refund', item)
-		go({ path: '/student/order', query: { tab: 'refund', status: 'PENDING' } })
+		approveForm.value = {
+			refundId: item.id,
+			opinion: '',
+			studentName: item.studentName,
+			refundLessons: item.refundLessons,
+			refundAmount: item.refundAmount,
+			applyRemark: item.applyRemark
+		}
+		approveOpen.value = true
+	}
+	const onApprove = (pass) => {
+		studentApi
+			.refundApprove({
+				refundId: approveForm.value.refundId,
+				pass,
+				opinion: approveForm.value.opinion
+			})
+			.then(() => {
+				message.success(pass ? '已通过退费，账户已冻结' : '已驳回退费')
+				approveOpen.value = false
+				loadAll()
+			})
 	}
 	const openFollow = (item) => {
 		stashAction('follow', item)
@@ -499,5 +593,40 @@
 		justify-content: flex-end;
 		gap: 6px;
 		margin-top: 2px;
+	}
+	.wb-pay-amount {
+		text-align: center;
+		font-size: 28px;
+		font-weight: 600;
+		color: var(--text-color);
+		margin-bottom: 12px;
+		font-variant-numeric: tabular-nums;
+	}
+	.wb-refund-summary {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 8px;
+		margin-bottom: 12px;
+		padding: 10px 12px;
+		border-radius: var(--radius-control);
+		background: var(--background-color-light);
+		div {
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+		}
+		span {
+			font-size: 11px;
+			color: var(--text-color-secondary);
+		}
+		b {
+			font-size: 14px;
+			color: var(--text-color);
+		}
+	}
+	.wb-approve-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 8px;
 	}
 </style>
