@@ -53,4 +53,8 @@ public class SysUserPageParam {
     /** 所属组织 */
     @Schema(description = "所属组织")
     private String orgId;
+
+    /** 角色编码，如 teacher */
+    @Schema(description = "角色编码")
+    private String roleCode;
 }

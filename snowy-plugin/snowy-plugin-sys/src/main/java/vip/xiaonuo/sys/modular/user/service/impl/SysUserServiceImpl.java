@@ -69,6 +69,7 @@ import vip.xiaonuo.auth.api.SaBaseLoginUserApi;
 import vip.xiaonuo.auth.core.pojo.SaBaseLoginUser;
 import vip.xiaonuo.auth.core.util.StpLoginUserUtil;
 import vip.xiaonuo.common.cache.CommonCacheOperator;
+import vip.xiaonuo.common.context.TenantContext;
 import vip.xiaonuo.common.enums.CommonGenderEnum;
 import vip.xiaonuo.common.enums.CommonSortOrderEnum;
 import vip.xiaonuo.common.excel.CommonExcelCustomMergeStrategy;
@@ -327,6 +328,13 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         if (ObjectUtil.isNotEmpty(sysUserPageParam.getUserStatus())) {
             queryWrapper.lambda().eq(SysUser::getUserStatus, sysUserPageParam.getUserStatus());
+        }
+        if (ObjectUtil.isNotEmpty(sysUserPageParam.getRoleCode())) {
+            // 老师管理等页面按角色编码过滤，角色关系表按当前租户隔离
+            queryWrapper.apply("ID IN (SELECT rel.OBJECT_ID FROM SYS_RELATION rel "
+                            + "JOIN SYS_ROLE r ON r.ID = rel.TARGET_ID "
+                            + "WHERE rel.CATEGORY = 'SYS_USER_HAS_ROLE' AND r.CODE = {0} AND rel.TENANT_ID = {1})",
+                    sysUserPageParam.getRoleCode(), TenantContext.getTenantId());
         }
         if (ObjectUtil.isAllNotEmpty(sysUserPageParam.getSortField(), sysUserPageParam.getSortOrder())) {
             CommonSortOrderEnum.validate(sysUserPageParam.getSortOrder());

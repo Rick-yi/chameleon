@@ -42,9 +42,8 @@ public class SysUserAddParam {
     @NotBlank(message = "orgId不能为空")
     private String orgId;
 
-    /** 职位id */
+    /** 职位id（老师等业务账号可不填） */
     @Schema(description = "职位id")
-    @NotBlank(message = "positionId不能为空")
     private String positionId;
 
     /** 职级 */

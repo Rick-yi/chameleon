@@ -1101,6 +1101,22 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
     @Override
     public List<JSONObject> teacherOptions(String searchKey) {
         List<JSONObject> userList = sysUserApi.listUserOptions(searchKey);
+        List<JSONObject> teacherList = new ArrayList<>();
+        for (JSONObject user : userList) {
+            String userId = user.getStr("id");
+            List<String> roleCodeList = sysUserApi.ownRoleCode(userId);
+            if (roleCodeList != null
+                    && (roleCodeList.contains("teacher") || roleCodeList.contains("superAdmin"))) {
+                JSONObject option = new JSONObject();
+                option.set("value", userId);
+                option.set("label", user.getStr("name"));
+                teacherList.add(option);
+            }
+        }
+        // 兼容尚未维护 teacher 角色的存量租户：没有老师角色时保留原全量选项
+        if (!teacherList.isEmpty()) {
+            return teacherList;
+        }
         List<JSONObject> optionList = new ArrayList<>();
         for (JSONObject user : userList) {
             JSONObject option = new JSONObject();

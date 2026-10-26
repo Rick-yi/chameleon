@@ -777,6 +777,33 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
             if (removed > 0) {
                 log.info(">>> P0 结构升级：已清理 {} 条业务租户平台菜单越权授权", removed);
             }
+            // 老师管理菜单：全局资源 + 各租户超管授权
+            jdbcTemplate.update("""
+                    INSERT IGNORE INTO `SYS_RESOURCE`
+                        (`ID`, `PARENT_ID`, `TITLE`, `NAME`, `CODE`, `CATEGORY`, `MODULE`, `MENU_TYPE`,
+                         `PATH`, `COMPONENT`, `ICON`, `COLOR`, `VISIBLE`, `DISPLAY_LAYOUT`, `KEEP_LIVE`,
+                         `SORT_CODE`, `DELETE_FLAG`, `CREATE_TIME`, `CREATE_USER`)
+                    VALUES ('menu_teacher_001', '0', '老师管理', 'courseTeacher', 'teacher', 'MENU', 'mod_edu_001',
+                            'MENU', '/teacher', 'course/teacher/index', 'team-outlined', NULL, 'YES', 'YES', 'YES',
+                            11, 'NOT_DELETE', NOW(), '1')
+                    """);
+            int teacherMenuAdded = jdbcTemplate.update("""
+                    INSERT IGNORE INTO `SYS_RELATION`
+                        (`ID`, `TENANT_ID`, `OBJECT_ID`, `TARGET_ID`, `CATEGORY`, `EXT_JSON`)
+                    SELECT CONCAT('rmt_', LEFT(MD5(r.`ID`), 16)),
+                           r.`TENANT_ID`, r.`ID`, 'menu_teacher_001', 'SYS_ROLE_HAS_RESOURCE',
+                           JSON_OBJECT('menuId', 'menu_teacher_001', 'buttonInfo', JSON_ARRAY())
+                    FROM `SYS_ROLE` r
+                    WHERE r.`CODE` = 'superAdmin'
+                      AND NOT EXISTS (
+                          SELECT 1 FROM `SYS_RELATION` s
+                          WHERE s.`OBJECT_ID` = r.`ID` AND s.`TARGET_ID` = 'menu_teacher_001'
+                            AND s.`CATEGORY` = 'SYS_ROLE_HAS_RESOURCE'
+                      )
+                    """);
+            if (teacherMenuAdded > 0) {
+                log.info(">>> 课务结构升级：老师管理菜单已授权 {} 个租户超管", teacherMenuAdded);
+            }
         } catch (Exception e) {
             log.error(">>> P0 结构升级失败，请手工执行 chameleon_p0_migration.sql", e);
         }

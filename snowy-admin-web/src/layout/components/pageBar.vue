@@ -25,6 +25,7 @@
 		'/course',
 		'/course/package',
 		'/course/class',
+		'/teacher',
 		'/course/schedule',
 		'/course/attend',
 		'/report/dashboard',
