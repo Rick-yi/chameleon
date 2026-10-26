@@ -102,6 +102,11 @@ const routes = [
 				meta: { title: '学员名册' }
 			},
 			{
+				path: 'student/renew',
+				component: () => import('@/views/app/student/renew.vue'),
+				meta: { title: '续费预警' }
+			},
+			{
 				path: 'enroll/leads',
 				component: () => import('@/views/app/enroll/leads.vue'),
 				meta: { title: '我的线索' }

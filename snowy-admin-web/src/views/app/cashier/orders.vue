@@ -64,7 +64,7 @@
 			<div class="m-pay-amount">¥{{ Number(payOrder?.amount || 0).toFixed(2) }}</div>
 			<a-form layout="vertical">
 				<a-form-item label="收款渠道">
-					<a-radio-group v-model:value="payForm.payChannel" :options="payChannelOptions" button-style="solid" />
+					<a-select v-model:value="payForm.payChannel" :options="payChannelOptions" style="width: 100%" />
 				</a-form-item>
 				<a-form-item label="实收金额">
 					<a-input-number v-model:value="payForm.paidAmount" :min="0" :precision="2" style="width: 100%" />
@@ -79,7 +79,7 @@
 
 <script setup name="appCashierOrders">
 	import { useRoute } from 'vue-router'
-	import { message } from 'ant-design-vue'
+	import { message, Modal } from 'ant-design-vue'
 	import studentApi from '@/api/student/studentApi'
 
 	const route = useRoute()
@@ -151,22 +151,56 @@
 		load()
 	}
 
-	const onApprove = async (item) => {
-		await studentApi.refundApprove({ id: item.id })
-		message.success('已同意退费')
-		load()
+	const onApprove = (item) => {
+		Modal.confirm({
+			title: '确认同意退费？',
+			content: `学员：${item.studentName || '学员'}，可退 ${item.refundLessons || 0} 课时。同意后将冻结课时账户。`,
+			okText: '同意',
+			cancelText: '取消',
+			onOk: async () => {
+				await studentApi.refundApprove({ id: item.id })
+				message.success('已同意退费')
+				load()
+			}
+		})
 	}
 
 	// 退费单没有独立的「驳回」接口：审批通过后再撤销 = 驳回
-	const onReject = async (item) => {
-		await studentApi.refundCancel({ id: item.id })
-		message.success('已驳回')
-		load()
+	const onReject = (item) => {
+		Modal.confirm({
+			title: '确认驳回退费？',
+			content: '驳回后该退费单将撤销，学员课时账户保持不变。',
+			okText: '驳回',
+			okButtonProps: { danger: true },
+			cancelText: '取消',
+			onOk: async () => {
+				await studentApi.refundCancel({ id: item.id })
+				message.success('已驳回')
+				load()
+			}
+		})
 	}
 
-	onMounted(() => {
-		if (route.query.tab === 'refund') tab.value = 'REFUND'
-		load()
+	/** 工作台行内动作直达：?orderId=... 打开收款，?refundId=... 打开审批 */
+	const applyRouteAction = () => {
+		const orderId = route.query.orderId
+		const refundId = route.query.refundId
+		if (orderId) {
+			const item = orderList.value.find((row) => row.id === orderId)
+			if (item) openPay(item)
+			else message.warning('该订单不在当前列表中，请重新搜索')
+		}
+		if (refundId) {
+			const item = refundList.value.find((row) => row.id === refundId)
+			if (item) onApprove(item)
+			else message.warning('该退费单不在当前列表中，请重新搜索')
+		}
+	}
+
+	onMounted(async () => {
+		if (route.query.tab === 'refund' || route.query.refundId) tab.value = 'REFUND'
+		await load()
+		applyRouteAction()
 	})
 </script>
 

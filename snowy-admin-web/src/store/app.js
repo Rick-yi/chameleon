@@ -67,8 +67,8 @@ export const useAppStore = defineStore('useAppStore', () => {
 
 	/** 各视角允许访问的页面前缀 */
 	const VIEW_PATH_PREFIX = {
-		teach: ['/app/home', '/app/teach', '/app/mine'],
-		enroll: ['/app/home', '/app/enroll', '/app/teach/students', '/app/mine'],
+		teach: ['/app/home', '/app/teach', '/app/student', '/app/mine'],
+		enroll: ['/app/home', '/app/enroll', '/app/teach/students', '/app/cashier/orders', '/app/mine'],
 		cashier: ['/app/home', '/app/cashier', '/app/report', '/app/mine'],
 		all: ['/app']
 	}
@@ -76,8 +76,9 @@ export const useAppStore = defineStore('useAppStore', () => {
 	/** 路径在当前视角下是否可访问 */
 	const canVisit = (path) => {
 		if (!path) return true
+		const cleanPath = String(path).split('?')[0]
 		const prefixList = VIEW_PATH_PREFIX[view.value] || VIEW_PATH_PREFIX.all
-		return prefixList.some((prefix) => path === prefix || path.startsWith(prefix + '/'))
+		return prefixList.some((prefix) => cleanPath === prefix || cleanPath.startsWith(prefix + '/'))
 	}
 
 	/** 当前账号可切换的视角（按角色收敛，避免切到没权限的视角后满屏 403） */

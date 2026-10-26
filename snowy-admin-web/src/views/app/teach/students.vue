@@ -26,8 +26,13 @@
 					{{ item.gender }} · 家长 {{ item.parentName || '-' }} {{ item.parentPhone || '' }}
 				</div>
 			</div>
-			<a-icon class="m-student-arrow" @click.stop="openDetail(item)"><right-outlined /></a-icon>
+			<div class="m-student-actions">
+				<a-button v-if="hasPerm('/student/order/add')" size="small" @click.stop="openEnroll(item)">报名</a-button>
+				<a-icon class="m-student-arrow" @click.stop="openDetail(item)"><right-outlined /></a-icon>
+			</div>
 		</div>
+
+		<enrollment-flow v-model:open="enrollOpen" :student="enrollStudent" @success="onEnrollSuccess" />
 
 		<a-drawer v-model:open="detailOpen" :width="360" placement="right" title="学员详情" :body-style="{ padding: '12px' }">
 			<div v-if="currentStudent">
@@ -50,6 +55,7 @@
 
 <script setup name="appTeachStudents">
 	import studentApi from '@/api/student/studentApi'
+	import EnrollmentFlow from '@/components/EnrollmentFlow/index.vue'
 
 	const loading = ref(false)
 	const keyword = ref('')
@@ -57,6 +63,8 @@
 	const detailOpen = ref(false)
 	const currentStudent = ref(null)
 	const accountList = ref([])
+	const enrollOpen = ref(false)
+	const enrollStudent = ref(null)
 
 	const statusText = (status) => ({ STUDYING: '在读', STOP: '停课', REFUNDED: '已退费' }[status] || status)
 	const statusColor = (status) => (status === 'STUDYING' ? 'green' : status === 'STOP' ? 'orange' : 'red')
@@ -78,6 +86,15 @@
 			.lessonAccountPage({ current: 1, size: 20, studentId: item.id })
 			.catch(() => ({}))
 		accountList.value = res?.records || []
+	}
+
+	const openEnroll = (item) => {
+		enrollStudent.value = item
+		enrollOpen.value = true
+	}
+	const onEnrollSuccess = () => {
+		enrollOpen.value = false
+		load()
 	}
 
 	onMounted(load)
@@ -102,6 +119,11 @@
 	.m-student-main {
 		flex: 1;
 		min-width: 0;
+	}
+	.m-student-actions {
+		display: flex;
+		align-items: center;
+		gap: 8px;
 	}
 	.m-student-name {
 		font-size: 15px;

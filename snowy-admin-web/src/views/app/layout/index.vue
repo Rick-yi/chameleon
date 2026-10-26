@@ -75,25 +75,25 @@
 	/** 不同视角的底部导航 */
 	const TABS = {
 		teach: [
-			{ path: '/app/home', text: '今日', icon: HomeOutlined },
+			{ path: '/app/home', text: '工作台', icon: HomeOutlined },
 			{ path: '/app/teach/schedule', text: '课表', icon: CalendarOutlined },
 			{ path: '/app/teach/students', text: '学员', icon: TeamOutlined },
 			{ path: '/app/mine', text: '我的', icon: UserOutlined }
 		],
 		enroll: [
-			{ path: '/app/home', text: '今日', icon: HomeOutlined },
+			{ path: '/app/home', text: '工作台', icon: HomeOutlined },
 			{ path: '/app/enroll/leads', text: '线索', icon: PhoneOutlined },
 			{ path: '/app/teach/students', text: '学员', icon: TeamOutlined },
 			{ path: '/app/mine', text: '我的', icon: UserOutlined }
 		],
 		cashier: [
-			{ path: '/app/home', text: '今日', icon: HomeOutlined },
+			{ path: '/app/home', text: '工作台', icon: HomeOutlined },
 			{ path: '/app/cashier/orders', text: '收款', icon: WalletOutlined },
 			{ path: '/app/report', text: '报表', icon: BarChartOutlined },
 			{ path: '/app/mine', text: '我的', icon: UserOutlined }
 		],
 		all: [
-			{ path: '/app/home', text: '今日', icon: HomeOutlined },
+			{ path: '/app/home', text: '工作台', icon: HomeOutlined },
 			{ path: '/app/report', text: '报表', icon: BarChartOutlined },
 			{ path: '/app/enroll/leads', text: '线索', icon: PhoneOutlined },
 			{ path: '/app/mine', text: '我的', icon: UserOutlined }
@@ -104,10 +104,11 @@
 
 	const headerTitle = computed(() => {
 		const map = {
-			'/app/home': '今日概览',
+			'/app/home': '工作台',
 			'/app/teach/schedule': '我的课表',
 			'/app/teach/attend': '点名消课',
 			'/app/teach/students': '学员名册',
+			'/app/student/renew': '续费预警',
 			'/app/enroll/leads': '我的线索',
 			'/app/enroll/lead': '线索详情',
 			'/app/cashier/orders': '收款台',

@@ -120,7 +120,7 @@
 			crmApi.leadDetail({ id: leadId.value }).catch(() => null),
 			crmApi.followPage({ current: 1, size: 50, leadId: leadId.value }).catch(() => ({}))
 		])
-		lead.value = detailRes?.data || null
+		lead.value = detailRes || null
 		followList.value = followRes?.records || []
 	}
 
@@ -177,7 +177,7 @@
 			gender: '男',
 			status: 'STUDYING'
 		})
-		const studentId = studentRes?.data
+		const studentId = studentRes
 		if (convertForm.value.coursePackageId) {
 			await studentApi.orderAdd({
 				studentId,
@@ -196,6 +196,10 @@
 		if (lead.value) {
 			convertForm.value.name = lead.value.name
 			convertForm.value.parentPhone = lead.value.parentPhone
+		}
+		// 工作台「跟进」直达：自动打开跟进弹窗
+		if (route.query.action === 'follow' && hasPerm('/crm/follow/add')) {
+			followOpen.value = true
 		}
 	})
 </script>
