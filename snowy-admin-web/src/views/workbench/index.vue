@@ -284,7 +284,7 @@
 			</a-row>
 		</a-spin>
 
-		<quick-enroll-modal v-model:open="enrollOpen" @success="onEnrollSuccess" />
+		<enrollment-flow v-model:open="enrollOpen" @success="onEnrollSuccess" />
 	</div>
 </template>
 
@@ -299,7 +299,7 @@
 		BarChartOutlined,
 		UserAddOutlined
 	} from '@ant-design/icons-vue'
-	import QuickEnrollModal from './QuickEnrollModal.vue'
+	import EnrollmentFlow from '@/components/EnrollmentFlow/index.vue'
 	import studentApi from '@/api/student/studentApi'
 	import courseApi from '@/api/course/courseApi'
 	import crmApi from '@/api/crm/crmApi'

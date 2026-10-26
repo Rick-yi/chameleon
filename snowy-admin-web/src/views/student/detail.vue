@@ -8,7 +8,7 @@
 					<div style="color: rgba(0,0,0,.45); font-size: 13px; margin-top: 4px">家长：{{ student.parentName }} {{ student.parentPhone }} · 生日：{{ student.birthday ? String(student.birthday).slice(0, 10) : '-' }}</div>
 				</div>
 				<div style="margin-left: auto">
-					<a-button type="primary" @click="orderOpen = true">报名购课</a-button>
+					<a-button type="primary" @click="enrollOpen = true">报名购课</a-button>
 				</div>
 			</div>
 			<div class="detail-kpis">
@@ -136,16 +136,7 @@
 			</a-tabs>
 		</a-card>
 
-		<a-modal v-model:open="orderOpen" title="报名购课" :width="480" :destroy-on-close="true" @ok="onSubmitOrder">
-			<a-form ref="orderFormRef" :model="orderFormData" layout="vertical">
-				<a-form-item label="课包" name="coursePackageId" :rules="[{ required: true, message: '请选择课包' }]">
-					<a-select v-model:value="orderFormData.coursePackageId" placeholder="请选择课包" :options="packageOptions" />
-				</a-form-item>
-				<a-form-item label="支付渠道" name="payChannel">
-					<a-radio-group v-model:value="orderFormData.payChannel" :options="[{ value: 'WECHAT', label: '微信' }, { value: 'OFFLINE', label: '线下' }]" />
-				</a-form-item>
-			</a-form>
-		</a-modal>
+		<enrollment-flow v-model:open="enrollOpen" :student="student" @success="loadAll" />
 
 		<a-modal v-model:open="payOpen" title="线下收款登记" :width="480" :destroy-on-close="true" @ok="onSubmitPay">
 			<a-form ref="payFormRef" :model="payFormData" layout="vertical">
@@ -212,6 +203,7 @@
 
 <script setup name="studentDetail">
 	import { useRoute } from 'vue-router'
+	import EnrollmentFlow from '@/components/EnrollmentFlow/index.vue'
 	import studentApi from '@/api/student/studentApi'
 	import courseApi from '@/api/course/courseApi'
 	import { message } from 'ant-design-vue'
@@ -230,12 +222,8 @@
 	const refunds = ref([])
 	const activeTab = ref('account')
 	const courseMap = ref({})
-	const packageOptions = ref([])
-	const packageRaw = ref([])
+	const enrollOpen = ref(false)
 
-	const orderOpen = ref(false)
-	const orderFormRef = ref()
-	const orderFormData = ref({})
 	const payOpen = ref(false)
 	const payFormRef = ref()
 	const payFormData = ref({})
@@ -366,9 +354,8 @@
 			studentApi.orderPage({ current: 1, size: 50, studentId: currentStudentId.value }),
 			studentApi.refundPage({ current: 1, size: 50, studentId: currentStudentId.value }),
 			courseApi.coursePage({ current: 1, size: 100 }),
-			courseApi.packagePage({ current: 1, size: 100 }),
 			courseApi.studentAttendPage({ current: 1, size: 50, studentId: currentStudentId.value })
-		]).then(([stu, acc, flow, order, refund, course, pkg, attend]) => {
+		]).then(([stu, acc, flow, order, refund, course, attend]) => {
 			student.value = stu
 			accounts.value = acc.records || []
 			flows.value = (flow.records || []).map((f) => ({ ...f, flowType: flowTypeText(f.flowType) }))
@@ -378,40 +365,11 @@
 			const cmap = {}
 			for (const c of course.records || []) cmap[c.id] = c.name
 			courseMap.value = cmap
-			packageRaw.value = pkg.records || []
-			packageOptions.value = packageRaw.value.map((p) => ({ value: p.id, label: `${p.name}（${p.lessons}课时 ${p.price}元）` }))
 		}).catch((err) => {
 			message.error(err?.msg || '学员详情加载失败，请重试')
 		}).finally(() => (loading.value = false))
 	}
 
-	const onSubmitOrder = () => {
-		orderFormRef.value.validate().then(() => {
-			studentApi
-				.orderAdd({ studentId: currentStudentId.value, coursePackageId: orderFormData.value.coursePackageId, payChannel: orderFormData.value.payChannel || 'WECHAT' })
-				.then((res) => {
-					orderOpen.value = false
-					message.success('下单成功，请登记收款')
-					// 下单 → 收款 一步完成
-					payFormData.value = {
-						orderId: res,
-						studentName: student.value.name,
-						packageName: packageLabel(orderFormData.value.coursePackageId),
-						amount: packagePrice(orderFormData.value.coursePackageId)
-					}
-					payOpen.value = true
-					loadAll()
-				})
-		})
-	}
-	const packageLabel = (id) => {
-		const item = packageOptions.value.find((p) => p.value === id)
-		return item ? item.label : ''
-	}
-	const packagePrice = (id) => {
-		const item = packageRaw.value.find((p) => p.id === id)
-		return item ? item.price : 0
-	}
 	const onOpenPay = (record) => {
 		payFormData.value = {
 			orderId: record.id,

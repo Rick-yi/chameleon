@@ -1,7 +1,7 @@
 <template>
 	<a-modal
 		:open="open"
-		:title="step === 'success' ? '报名成功' : '快速录入学员'"
+		:title="dialogTitle"
 		:width="720"
 		wrap-class-name="qe-modal"
 		:mask-closable="false"
@@ -19,6 +19,14 @@
 				message="已恢复上次未提交的报名内容"
 				@close="restoredFromDraft = false"
 			/>
+			<div v-if="isExisting" class="qe-existing">
+				<a-avatar :size="42" style="background: var(--primary-6)">{{ (student?.name || '?').slice(0, 1) }}</a-avatar>
+				<div>
+					<div class="qe-existing-name">{{ student?.name }}</div>
+					<div class="qe-existing-sub">{{ student?.parentName || '家长' }} · {{ student?.parentPhone || '-' }}</div>
+				</div>
+			</div>
+			<template v-if="!isExisting">
 			<div class="qe-section-title">学员信息</div>
 			<a-row :gutter="12">
 				<a-col :xs="24" :sm="12">
@@ -78,15 +86,20 @@
 					<a class="qe-duplicate-link" @click="onViewExistingStudent">查看</a>
 				</template>
 			</a-alert>
+			</template>
 
 			<div class="qe-section-title">报名与收款</div>
 			<a-row :gutter="12">
 				<a-col :span="24">
-					<a-form-item label="报名课包" name="coursePackageId">
+					<a-form-item
+						label="报名课包"
+						name="coursePackageId"
+						:rules="isExisting ? [{ required: true, message: '请选择课包' }] : []"
+					>
 						<a-select
 							v-model:value="form.coursePackageId"
 							:options="packageOptions"
-							placeholder="不选则仅建档，稍后再报名"
+							:placeholder="isExisting ? '请选择课包' : '不选则仅建档，稍后再报名'"
 							show-search
 							option-filter-prop="label"
 							allow-clear
@@ -126,7 +139,7 @@
 						</a-form-item>
 					</a-col>
 				</template>
-				<a-col :span="24">
+				<a-col v-if="!isExisting" :span="24">
 					<a-form-item label="备注" name="remark">
 						<a-input v-model:value="form.remark" placeholder="选填：意向、接送安排、优惠说明等" allow-clear />
 					</a-form-item>
@@ -134,7 +147,7 @@
 			</a-row>
 
 			<a-alert
-				v-if="!form.coursePackageId"
+				v-if="!isExisting && !form.coursePackageId"
 				type="info"
 				show-icon
 				message="未选择课包时只创建学员档案，不会生成订单；之后可在学员详情里报名。"
@@ -188,7 +201,7 @@
 				{{ selectedPackage ? selectedPackage.name : '' }}{{ classLabel ? ' · ' + classLabel : '' }}
 			</div>
 			<div class="qe-success-actions">
-				<a-button @click="onEnrollAgain">继续录入</a-button>
+				<a-button v-if="!isExisting" @click="onEnrollAgain">继续录入</a-button>
 				<a-button type="primary" @click="onViewStudent">查看学员</a-button>
 			</div>
 		</div>
@@ -197,7 +210,15 @@
 			<div v-if="step === 'form'" class="qe-footer">
 				<a-button :disabled="submitting" @click="onClose">取消</a-button>
 				<a-button v-if="canConfirmPay" type="primary" :disabled="submitting" @click="onNext">下一步</a-button>
-				<a-button v-else type="primary" :loading="submitting" @click="submit">保存</a-button>
+				<a-button
+					v-else
+					type="primary"
+					:loading="submitting"
+					:disabled="isExisting && !form.coursePackageId"
+					@click="submit"
+				>
+					{{ isExisting ? '生成订单' : '保存' }}
+				</a-button>
 			</div>
 			<div v-else-if="step === 'confirm'" class="qe-footer">
 				<a-button :disabled="submitting" @click="step = 'form'">上一步</a-button>
@@ -227,11 +248,18 @@
 	import { globalStore } from '@/store'
 
 	const props = defineProps({
-		open: { type: Boolean, default: false }
+		open: { type: Boolean, default: false },
+		// 传入学员时进入“已有学员报名”模式，只选课包/班级/收款
+		student: { type: Object, default: null }
 	})
 	const emit = defineEmits(['update:open', 'success'])
 	const router = useRouter()
 	const store = globalStore()
+	const isExisting = computed(() => !!props.student?.id)
+	const dialogTitle = computed(() => {
+		if (step.value === 'success') return '报名成功'
+		return isExisting.value ? `报名购课 · ${props.student?.name || ''}` : '快速录入学员'
+	})
 
 	const formRef = ref()
 	const step = ref('form')
@@ -278,7 +306,7 @@
 		`quickEnroll:draft:${store.userInfo?.tenantId || store.userInfo?.orgId || 'default'}:${store.userInfo?.id || 'anonymous'}`
 	const clearDraft = () => sessionStorage.removeItem(draftKey())
 	const saveDraft = () => {
-		if (step.value !== 'form' || submitting.value) return
+		if (isExisting.value || step.value !== 'form' || submitting.value) return
 		const meaningful = form.value.name || form.value.parentPhone || form.value.coursePackageId
 		if (!meaningful) {
 			sessionStorage.removeItem(draftKey())
@@ -387,13 +415,27 @@
 		(open) => {
 			if (open) {
 				step.value = 'form'
-				const draft = readDraft()
-				form.value = draft ? { ...emptyForm(), ...draft } : emptyForm()
-				restoredFromDraft.value = !!draft
+				if (isExisting.value) {
+					// 已有学员：只补课包/班级/收款，不修改档案
+					form.value = {
+						...emptyForm(),
+						name: props.student?.name || '',
+						parentName: props.student?.parentName || '',
+						parentPhone: props.student?.parentPhone || '',
+						campusId: props.student?.campusId
+					}
+					lastStudentId.value = props.student.id
+					restoredFromDraft.value = false
+					samePhoneStudents.value = []
+				} else {
+					const draft = readDraft()
+					form.value = draft ? { ...emptyForm(), ...draft } : emptyForm()
+					restoredFromDraft.value = !!draft
+					samePhoneStudents.value = []
+				}
 				packagePrice.value = 0
-				samePhoneStudents.value = []
 				loadOptions()
-				if (form.value.parentPhone) {
+				if (!isExisting.value && form.value.parentPhone) {
 					checkParentPhone()
 				}
 			}
@@ -401,6 +443,7 @@
 	)
 
 	const checkParentPhone = () => {
+		if (isExisting.value) return
 		const phone = String(form.value.parentPhone || '').trim()
 		samePhoneStudents.value = []
 		if (!/^1\d{10}$/.test(phone)) return
@@ -443,7 +486,26 @@
 
 	const doSubmit = () => {
 		if (submitting.value) return
+		if (isExisting.value && !form.value.coursePackageId) {
+			message.warning('请选择课包')
+			return
+		}
 		submitting.value = true
+		if (isExisting.value) {
+			submitExisting()
+		} else {
+			submitCreate()
+		}
+	}
+
+	const assignClass = (studentId) => {
+		if (!form.value.classId) return
+		courseApi
+			.classStudentAdd({ classId: form.value.classId, studentIdList: [studentId] })
+			.catch(() => message.warning('报名已成功，但分班失败，请到班级管理手动添加'))
+	}
+
+	const submitCreate = () => {
 		// classId 只用于报名后的分班，不进入建档接口
 		const { classId, ...rest } = form.value
 		const payload = {
@@ -465,12 +527,7 @@
 				}
 				lastStudentId.value = studentId
 				clearDraft()
-				// 分班是附加动作：失败不影响建档/收款，只提示补办
-				if (form.value.classId) {
-					courseApi
-						.classStudentAdd({ classId: form.value.classId, studentIdList: [studentId] })
-						.catch(() => message.warning('学员已录入，但分班失败，请到班级管理手动添加'))
-				}
+				assignClass(studentId)
 				emit('success')
 				if (payload.coursePackageId && payload.payNow) {
 					step.value = 'success'
@@ -478,6 +535,50 @@
 					message.success(`已录入学员：${form.value.name}`)
 					onClose()
 				}
+			})
+			.catch(() => {})
+			.finally(() => {
+				submitting.value = false
+			})
+	}
+
+	const submitExisting = () => {
+		studentApi
+			.orderAdd({
+				studentId: props.student.id,
+				coursePackageId: form.value.coursePackageId,
+				payChannel: form.value.payChannel
+			})
+			.then((orderId) => {
+				if (!orderId) {
+					message.error('下单失败，请重试')
+					return
+				}
+				if (!form.value.payNow) {
+					assignClass(props.student.id)
+					emit('success')
+					message.success('已生成待收款订单')
+					onClose()
+					return
+				}
+				return studentApi
+					.orderOfflinePay({
+						orderId,
+						paidAmount: form.value.paidAmount,
+						payChannel: form.value.payChannel,
+						remark: form.value.payRemark
+					})
+					.then(() => {
+						assignClass(props.student.id)
+						emit('success')
+						step.value = 'success'
+					})
+					.catch(() => {
+						// 订单已生成，收款失败时引导去收款台，避免重复下单
+						message.warning('订单已生成，请到收款台完成收款')
+						emit('success')
+						onClose()
+					})
 			})
 			.catch(() => {})
 			.finally(() => {
@@ -525,6 +626,23 @@
 		padding-left: 8px;
 		border-left: 3px solid var(--primary-6);
 		line-height: 16px;
+	}
+	.qe-existing {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 10px 0 14px;
+		margin-bottom: 12px;
+		border-bottom: 1px dashed var(--border-color-split);
+	}
+	.qe-existing-name {
+		font-size: 15px;
+		font-weight: 600;
+	}
+	.qe-existing-sub {
+		margin-top: 2px;
+		font-size: 12px;
+		color: var(--text-color-secondary);
 	}
 	.qe-switch-tip {
 		margin-left: 8px;
