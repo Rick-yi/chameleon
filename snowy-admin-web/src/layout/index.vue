@@ -618,7 +618,8 @@
 		selectedKeys.value = obj.selectedKeys
 	}
 	const onLayoutResize = () => {
-		const clientWidth = document.body.clientWidth
+		// 用视口宽度而不是 body.clientWidth：桌面布局可能把 body 撑到 1200+
+		const clientWidth = window.innerWidth
 		store.setIsMobile(clientWidth < 992)
 	}
 	// 切换应用

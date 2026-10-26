@@ -1,22 +1,33 @@
 <template>
-	<div>
+	<div class="attend-page">
 		<page-header title="点名消课" desc="选择课节即可点名，按课包规则自动扣减课时" />
 		<!-- 今日/所选日期的课节：点一下直接进入点名 -->
 		<a-card :bordered="false" title="课节列表" style="margin-bottom: 12px">
-			<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px">
-				<a-date-picker v-model:value="date" value-format="YYYY-MM-DD" style="width: 160px" @change="loadSchedules" />
-				<a-select v-model:value="classId" placeholder="全部班级" :options="classOptions" style="width: 220px" allow-clear @change="loadSchedules" />
-				<a-button type="primary" @click="loadSchedules">
+			<div class="attend-filter">
+				<a-date-picker v-model:value="date" value-format="YYYY-MM-DD" class="attend-date" @change="loadSchedules" />
+				<a-select v-model:value="classId" placeholder="全部班级" :options="classOptions" class="attend-class" allow-clear @change="loadSchedules" />
+				<a-button type="primary" class="attend-refresh" @click="loadSchedules">
 					<template #icon><reload-outlined /></template>
 					刷新
 				</a-button>
-				<span style="color: rgba(0,0,0,.45); font-size: 12px">点击课节卡片即可进入点名</span>
+				<span class="attend-filter-tip">点击课节卡片即可进入点名</span>
 			</div>
-			<div v-if="!scheduleList.length" class="ent-empty">
+			<a-alert
+				v-if="scheduleError"
+				type="error"
+				show-icon
+				style="margin-bottom: 12px"
+				:message="scheduleError"
+			>
+				<template #action>
+					<a-button size="small" @click="loadSchedules">重试</a-button>
+				</template>
+			</a-alert>
+			<div v-else-if="!scheduleList.length" class="ent-empty">
 				该日期没有排课
 				<a v-if="recentHint" style="margin-left: 8px" @click="jumpToRecent">最近有课：{{ recentHint.date }}（查看）</a>
 			</div>
-			<a-row v-else :gutter="12">
+			<a-row v-else :gutter="12" class="attend-slots">
 				<a-col v-for="item in scheduleList" :key="item.id" :xs="24" :sm="12" :xl="8">
 					<div
 						class="attend-slot"
@@ -46,7 +57,7 @@
 					{{ currentSchedule.startTime }}-{{ currentSchedule.endTime }}
 					{{ currentSchedule.classroom ? '· ' + currentSchedule.classroom : '' }}
 				</span>
-				<a-button type="link" size="small" @click="scheduleId = undefined">换一节</a-button>
+				<a-button type="link" size="small" class="attend-switch" @click="scheduleId = undefined">换一节</a-button>
 			</template>
 			<span v-else style="color: rgba(0,0,0,.45); font-size: 13px">尚未选择课节</span>
 			<div style="margin-left: auto">
@@ -56,25 +67,38 @@
 		<div style="padding: 16px 0">
 			<div v-if="!scheduleId" class="ent-empty">请在上方选择要点的课节，选中后这里会列出该课节的学员名单</div>
 			<template v-else>
-				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap">
-					<span style="font-weight: 500">
+				<a-alert
+					v-if="attendError"
+					type="error"
+					show-icon
+					style="margin-bottom: 12px"
+					:message="attendError"
+				>
+					<template #action>
+						<a-button size="small" @click="loadAttendPage">重试</a-button>
+					</template>
+				</a-alert>
+				<template v-else>
+				<div class="attend-toolbar">
+					<span class="attend-toolbar-title">
 						应到 {{ students.length }} 人
 						<a-tag v-if="savedCount" color="green" style="margin-left: 6px">已点名 {{ savedCount }}</a-tag>
 						<a-tag v-if="pendingCount" color="orange" style="margin-left: 4px">本次待提交 {{ pendingCount }}</a-tag>
 					</span>
-					<a-space>
+					<div class="attend-actions">
 						<a-button @click="markAll('ATTEND')">全部到课</a-button>
 						<a-button @click="markAll('LEAVE')">整班请假</a-button>
 						<a-button @click="markAll('ABSENT')">整班缺勤</a-button>
 						<a-button
 							v-if="hasPerm('/course/attend/confirm')"
 							type="primary"
+							class="attend-confirm"
 							:disabled="pendingCount === 0"
 							@click="onConfirm"
 						>
 							确认点名并扣课{{ pendingCount ? `（${pendingCount}）` : '' }}
 						</a-button>
-					</a-space>
+					</div>
 				</div>
 				<a-alert
 					v-if="savedCount"
@@ -135,6 +159,7 @@
 						</div>
 					</div>
 				</div>
+				</template>
 			</template>
 		</div>
 		</a-card>
@@ -163,6 +188,8 @@
 	const students = ref([])
 	const studentMap = ref({})
 	const lastResult = ref(null)
+	const scheduleError = ref('')
+	const attendError = ref('')
 	const attendText = (status) => ({ NONE: '待点名', PARTIAL: '部分点名', DONE: '已点名' }[status] || '待点名')
 	const attendColor = (status) => ({ NONE: 'orange', PARTIAL: 'gold', DONE: 'green' }[status] || 'default')
 	const selectSchedule = (item) => {
@@ -185,6 +212,8 @@
 		scheduleId.value = undefined
 		students.value = []
 		recentHint.value = null
+		scheduleError.value = ''
+		scheduleList.value = []
 		const dayStart = `${date.value} 00:00:00`
 		const dayEnd = `${date.value} 23:59:59`
 		courseApi
@@ -246,6 +275,10 @@
 					selectSchedule(scheduleList.value[0])
 				}
 			})
+			.catch(() => {
+				scheduleList.value = []
+				scheduleError.value = '课节加载失败，请检查网络后重试'
+			})
 	}
 	const jumpToRecent = () => {
 		if (!recentHint.value) return
@@ -287,6 +320,7 @@
 	const loadAttendPage = () => {
 		if (!scheduleId.value) return
 		lastResult.value = null
+		attendError.value = ''
 		Promise.all([
 			courseApi.classStudentPage({ current: 1, size: 200, classId: classId.value }),
 			courseApi.attendPage({ current: 1, size: 200, scheduleId: scheduleId.value })
@@ -309,6 +343,9 @@
 			}
 			const cls = classRecords.value.find((item) => item.id === classId.value)
 			return loadBalance(list.map((item) => item.studentId), cls?.courseId)
+		}).catch(() => {
+			students.value = []
+			attendError.value = '学员名单加载失败，请检查网络后重试'
 		})
 	}
 	// 统计各状态人数：包含已点名和本次待提交，保证与学员方块总数一致
@@ -561,5 +598,132 @@
 		margin-top: 4px;
 		font-size: 12px;
 		color: var(--text-color-secondary);
+	}
+	/* 点名页主操作保留果子绿，但改用深色文字，白字对比度不足的问题在本页先解决 */
+	.attend-page :deep(.ant-btn-primary) {
+		color: #123b2b !important;
+		font-weight: 600;
+	}
+	.attend-page :deep(.ant-btn-primary:hover),
+	.attend-page :deep(.ant-btn-primary:focus) {
+		background: #5ec97a !important;
+		border-color: #5ec97a !important;
+		color: #123b2b !important;
+	}
+	.attend-page :deep(.ant-btn-primary[disabled]) {
+		background: #d7e7dd !important;
+		border-color: #d7e7dd !important;
+		color: #123b2b !important;
+	}
+	.attend-filter {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		flex-wrap: wrap;
+		margin-bottom: 12px;
+	}
+	.attend-date {
+		width: 160px;
+	}
+	.attend-class {
+		width: 220px;
+	}
+	.attend-filter-tip {
+		font-size: 12px;
+		color: var(--text-color-secondary);
+	}
+	.attend-toolbar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		flex-wrap: wrap;
+		margin-bottom: 12px;
+	}
+	.attend-toolbar-title {
+		font-weight: 500;
+	}
+	.attend-actions {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+	}
+	.attend-actions .attend-confirm {
+		min-width: 170px;
+	}
+	@media (max-width: 576px) {
+		.attend-filter {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 8px;
+		}
+		.attend-date,
+		.attend-class,
+		.attend-filter .attend-refresh {
+			width: 100% !important;
+		}
+		.attend-filter .attend-refresh {
+			grid-column: 1 / -1;
+		}
+		.attend-filter-tip {
+			grid-column: 1 / -1;
+		}
+		.attend-page :deep(.ant-picker-input > input),
+		.attend-page :deep(.ant-select-selection-search-input),
+		.attend-page :deep(.ant-select-selection-item) {
+			font-size: 16px;
+		}
+		.attend-page :deep(.ant-btn) {
+			height: 44px !important;
+			min-height: 44px;
+		}
+		.attend-toolbar {
+			display: block;
+		}
+		.attend-toolbar-title {
+			display: flex;
+			align-items: center;
+			flex-wrap: wrap;
+			margin-bottom: 8px;
+		}
+		.attend-actions {
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			width: 100%;
+		}
+		.attend-actions .attend-confirm {
+			grid-column: 1 / -1;
+			width: 100%;
+			height: 46px;
+			font-size: 15px;
+		}
+		.attend-switch {
+			min-height: 44px;
+			padding: 0 8px;
+		}
+		.attend-undo {
+			padding: 8px 4px;
+			margin-right: -4px;
+		}
+		.attend-slots {
+			display: flex !important;
+			overflow-x: auto;
+			flex-wrap: nowrap !important;
+			gap: 8px;
+			padding-bottom: 4px;
+			margin-left: 0 !important;
+			margin-right: 0 !important;
+			scroll-snap-type: x mandatory;
+		}
+		.attend-slots > .ant-col {
+			flex: 0 0 250px;
+			max-width: 250px !important;
+			padding: 0 !important;
+			scroll-snap-align: start;
+		}
+		.attend-slot {
+			margin-bottom: 0;
+		}
 	}
 </style>

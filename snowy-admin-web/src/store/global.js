@@ -28,8 +28,8 @@ const getCacheConfig = (value) => {
 
 // deprecated 请使用 useGlobalStore
 export const globalStore = defineStore('global', () => {
-	// 移动端布局
-	const isMobile = ref(false)
+	// 移动端布局：按视口宽度初始化，避免桌面布局先把 body 撑宽导致误判
+	const isMobile = ref(typeof window !== 'undefined' && window.innerWidth < 992)
 	// 布局
 	const layout = ref(getCacheConfig('SNOWY_LAYOUT'))
 	// 菜单是否折叠 toggle
