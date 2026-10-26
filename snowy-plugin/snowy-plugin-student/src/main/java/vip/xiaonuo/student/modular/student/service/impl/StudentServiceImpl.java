@@ -70,6 +70,9 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
         if (ObjectUtil.isNotEmpty(studentPageParam.getCampusId())) {
             queryWrapper.lambda().eq(Student::getCampusId, studentPageParam.getCampusId());
         }
+        if (ObjectUtil.isNotEmpty(studentPageParam.getParentPhone())) {
+            queryWrapper.lambda().eq(Student::getParentPhone, studentPageParam.getParentPhone());
+        }
         // 数据范围：仅可见校区的学员
         List<String> visibleCampusIds = studentDataScopeService.visibleCampusIds();
         if (visibleCampusIds != null) {

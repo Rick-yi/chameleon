@@ -86,11 +86,17 @@ const error = () => {
 		content: '登录已失效， 请重新登录',
 		onOk: () => {
 			loginBack.value = false
+			const redirect = window.location.pathname + window.location.search
 			tool.data.remove('TOKEN')
 			tool.data.remove('USER_INFO')
 			tool.data.remove('MENU')
 			tool.data.remove('PERMISSIONS')
-			window.location.reload()
+			if (window.location.pathname === '/login') {
+				window.location.reload()
+				return
+			}
+			// 重新登录后回到原页面，页面内的草稿由各业务组件自行保存
+			window.location.href = `/login?redirect=${encodeURIComponent(redirect)}`
 		}
 	})
 }

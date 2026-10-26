@@ -10,6 +10,15 @@
 	>
 		<!-- 第一步：学员、家长、课包 -->
 		<a-form v-if="step === 'form'" ref="formRef" :model="form" layout="vertical">
+			<a-alert
+				v-if="restoredFromDraft"
+				style="margin-bottom: 12px"
+				type="info"
+				show-icon
+				closable
+				message="已恢复上次未提交的报名内容"
+				@close="restoredFromDraft = false"
+			/>
 			<div class="qe-section-title">学员信息</div>
 			<a-row :gutter="12">
 				<a-col :xs="24" :sm="12">
@@ -53,10 +62,22 @@
 							{ pattern: /^1\d{10}$/, message: '请输入 11 位手机号' }
 						]"
 					>
-						<a-input v-model:value="form.parentPhone" placeholder="用于联系与后续续费" allow-clear />
+						<a-input
+							v-model:value="form.parentPhone"
+							placeholder="用于联系与后续续费"
+							allow-clear
+							@blur="checkParentPhone"
+						/>
 					</a-form-item>
 				</a-col>
 			</a-row>
+
+			<a-alert v-if="samePhoneStudents.length" class="qe-duplicate" type="warning" show-icon>
+				<template #message>
+					该手机号已有学员：{{ samePhoneNames }}
+					<a class="qe-duplicate-link" @click="onViewExistingStudent">查看</a>
+				</template>
+			</a-alert>
 
 			<div class="qe-section-title">报名与收款</div>
 			<a-row :gutter="12">
@@ -174,12 +195,12 @@
 
 		<template #footer>
 			<div v-if="step === 'form'" class="qe-footer">
-				<a-button @click="onClose">取消</a-button>
-				<a-button v-if="canConfirmPay" type="primary" @click="onNext">下一步</a-button>
+				<a-button :disabled="submitting" @click="onClose">取消</a-button>
+				<a-button v-if="canConfirmPay" type="primary" :disabled="submitting" @click="onNext">下一步</a-button>
 				<a-button v-else type="primary" :loading="submitting" @click="submit">保存</a-button>
 			</div>
 			<div v-else-if="step === 'confirm'" class="qe-footer">
-				<a-button @click="step = 'form'">上一步</a-button>
+				<a-button :disabled="submitting" @click="step = 'form'">上一步</a-button>
 				<a-button type="primary" :loading="submitting" @click="submit">确认收款</a-button>
 			</div>
 			<div v-else class="qe-footer qe-footer-single">
@@ -220,6 +241,8 @@
 	const packageRaw = ref([])
 	const classOptions = ref([])
 	const classLoading = ref(false)
+	const samePhoneStudents = ref([])
+	const restoredFromDraft = ref(false)
 	const channelOptions = [
 		{ value: 'CASH', label: '现金', icon: WalletOutlined },
 		{ value: 'WECHAT', label: '微信', icon: WechatOutlined },
@@ -249,6 +272,37 @@
 	const form = ref(emptyForm())
 	let optionsLoaded = false
 
+	// 报名草稿：登录失效或误关页面后，重新打开可接着填
+	// 草稿按“租户 + 用户”隔离，避免换账号后看到其他人的未提交内容
+	const draftKey = () =>
+		`quickEnroll:draft:${store.userInfo?.tenantId || store.userInfo?.orgId || 'default'}:${store.userInfo?.id || 'anonymous'}`
+	const clearDraft = () => sessionStorage.removeItem(draftKey())
+	const saveDraft = () => {
+		if (step.value !== 'form' || submitting.value) return
+		const meaningful = form.value.name || form.value.parentPhone || form.value.coursePackageId
+		if (!meaningful) {
+			sessionStorage.removeItem(draftKey())
+			return
+		}
+		sessionStorage.setItem(draftKey(), JSON.stringify(form.value))
+	}
+	const readDraft = () => {
+		try {
+			const raw = sessionStorage.getItem(draftKey())
+			if (!raw) return null
+			const draft = JSON.parse(raw)
+			return draft && (draft.name || draft.parentPhone || draft.coursePackageId) ? draft : null
+		} catch (e) {
+			return null
+		}
+	}
+	const newRequestId = () =>
+		typeof crypto !== 'undefined' && crypto.randomUUID
+			? crypto.randomUUID()
+			: `${Date.now()}-${Math.random().toString(16).slice(2)}`
+
+	watch(form, saveDraft, { deep: true })
+
 	const selectedPackage = computed(() => packageRaw.value.find((p) => p.id === form.value.coursePackageId) || null)
 	const classLabel = computed(() => classOptions.value.find((c) => c.value === form.value.classId)?.label || '')
 	const discount = computed(() => {
@@ -261,9 +315,13 @@
 		return paid > Math.floor(paid) ? paid - Math.floor(paid) : 0
 	})
 	const canConfirmPay = computed(() => !!form.value.coursePackageId && form.value.payNow)
+	const samePhoneNames = computed(() => samePhoneStudents.value.map((item) => item.name).join('、'))
 
 	const loadOptions = () => {
-		if (optionsLoaded) return
+		if (optionsLoaded) {
+			syncPackageFromForm()
+			return
+		}
 		optionsLoaded = true
 		orgApi.orgPage({ current: 1, size: 100 }).then((data) => {
 			const records = data.records || []
@@ -283,14 +341,37 @@
 				value: item.id,
 				label: `${courseMap[item.courseId] || '课程'} · ${item.name}（¥${item.price}）`
 			}))
+			syncPackageFromForm()
+		})
+	}
+
+	// 草稿恢复或重复打开时，按已选课包补齐价格与班级
+	const syncPackageFromForm = () => {
+		const packageId = form.value.coursePackageId
+		if (!packageId) return
+		const item = packageRaw.value.find((p) => p.id === packageId)
+		if (!item) {
+			form.value.coursePackageId = undefined
+			form.value.paidAmount = null
+			packagePrice.value = 0
+			return
+		}
+		packagePrice.value = Number(item.price)
+		if (form.value.payNow && !form.value.paidAmount) {
+			form.value.paidAmount = Number(item.price)
+		}
+		loadClasses(item.courseId).then(() => {
+			if (form.value.classId && !classOptions.value.some((c) => c.value === form.value.classId)) {
+				form.value.classId = undefined
+			}
 		})
 	}
 
 	const loadClasses = (courseId) => {
 		classOptions.value = []
-		if (!courseId) return
+		if (!courseId) return Promise.resolve()
 		classLoading.value = true
-		courseApi
+		return courseApi
 			.classPage({ current: 1, size: 200, courseId })
 			.then((data) => {
 				classOptions.value = (data.records || []).map((item) => ({
@@ -306,12 +387,31 @@
 		(open) => {
 			if (open) {
 				step.value = 'form'
-				form.value = emptyForm()
+				const draft = readDraft()
+				form.value = draft ? { ...emptyForm(), ...draft } : emptyForm()
+				restoredFromDraft.value = !!draft
 				packagePrice.value = 0
+				samePhoneStudents.value = []
 				loadOptions()
+				if (form.value.parentPhone) {
+					checkParentPhone()
+				}
 			}
 		}
 	)
+
+	const checkParentPhone = () => {
+		const phone = String(form.value.parentPhone || '').trim()
+		samePhoneStudents.value = []
+		if (!/^1\d{10}$/.test(phone)) return
+		studentApi
+			.studentPage({ current: 1, size: 5, parentPhone: phone })
+			.then((data) => {
+				// 手机号可能被家长共用，只提示不阻断
+				samePhoneStudents.value = (data.records || []).filter((item) => item.parentPhone === phone)
+			})
+			.catch(() => {})
+	}
 
 	const onPackageChange = (packageId) => {
 		const item = packageRaw.value.find((p) => p.id === packageId)
@@ -342,12 +442,14 @@
 	}
 
 	const doSubmit = () => {
+		if (submitting.value) return
 		submitting.value = true
 		// classId 只用于报名后的分班，不进入建档接口
 		const { classId, ...rest } = form.value
 		const payload = {
 			...rest,
-			birthday: form.value.birthday ? `${form.value.birthday} 00:00:00` : undefined
+			birthday: form.value.birthday ? `${form.value.birthday} 00:00:00` : undefined,
+			requestId: newRequestId()
 		}
 		if (!payload.coursePackageId) {
 			payload.payNow = false
@@ -355,11 +457,18 @@
 		studentApi
 			.quickEnroll(payload)
 			.then((data) => {
-				lastStudentId.value = data?.studentId || ''
+				const studentId = data?.studentId
+				// 没有学员编号就不是真正的成功，避免出现“提示成功但没落库”
+				if (!studentId) {
+					message.error('保存失败：服务端未返回学员编号，请重试')
+					return
+				}
+				lastStudentId.value = studentId
+				clearDraft()
 				// 分班是附加动作：失败不影响建档/收款，只提示补办
-				if (form.value.classId && lastStudentId.value) {
+				if (form.value.classId) {
 					courseApi
-						.classStudentAdd({ classId: form.value.classId, studentIdList: [lastStudentId.value] })
+						.classStudentAdd({ classId: form.value.classId, studentIdList: [studentId] })
 						.catch(() => message.warning('学员已录入，但分班失败，请到班级管理手动添加'))
 				}
 				emit('success')
@@ -381,6 +490,9 @@
 		form.value = emptyForm()
 		packagePrice.value = 0
 		classOptions.value = []
+		samePhoneStudents.value = []
+		restoredFromDraft.value = false
+		clearDraft()
 	}
 
 	const onViewStudent = () => {
@@ -388,7 +500,18 @@
 		router.push({ path: '/student', query: { id: lastStudentId.value } })
 	}
 
-	const onClose = () => emit('update:open', false)
+	// 已有学员先去看详情，草稿保留，回来后还能继续录入
+	const onViewExistingStudent = () => {
+		const target = samePhoneStudents.value[0]
+		if (!target) return
+		emit('update:open', false)
+		router.push({ path: '/student', query: { id: target.id } })
+	}
+
+	const onClose = () => {
+		clearDraft()
+		emit('update:open', false)
+	}
 
 	const fmt = (value) => (Number(value) || 0).toFixed(2)
 </script>
@@ -407,6 +530,13 @@
 		margin-left: 8px;
 		font-size: 12px;
 		color: var(--text-color-secondary);
+	}
+	.qe-duplicate {
+		margin-bottom: 12px;
+	}
+	.qe-duplicate-link {
+		margin-left: 8px;
+		font-weight: 500;
 	}
 	.qe-money-off {
 		margin-left: 8px;

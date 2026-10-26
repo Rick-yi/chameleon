@@ -46,6 +46,10 @@ public class StudentPageParam {
     @Schema(description = "姓名/手机关键词")
     private String searchKey;
 
+    /** 家长手机（精确匹配，用于重复建档提醒） */
+    @Schema(description = "家长手机")
+    private String parentPhone;
+
     /** 校区id */
     @Schema(description = "校区id")
     private String campusId;

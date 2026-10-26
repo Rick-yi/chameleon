@@ -82,4 +82,8 @@ public class StudentQuickEnrollParam {
     /** 收款备注 */
     @Schema(description = "收款备注")
     private String payRemark;
+
+    /** 前端生成的请求号，用于防止重复提交 */
+    @Schema(description = "请求号，用于幂等")
+    private String requestId;
 }
