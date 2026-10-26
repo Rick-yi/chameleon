@@ -253,6 +253,7 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
     @Override
     public void onApplicationEvent(ApplicationStartedEvent event) {
         try {
+            log.info(">>> P0 结构升级检查开始");
             if (!columnExists("T_TENANT", "CODE")) {
                 jdbcTemplate.execute("ALTER TABLE `T_TENANT` ADD COLUMN `CODE` varchar(32) NULL DEFAULT NULL COMMENT '租户编码(登录识别机构)' AFTER `ID`");
                 log.info(">>> P0 结构升级：T_TENANT.CODE 已添加");
@@ -279,8 +280,76 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
                 jdbcTemplate.execute("ALTER TABLE `STUDENT_ORDER` ADD COLUMN `CAMPUS_ID` varchar(20) NULL DEFAULT NULL COMMENT '校区id(下单快照)' AFTER `COURSE_ID`");
                 log.info(">>> 报表结构升级：STUDENT_ORDER.CAMPUS_ID 已添加");
             }
+            if (!columnExists("STUDENT_ORDER", "REMARK")) {
+                jdbcTemplate.execute("ALTER TABLE `STUDENT_ORDER` ADD COLUMN `REMARK` varchar(500) NULL DEFAULT NULL COMMENT '收款备注' AFTER `PAY_CHANNEL`");
+                log.info(">>> 账务结构升级：STUDENT_ORDER.REMARK 已添加");
+            }
+            // 历史学员校区回填：优先取在读班级校区，其次取机构第一个部门/校区
+            int studentCampusFilled = jdbcTemplate.update("""
+                    UPDATE `STUDENT` s
+                    SET s.`CAMPUS_ID` = (
+                        SELECT MIN(c.`CAMPUS_ID`)
+                        FROM `COURSE_CLASS_STUDENT` cs
+                        JOIN `COURSE_CLASS` c ON c.`ID` = cs.`CLASS_ID`
+                        WHERE cs.`STUDENT_ID` = s.`ID`
+                          AND cs.`DELETE_FLAG` = 'NOT_DELETE'
+                          AND c.`DELETE_FLAG` = 'NOT_DELETE'
+                          AND c.`CAMPUS_ID` IS NOT NULL
+                    )
+                    WHERE s.`CAMPUS_ID` IS NULL
+                      AND s.`DELETE_FLAG` = 'NOT_DELETE'
+                      AND EXISTS (
+                        SELECT 1
+                        FROM `COURSE_CLASS_STUDENT` cs
+                        JOIN `COURSE_CLASS` c ON c.`ID` = cs.`CLASS_ID`
+                        WHERE cs.`STUDENT_ID` = s.`ID`
+                          AND cs.`DELETE_FLAG` = 'NOT_DELETE'
+                          AND c.`DELETE_FLAG` = 'NOT_DELETE'
+                          AND c.`CAMPUS_ID` IS NOT NULL
+                      )
+                    """);
+            int studentCampusDefaulted = jdbcTemplate.update("""
+                    UPDATE `STUDENT` s
+                    SET s.`CAMPUS_ID` = (
+                        SELECT o.`ID`
+                        FROM `SYS_ORG` o
+                        WHERE o.`TENANT_ID` = s.`TENANT_ID`
+                          AND o.`CATEGORY` = 'DEPT'
+                          AND o.`DELETE_FLAG` = 'NOT_DELETE'
+                        ORDER BY o.`SORT_CODE`, o.`ID`
+                        LIMIT 1
+                    )
+                    WHERE s.`CAMPUS_ID` IS NULL
+                      AND s.`DELETE_FLAG` = 'NOT_DELETE'
+                      AND (
+                        SELECT COUNT(*) FROM `SYS_ORG` o
+                        WHERE o.`TENANT_ID` = s.`TENANT_ID`
+                          AND o.`CATEGORY` = 'DEPT'
+                          AND o.`DELETE_FLAG` = 'NOT_DELETE'
+                      ) = 1
+                    """);
+            if (studentCampusFilled + studentCampusDefaulted > 0) {
+                log.info(">>> 报表结构升级：回填学员校区 {} 条（班级 {} 条，默认校区 {} 条）",
+                        studentCampusFilled + studentCampusDefaulted, studentCampusFilled, studentCampusDefaulted);
+            }
             // 历史订单按学员当前校区回填，避免按校区筛选时缺失
             jdbcTemplate.update("UPDATE `STUDENT_ORDER` o JOIN `STUDENT` s ON o.`STUDENT_ID` = s.`ID` SET o.`CAMPUS_ID` = s.`CAMPUS_ID` WHERE o.`CAMPUS_ID` IS NULL");
+            // 单校区机构的历史日汇总可直接落校区；多校区需按课程/班级人工重算，避免串校区
+            int dailyStatCampusFilled = jdbcTemplate.update("""
+                    UPDATE `FIN_DAILY_STAT` f
+                    JOIN (
+                        SELECT `TENANT_ID`, MIN(`CAMPUS_ID`) AS `CAMPUS_ID`
+                        FROM `STUDENT`
+                        WHERE `CAMPUS_ID` IS NOT NULL AND `DELETE_FLAG` = 'NOT_DELETE'
+                        GROUP BY `TENANT_ID`
+                        HAVING COUNT(DISTINCT `CAMPUS_ID`) = 1
+                    ) t ON t.`TENANT_ID` = f.`TENANT_ID`
+                    SET f.`CAMPUS_ID` = t.`CAMPUS_ID`
+                    WHERE f.`CAMPUS_ID` IS NULL AND f.`DELETE_FLAG` = 'NOT_DELETE'
+                    """);
+            if (dailyStatCampusFilled > 0) {
+                log.info(">>> 报表结构升级：回填单校区日汇总 {} 条", dailyStatCampusFilled);
+            }
             if (!indexExists("STUDENT_ORDER", "IDX_ORDER_TENANT_PAYTIME")) {
                 jdbcTemplate.execute("ALTER TABLE `STUDENT_ORDER` ADD INDEX `IDX_ORDER_TENANT_PAYTIME` (`TENANT_ID`, `PAY_TIME`, `STATUS`)");
             }

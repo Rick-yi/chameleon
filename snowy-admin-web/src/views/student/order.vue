@@ -25,7 +25,7 @@
 				<a-tab-pane key="order" tab="订单">
 					<a-form layout="inline" style="margin-bottom: 12px">
 						<a-form-item label="学员">
-							<a-input v-model:value="queryForm.searchKey" placeholder="姓名或家长手机" allow-clear style="width: 200px" @pressEnter="reload" />
+							<a-input v-model:value="queryForm.searchKey" placeholder="姓名/家长手机/订单号" allow-clear style="width: 220px" @pressEnter="reload" />
 						</a-form-item>
 						<a-form-item label="状态">
 							<a-select v-model:value="queryForm.status" placeholder="全部状态" :options="orderStatusOptions" allow-clear style="width: 140px" />
@@ -47,14 +47,31 @@
 						:loading="loading"
 						bordered
 						size="middle"
+						:scroll="{ x: 'max-content' }"
 						:pagination="{ current: orderPage.current, pageSize: orderPage.size, total: orderPage.total, onChange: onOrderPageChange }"
 					>
 						<template #bodyCell="{ column, record }">
+							<template v-if="column.dataIndex === 'id'">
+								<a-typography-text class="order-no" copyable>{{ record.id }}</a-typography-text>
+							</template>
 							<template v-if="column.dataIndex === 'status'">
 								<a-tag :color="orderStatusColor(record.status)">{{ orderStatusText(record.status) }}</a-tag>
 							</template>
 							<template v-if="column.dataIndex === 'amount'">¥{{ record.amount }}</template>
 							<template v-if="column.dataIndex === 'paidAmount'">¥{{ record.paidAmount || 0 }}</template>
+							<template v-if="column.dataIndex === 'discount'">
+								<span v-if="discountAmount(record) > 0" class="order-discount">¥{{ discountAmount(record) }}</span>
+								<span v-else>-</span>
+							</template>
+							<template v-if="column.dataIndex === 'payTime'">
+								{{ record.payTime || '-' }}
+							</template>
+							<template v-if="column.dataIndex === 'operatorName'">
+								{{ record.operatorName || '-' }}
+							</template>
+							<template v-if="column.dataIndex === 'remark'">
+								<span :title="record.remark">{{ record.remark || '-' }}</span>
+							</template>
 							<template v-if="column.dataIndex === 'studentName'">
 								<a @click="goStudent(record)">{{ record.studentName || record.studentId }}</a>
 							</template>
@@ -203,12 +220,17 @@
 		{ value: 'ALIPAY', label: '支付宝' }
 	]
 	const orderColumns = [
+		{ title: '订单号', dataIndex: 'id', width: 190 },
 		{ title: '学员', dataIndex: 'studentName' },
 		{ title: '课包', dataIndex: 'packageName' },
-		{ title: '应收', dataIndex: 'amount', width: 110 },
-		{ title: '实收', dataIndex: 'paidAmount', width: 110 },
+		{ title: '应收', dataIndex: 'amount', width: 100 },
+		{ title: '实收', dataIndex: 'paidAmount', width: 100 },
+		{ title: '优惠', dataIndex: 'discount', width: 90 },
 		{ title: '渠道', dataIndex: 'payChannel', width: 90, customRender: ({ text }) => payChannelText(text) },
+		{ title: '收款时间', dataIndex: 'payTime', width: 170 },
 		{ title: '下单时间', dataIndex: 'createTime', width: 170 },
+		{ title: '经办人', dataIndex: 'operatorName', width: 100 },
+		{ title: '备注', dataIndex: 'remark', width: 160, ellipsis: true },
 		{ title: '状态', dataIndex: 'status', width: 100 },
 		{ title: '操作', dataIndex: 'action', align: 'center', width: 220 }
 	]
@@ -237,6 +259,12 @@
 
 	const orderStatusText = (s) => ({ UNPAID: '待支付', PAID: '已支付', REFUNDED: '已退费', CANCELED: '已取消' }[s] || s)
 	const orderStatusColor = (s) => (s === 'PAID' ? 'green' : s === 'UNPAID' ? 'orange' : s === 'REFUNDED' ? 'red' : 'default')
+	// 优惠 = 应收 - 实收，仅已收款订单有意义；待支付订单不能把未收金额误显示为优惠
+	const discountAmount = (record) => {
+		if (record.status !== 'PAID' && record.status !== 'REFUNDED') return 0
+		const diff = Number(record.amount || 0) - Number(record.paidAmount || 0)
+		return diff > 0 ? diff.toFixed(2) : 0
+	}
 	const refundStatusText = (s) =>
 		({ PENDING: '待审批', TO_REFUND: '待退款', REFUNDED: '已退款', REJECTED: '已驳回', CANCELLED: '已撤销' }[s] || s)
 	const refundStatusColor = (s) =>
@@ -451,5 +479,15 @@
 			border-color: #4bb964;
 			box-shadow: 0 0 0 1px #4bb964;
 		}
+	}
+	.order-no {
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 12px;
+		color: var(--text-color-secondary);
+		white-space: nowrap;
+	}
+	.order-discount {
+		color: var(--accent-text);
+		font-weight: 600;
 	}
 </style>

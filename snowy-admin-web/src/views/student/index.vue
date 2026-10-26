@@ -13,6 +13,17 @@
 				<a-form-item label="姓名/手机">
 					<a-input v-model:value="searchFormState.searchKey" placeholder="请输入姓名或家长手机" allow-clear style="width: 220px" />
 				</a-form-item>
+				<a-form-item label="校区">
+					<a-select
+						v-model:value="searchFormState.campusId"
+						placeholder="全部校区"
+						:options="campusOptions"
+						allow-clear
+						show-search
+						option-filter-prop="label"
+						style="width: 150px"
+					/>
+				</a-form-item>
 				<a-form-item label="状态">
 					<a-select v-model:value="searchFormState.status" placeholder="全部状态" :options="statusOptions" allow-clear style="width: 140px" />
 				</a-form-item>
@@ -84,7 +95,10 @@
 							</div>
 						</div>
 						<div class="student-card-line">
-							<span>{{ item.parentName || '家长' }} · {{ item.parentPhone || '-' }}</span>
+							<span>
+								{{ item.parentName || '家长' }} · {{ item.parentPhone || '-' }}
+								<span v-if="item.campusId" class="student-card-campus"> · {{ campusNameMap[item.campusId] || '校区' }}</span>
+							</span>
 							<a v-if="item.parentPhone" :href="'tel:' + item.parentPhone">拨号</a>
 						</div>
 						<div class="student-card-grid">
@@ -161,6 +175,17 @@
 						<a-radio-group v-model:value="formData.status" :options="statusOptions" />
 					</a-form-item>
 				</a-col>
+				<a-col :span="12">
+					<a-form-item label="校区" name="campusId" :rules="[{ required: true, message: '请选择校区' }]">
+						<a-select
+							v-model:value="formData.campusId"
+							:options="campusOptions"
+							placeholder="请选择校区"
+							show-search
+							option-filter-prop="label"
+						/>
+					</a-form-item>
+				</a-col>
 				<a-col :span="24">
 					<a-form-item label="备注" name="remark">
 						<a-textarea v-model:value="formData.remark" :auto-size="{ minRows: 2, maxRows: 4 }" />
@@ -176,6 +201,7 @@
 	import StudentDetail from './detail.vue'
 	import EnrollmentFlow from '@/components/EnrollmentFlow/index.vue'
 	import studentApi from '@/api/student/studentApi'
+	import courseApi from '@/api/course/courseApi'
 	import { globalStore } from '@/store'
 	const router = useRouter()
 	const route = useRoute()
@@ -295,7 +321,11 @@
 		enrollOpen.value = true
 	}
 	const onOpenAdd = () => {
-		formData.value = { status: 'STUDYING', gender: '男' }
+		formData.value = {
+			status: 'STUDYING',
+			gender: '男',
+			campusId: campusOptions.value.length === 1 ? campusOptions.value[0].value : undefined
+		}
 		open.value = true
 	}
 	const onOpenEdit = (record) => {
@@ -333,6 +363,14 @@
 	const detailOpen = ref(false)
 	const detailStudentId = ref('')
 	const detailStudentName = ref('')
+	const campusOptions = ref([])
+	const campusNameMap = computed(() => Object.fromEntries(campusOptions.value.map((item) => [item.value, item.label])))
+	courseApi.campusOptions().then((records) => {
+		campusOptions.value = (records || []).map((item) => ({ value: item.id, label: item.name }))
+		if (open.value && !formData.value.campusId && campusOptions.value.length === 1) {
+			formData.value.campusId = campusOptions.value[0].value
+		}
+	})
 	const openDetail = (record) => {
 		detailStudentId.value = record.id
 		detailStudentName.value = record.name
@@ -402,6 +440,9 @@
 		margin-top: 6px;
 		font-size: 13px;
 		color: var(--text-color-secondary);
+	}
+	.student-card-campus {
+		color: var(--text-color-tertiary);
 	}
 	.student-card-line a {
 		font-weight: 500;

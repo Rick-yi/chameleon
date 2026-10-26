@@ -16,6 +16,7 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollStreamUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -42,8 +43,10 @@ import vip.xiaonuo.student.modular.studentlessonaccount.mapper.StudentLessonAcco
 import vip.xiaonuo.student.modular.studentorder.entity.StudentOrder;
 import vip.xiaonuo.student.modular.studentorder.enums.StudentOrderStatusEnum;
 import vip.xiaonuo.student.modular.studentorder.mapper.StudentOrderMapper;
+import vip.xiaonuo.sys.api.SysOrgApi;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -78,6 +81,9 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
 
     @Resource
     private CourseApi courseApi;
+
+    @Resource
+    private SysOrgApi sysOrgApi;
 
     @Override
     public Page<Student> page(StudentPageParam studentPageParam) {
@@ -130,6 +136,13 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
         if (ObjectUtil.isEmpty(student.getStatus())) {
             student.setStatus(StudentStatusEnum.STUDYING.getValue());
         }
+        // 校区缺省时按“当前可见校区 → 机构首个校区”兜底，保证订单/报表有校区维度
+        if (StrUtil.isBlank(student.getCampusId())) {
+            student.setCampusId(resolveDefaultCampusId());
+        }
+        if (StrUtil.isBlank(student.getCampusId())) {
+            throw new CommonException("请选择校区");
+        }
         // 套餐限额：学员数上限
         Integer studentLimit = tenantCapability.studentLimit();
         if (studentLimit != null && this.count() >= studentLimit) {
@@ -145,6 +158,9 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
     public void edit(StudentEditParam studentEditParam) {
         Student student = this.queryEntity(studentEditParam.getId());
         BeanUtil.copyProperties(studentEditParam, student);
+        if (StrUtil.isBlank(student.getCampusId())) {
+            student.setCampusId(resolveDefaultCampusId());
+        }
         this.updateById(student);
     }
 
@@ -227,6 +243,48 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
             student.setUnpaidAmount(unpaidMap.getOrDefault(student.getId(), BigDecimal.ZERO));
             student.setClassNames(classNameMap.get(student.getId()));
             student.setHasLessonAccount(remainMap.containsKey(student.getId()));
+        }
+    }
+
+    /**
+     * 解析默认校区：优先当前账号可见校区，否则取机构第一个校区
+     * <p>
+     * 仅用于接口缺省兜底，页面新增学员仍要求显式选择校区。
+     * 机构未配置校区时返回 null，由调用方决定是否报错。
+     * </p>
+     */
+    @Override
+    public String resolveDefaultCampusId() {
+        List<String> campusIdList = new ArrayList<>();
+        collectCampusIds(sysOrgApi.orgTreeSelector("0", ""), campusIdList);
+        if (campusIdList.isEmpty()) {
+            return null;
+        }
+        List<String> visibleCampusIds = studentDataScopeService.visibleCampusIds();
+        if (visibleCampusIds == null) {
+            return campusIdList.get(0);
+        }
+        for (String campusId : campusIdList) {
+            if (visibleCampusIds.contains(campusId)) {
+                return campusId;
+            }
+        }
+        return null;
+    }
+
+    private void collectCampusIds(List<JSONObject> orgList, List<String> campusIdList) {
+        if (ObjectUtil.isEmpty(orgList)) {
+            return;
+        }
+        for (JSONObject org : orgList) {
+            if ("DEPT".equalsIgnoreCase(org.getStr("category"))
+                    || "CAMPUS".equalsIgnoreCase(org.getStr("category"))) {
+                String orgId = org.getStr("id");
+                if (StrUtil.isNotBlank(orgId)) {
+                    campusIdList.add(orgId);
+                }
+            }
+            collectCampusIds(org.getBeanList("children", JSONObject.class), campusIdList);
         }
     }
 

@@ -47,4 +47,7 @@ public interface StudentService {
 
     /** 获取学员详情（内部用） */
     Student queryEntity(String id);
+
+    /** 解析默认校区（当前账号可见校区优先，机构无校区时返回 null） */
+    String resolveDefaultCampusId();
 }

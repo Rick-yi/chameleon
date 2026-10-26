@@ -48,8 +48,14 @@
 					</a-form-item>
 				</a-col>
 				<a-col :xs="24" :sm="12">
-					<a-form-item label="校区" name="campusId">
-						<a-select v-model:value="form.campusId" :options="campusOptions" placeholder="默认当前校区" allow-clear />
+					<a-form-item label="校区" name="campusId" :rules="[{ required: true, message: '请选择校区' }]">
+						<a-select
+							v-model:value="form.campusId"
+							:options="campusOptions"
+							placeholder="请选择校区"
+							show-search
+							option-filter-prop="label"
+						/>
 					</a-form-item>
 				</a-col>
 			</a-row>

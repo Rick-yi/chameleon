@@ -46,6 +46,11 @@ public class StudentOrder extends CommonEntity {
     @TableField(exist = false)
     private String parentPhone;
 
+    /** 经办人姓名（列表查询时填充，非数据库字段） */
+    @Schema(description = "经办人姓名")
+    @TableField(exist = false)
+    private String operatorName;
+
     /** 租户id */
     @Schema(description = "租户id")
     private String tenantId;
@@ -105,6 +110,10 @@ public class StudentOrder extends CommonEntity {
     /** 支付时间 */
     @Schema(description = "支付时间")
     private java.util.Date payTime;
+
+    /** 收款备注 */
+    @Schema(description = "收款备注")
+    private String remark;
 
     /** 已消耗课时（按订单先进先出分摊，含赠课消耗） */
     @Schema(description = "已消耗课时")

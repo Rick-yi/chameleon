@@ -44,6 +44,7 @@ import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPageParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderPayCallbackParam;
 import vip.xiaonuo.student.modular.studentorder.param.StudentOrderRenewParam;
 import vip.xiaonuo.student.modular.studentorder.service.StudentOrderService;
+import vip.xiaonuo.sys.api.SysUserApi;
 
 import java.util.HashMap;
 import java.util.List;
@@ -84,6 +85,9 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
     @Resource
     private BizEventApi bizEventApi;
 
+    @Resource
+    private SysUserApi sysUserApi;
+
     @Override
     public Page<StudentOrder> page(StudentOrderPageParam studentOrderPageParam) {
         QueryWrapper<StudentOrder> queryWrapper = new QueryWrapper<StudentOrder>().checkSqlInjection();
@@ -100,10 +104,11 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
             queryWrapper.lambda().le(StudentOrder::getCreateTime,
                     cn.hutool.core.date.DateUtil.parse(studentOrderPageParam.getEndTime()));
         }
-        // 关键词：按学员姓名/家长手机过滤（子查询，参数化绑定防注入）
+        // 关键词：学员姓名/家长手机，或订单号精确匹配（子查询参数化绑定防注入）
         if (ObjectUtil.isNotEmpty(studentOrderPageParam.getSearchKey())) {
-            queryWrapper.apply("STUDENT_ID IN (SELECT ID FROM STUDENT WHERE NAME LIKE CONCAT('%', {0}, '%') "
-                    + "OR PARENT_PHONE LIKE CONCAT('%', {0}, '%'))", studentOrderPageParam.getSearchKey());
+            queryWrapper.and(q -> q.apply("STUDENT_ID IN (SELECT ID FROM STUDENT WHERE NAME LIKE CONCAT('%', {0}, '%') "
+                            + "OR PARENT_PHONE LIKE CONCAT('%', {0}, '%'))", studentOrderPageParam.getSearchKey())
+                    .or().eq("ID", studentOrderPageParam.getSearchKey()));
         }
         // 数据范围：仅可见校区的订单
         List<String> visibleCampusIds = studentDataScopeService.visibleCampusIds();
@@ -127,7 +132,7 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
     }
 
     /**
-     * 批量回填学员姓名与家长手机（列表展示用）
+     * 批量回填学员姓名、家长手机与经办人（列表展示用）
      */
     private void fillStudentInfo(List<StudentOrder> orderList) {
         if (ObjectUtil.isEmpty(orderList)) {
@@ -140,12 +145,25 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
         }
         Map<String, Student> studentMap = new HashMap<>();
         studentMapper.selectBatchIds(studentIdList).forEach(student -> studentMap.put(student.getId(), student));
+
+        // 经办人取最后操作人，未更新过则取下单人
+        List<String> operatorIdList = orderList.stream()
+                .map(order -> cn.hutool.core.util.StrUtil.blankToDefault(order.getUpdateUser(), order.getCreateUser()))
+                .filter(cn.hutool.core.util.StrUtil::isNotBlank).distinct().collect(java.util.stream.Collectors.toList());
+        Map<String, String> operatorNameMap = new HashMap<>();
+        if (ObjectUtil.isNotEmpty(operatorIdList)) {
+            sysUserApi.getUserListByIdListWithoutException(operatorIdList)
+                    .forEach(user -> operatorNameMap.put(user.getStr("id"), user.getStr("name")));
+        }
+
         for (StudentOrder order : orderList) {
             Student student = studentMap.get(order.getStudentId());
             if (ObjectUtil.isNotEmpty(student)) {
                 order.setStudentName(student.getName());
                 order.setParentPhone(student.getParentPhone());
             }
+            String operatorId = cn.hutool.core.util.StrUtil.blankToDefault(order.getUpdateUser(), order.getCreateUser());
+            order.setOperatorName(operatorNameMap.get(operatorId));
         }
     }
 
@@ -169,7 +187,12 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
         order.setStudentId(studentOrderAddParam.getStudentId());
         order.setCoursePackageId(studentOrderAddParam.getCoursePackageId());
         order.setCourseId(packageInfo.getStr("courseId"));
-        order.setCampusId(student.getCampusId());
+        String campusId = cn.hutool.core.util.StrUtil.blankToDefault(student.getCampusId(),
+                studentService.resolveDefaultCampusId());
+        if (cn.hutool.core.util.StrUtil.isBlank(campusId)) {
+            throw new CommonException("学员【{}】未设置校区，请先在学员档案中选择校区", student.getName());
+        }
+        order.setCampusId(campusId);
         // 课包快照（改价不影响已购）
         order.setPackageName(packageInfo.getStr("name"));
         order.setPackagePrice(packageInfo.getBigDecimal("price"));
@@ -207,7 +230,7 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
         String orderId = this.add(addParam);
         // 线下流水号：续费单号 + 时间戳，保证同一订单只入账一次
         String tradeNo = "RENEW_" + orderId + "_" + System.currentTimeMillis();
-        this.markPaid(orderId, tradeNo, studentOrderRenewParam.getPaidAmount(), studentOrderRenewParam.getPayChannel());
+        this.markPaid(orderId, tradeNo, studentOrderRenewParam.getPaidAmount(), studentOrderRenewParam.getPayChannel(), null);
         bizEventApi.log(BizEventCodeEnum.RENEW.getValue(), "order", orderId, null,
                 Map.of("实收金额", String.valueOf(studentOrderRenewParam.getPaidAmount())));
         return orderId;
@@ -218,7 +241,7 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
     public void payCallback(StudentOrderPayCallbackParam studentOrderPayCallbackParam) {
         // v1 线上支付对接后由支付网关调用；当前保留为联调入口
         markPaid(studentOrderPayCallbackParam.getOrderId(), studentOrderPayCallbackParam.getTradeNo(),
-                studentOrderPayCallbackParam.getPaidAmount(), studentOrderPayCallbackParam.getPayChannel());
+                studentOrderPayCallbackParam.getPaidAmount(), studentOrderPayCallbackParam.getPayChannel(), null);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -235,7 +258,8 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
         }
         markPaid(studentOrderOfflinePayParam.getOrderId(),
                 "OFF" + IdUtil.getSnowflakeNextIdStr(),
-                studentOrderOfflinePayParam.getPaidAmount(), payChannel);
+                studentOrderOfflinePayParam.getPaidAmount(), payChannel,
+                studentOrderOfflinePayParam.getRemark());
         StudentOrder paidOrder = this.queryEntity(studentOrderOfflinePayParam.getOrderId());
         bizEventApi.log(BizEventCodeEnum.ORDER_PAY.getValue(), "order", paidOrder.getId(),
                 paidOrder.getPackageName(),
@@ -248,7 +272,7 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
      * @author 会飞的猪
      * @date 2026/10/20 10:00
      **/
-    private void markPaid(String orderId, String tradeNo, java.math.BigDecimal paidAmount, String payChannel) {
+    private void markPaid(String orderId, String tradeNo, java.math.BigDecimal paidAmount, String payChannel, String remark) {
         // 行锁读取订单，避免并发回调同时入账
         StudentOrder order = this.getOne(new LambdaQueryWrapper<StudentOrder>()
                 .eq(StudentOrder::getId, orderId)
@@ -280,7 +304,8 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
                 .set(StudentOrder::getPaidAmount, ObjectUtil.isNotEmpty(paidAmount)
                         ? paidAmount : order.getAmount())
                 .set(StudentOrder::getPayChannel, ObjectUtil.isNotEmpty(payChannel)
-                        ? payChannel : order.getPayChannel()));
+                        ? payChannel : order.getPayChannel())
+                .set(StudentOrder::getRemark, remark));
         if (!paid) {
             // 并发下已被其他回调处理，直接返回
             return;
