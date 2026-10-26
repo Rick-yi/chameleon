@@ -87,7 +87,7 @@
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
-					<a-form-item label="赠课课时" name="giftLessons" extra="赠课不限；正课课时不能超过60">
+					<a-form-item label="赠课课时" name="giftLessons">
 						<a-input-number v-model:value="formData.giftLessons" :min="0" style="width: 100%" />
 					</a-form-item>
 				</a-col>
@@ -132,7 +132,6 @@
 </template>
 
 <script setup name="coursePackage">
-	import { message } from 'ant-design-vue'
 	import courseApi from '@/api/course/courseApi'
 	const searchFormState = ref({})
 	const tableRef = ref()
@@ -185,10 +184,6 @@
 	}
 	const onSubmit = () => {
 		formRef.value.validate().then(() => {
-			if (Number(formData.value.lessons || 0) > 60) {
-				message.warning('正课课时不能超过60课时')
-				return
-			}
 			const edit = !!formData.value.id
 			const api = edit ? courseApi.packageEdit : courseApi.packageAdd
 			api(formData.value).then(() => {
