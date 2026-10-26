@@ -9,6 +9,14 @@
 			</template>
 		</page-header>
 		<div class="ent-toolbar">
+			<div class="crm-quick-filter">
+				<a-radio-group v-model:value="todoFilter" button-style="solid" @change="onTodoFilterChange">
+					<a-radio-button value="">全部</a-radio-button>
+					<a-radio-button value="pending">待跟进</a-radio-button>
+					<a-radio-button value="today">今日跟进</a-radio-button>
+					<a-radio-button value="overdue">已逾期</a-radio-button>
+				</a-radio-group>
+			</div>
 			<a-form layout="inline" :model="searchFormState">
 				<a-form-item label="姓名/手机">
 					<a-input v-model:value="searchFormState.searchKey" placeholder="请输入姓名或家长手机" allow-clear style="width: 220px" />
@@ -35,13 +43,13 @@
 		</div>
 		<div class="ent-body">
 		<a-alert
-			v-if="searchFormState.excludeStatus"
+			v-if="todoFilter"
 			type="warning"
 			show-icon
 			style="margin-bottom: 12px"
-			message="当前显示「待跟进」线索：下次跟进时间已到或已过期，且未报名/未流失"
+			:message="todoFilterMessage"
 			closable
-			@close="reset"
+			@close="setTodoFilter('')"
 		/>
 		<s-table
 			ref="tableRef"
@@ -205,6 +213,15 @@
 	import studentApi from '@/api/student/studentApi'
 	const searchFormState = ref({})
 	const route = useRoute()
+	const todoFilter = ref('')
+	const todoFilterMessage = computed(
+		() =>
+			({
+				pending: '当前显示「待跟进」线索：下次跟进时间已到或已过期，且未报名/未流失',
+				today: '当前显示「今日跟进」线索：下次跟进时间在今天，且未报名/未流失',
+				overdue: '当前显示「已逾期」线索：下次跟进时间早于今天，且未报名/未流失'
+			})[todoFilter.value] || ''
+	)
 	const tableRef = ref()
 	const formRef = ref()
 	const formData = ref({})
@@ -258,6 +275,40 @@
 		return crmApi.leadPage(Object.assign(parameter, searchFormState.value)).then((data) => data)
 	}
 	// 支持从报表/工作台带参下钻（状态 / 来源 / 待跟进）
+	const pad = (n) => String(n).padStart(2, '0')
+	const dateText = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+	const applyTodoFilter = (value) => {
+		delete searchFormState.value.nextFollowAfter
+		delete searchFormState.value.nextFollowBefore
+		delete searchFormState.value.excludeStatus
+		if (!value) return
+		const now = new Date()
+		const todayStart = `${dateText(now)} 00:00:00`
+		const todayEnd = `${dateText(now)} 23:59:59`
+		const yesterday = new Date(now)
+		yesterday.setDate(now.getDate() - 1)
+		const yesterdayEnd = `${dateText(yesterday)} 23:59:59`
+		searchFormState.value.excludeStatus = 'ENROLLED,LOST'
+		if (value === 'pending') {
+			searchFormState.value.nextFollowBefore = todayEnd
+		} else if (value === 'today') {
+			searchFormState.value.nextFollowAfter = todayStart
+			searchFormState.value.nextFollowBefore = todayEnd
+		} else if (value === 'overdue') {
+			searchFormState.value.nextFollowBefore = yesterdayEnd
+		}
+	}
+	const onTodoFilterChange = (event) => {
+		const value = event?.target?.value ?? event
+		todoFilter.value = value
+		applyTodoFilter(value)
+		tableRef.value?.refresh(true)
+	}
+	const setTodoFilter = (value) => {
+		todoFilter.value = value
+		applyTodoFilter(value)
+		tableRef.value?.refresh(true)
+	}
 	const applyDrillParams = () => {
 		if (route.query.status) {
 			searchFormState.value.status = route.query.status
@@ -266,15 +317,13 @@
 			searchFormState.value.source = route.query.source
 		}
 		if (route.query.todo === '1') {
-			// 待跟进：今天到期及以前需要再次跟进的线索
-			const now = new Date()
-			const pad = (n) => String(n).padStart(2, '0')
-			searchFormState.value.nextFollowBefore = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} 23:59:59`
-			searchFormState.value.excludeStatus = 'ENROLLED,LOST'
+			todoFilter.value = 'pending'
+			applyTodoFilter('pending')
 		}
 	}
 	applyDrillParams()
 	const reset = () => {
+		todoFilter.value = ''
 		searchFormState.value = {}
 		tableRef.value.refresh(true)
 	}
@@ -434,3 +483,9 @@
 	}
 	applyWorkbenchAction()
 </script>
+
+<style lang="less" scoped>
+	.crm-quick-filter {
+		margin-bottom: 12px;
+	}
+</style>

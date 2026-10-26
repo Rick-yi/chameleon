@@ -95,6 +95,10 @@ public class CrmLeadServiceImpl extends ServiceImpl<CrmLeadMapper, CrmLead> impl
             queryWrapper.lambda().le(CrmLead::getNextFollowTime,
                     cn.hutool.core.date.DateUtil.parse(crmLeadPageParam.getNextFollowBefore()));
         }
+        if (StrUtil.isNotBlank(crmLeadPageParam.getNextFollowAfter())) {
+            queryWrapper.lambda().ge(CrmLead::getNextFollowTime,
+                    cn.hutool.core.date.DateUtil.parse(crmLeadPageParam.getNextFollowAfter()));
+        }
         if (StrUtil.isNotBlank(crmLeadPageParam.getExcludeStatus())) {
             List<String> excludeStatusList = Arrays.stream(crmLeadPageParam.getExcludeStatus().split(","))
                     .map(String::trim).filter(StrUtil::isNotBlank).collect(Collectors.toList());
