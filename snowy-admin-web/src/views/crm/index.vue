@@ -385,7 +385,7 @@
 		convertFormRef.value.validate().then(() => {
 			const { coursePackageId, ...studentInfo } = convertFormData.value
 			studentApi.studentAdd({ ...studentInfo, gender: '男', status: 'STUDYING' }).then((res) => {
-				const studentId = res?.data
+				const studentId = res
 				const afterLead = () =>
 					crmApi.leadEdit({ ...currentLead.value, status: 'ENROLLED' }).then(() => {
 						convertOpen.value = false
@@ -402,7 +402,7 @@
 						const pkg = packageRaw.value.find((p) => p.id === coursePackageId)
 						afterLead()
 						payOrder.value = {
-							id: orderRes?.data,
+							id: orderRes,
 							studentName: studentInfo.name,
 							packageName: pkg?.name || '',
 							amount: pkg?.price || 0

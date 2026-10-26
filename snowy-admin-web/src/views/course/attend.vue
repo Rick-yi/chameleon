@@ -57,18 +57,55 @@
 			<div v-if="!scheduleId" class="ent-empty">请在上方选择要点的课节，选中后这里会列出该课节的学员名单</div>
 			<template v-else>
 				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap">
-					<span style="font-weight: 500">应到 {{ students.length }} 人</span>
+					<span style="font-weight: 500">
+						应到 {{ students.length }} 人
+						<a-tag v-if="savedCount" color="green" style="margin-left: 6px">已点名 {{ savedCount }}</a-tag>
+						<a-tag v-if="pendingCount" color="orange" style="margin-left: 4px">本次待提交 {{ pendingCount }}</a-tag>
+					</span>
 					<a-space>
 						<a-button @click="markAll('ATTEND')">全部到课</a-button>
 						<a-button @click="markAll('LEAVE')">整班请假</a-button>
 						<a-button @click="markAll('ABSENT')">整班缺勤</a-button>
-						<a-button v-if="hasPerm('/course/attend/confirm')" type="primary" @click="onConfirm">确认点名并扣课</a-button>
+						<a-button
+							v-if="hasPerm('/course/attend/confirm')"
+							type="primary"
+							:disabled="pendingCount === 0"
+							@click="onConfirm"
+						>
+							确认点名并扣课{{ pendingCount ? `（${pendingCount}）` : '' }}
+						</a-button>
 					</a-space>
 				</div>
+				<a-alert
+					v-if="savedCount"
+					type="info"
+					show-icon
+					style="margin-bottom: 12px"
+					:message="`本节已有 ${savedCount} 人完成点名；已点名学员为只读，如需修改请先点击方块上的「撤销」。`"
+				/>
+				<a-alert
+					v-if="lastResult && lastResult.skipped.length"
+					type="warning"
+					show-icon
+					closable
+					style="margin-bottom: 12px"
+					@close="lastResult = null"
+				>
+					<template #message>
+						<div>点名完成：{{ lastResult.deductCount }} 人已消课；{{ lastResult.skipped.length }} 人未消课</div>
+						<div v-for="item in lastResult.skipped" :key="item.studentId" class="attend-skip-line">
+							{{ item.studentName }}：{{ item.reason }}
+						</div>
+					</template>
+				</a-alert>
 				<div class="attend-legend">
 					<span class="attend-chip st-attend">到课 {{ countByStatus('ATTEND') }}</span>
 					<span class="attend-chip st-leave">请假 {{ countByStatus('LEAVE') }}</span>
 					<span class="attend-chip st-absent">缺勤 {{ countByStatus('ABSENT') }}</span>
+					<span v-if="pendingCount" class="attend-tip">
+						本次待提交：到课 {{ pendingCountByStatus('ATTEND') }} · 请假 {{ pendingCountByStatus('LEAVE') }} · 缺勤
+						{{ pendingCountByStatus('ABSENT') }}
+					</span>
 					<span class="attend-tip">点击学员方块切换：到课 → 缺勤 → 请假</span>
 				</div>
 				<div class="attend-grid">
@@ -125,6 +162,7 @@
 	const scheduleList = ref([])
 	const students = ref([])
 	const studentMap = ref({})
+	const lastResult = ref(null)
 	const attendText = (status) => ({ NONE: '待点名', PARTIAL: '部分点名', DONE: '已点名' }[status] || '待点名')
 	const attendColor = (status) => ({ NONE: 'orange', PARTIAL: 'gold', DONE: 'green' }[status] || 'default')
 	const selectSchedule = (item) => {
@@ -248,6 +286,7 @@
 	})
 	const loadAttendPage = () => {
 		if (!scheduleId.value) return
+		lastResult.value = null
 		Promise.all([
 			courseApi.classStudentPage({ current: 1, size: 200, classId: classId.value }),
 			courseApi.attendPage({ current: 1, size: 200, scheduleId: scheduleId.value })
@@ -260,12 +299,23 @@
 				attendId: attendMap[cs.studentId] ? attendMap[cs.studentId].id : undefined
 			}))
 			students.value = list
+			// 同步课节卡片的点名状态，确认/撤销后不用刷新整页
+			const current = scheduleList.value.find((item) => item.id === scheduleId.value)
+			if (current) {
+				const saved = list.filter((item) => item.attendId).length
+				current.studentCount = list.length
+				current.attendCount = saved
+				current.attendStatus = saved === 0 ? 'NONE' : saved >= list.length ? 'DONE' : 'PARTIAL'
+			}
 			const cls = classRecords.value.find((item) => item.id === classId.value)
 			return loadBalance(list.map((item) => item.studentId), cls?.courseId)
 		})
 	}
-	// 统计各状态人数
-	const countByStatus = (status) => students.value.filter((s) => s.attendStatus === status && !s.attendId).length
+	// 统计各状态人数：包含已点名和本次待提交，保证与学员方块总数一致
+	const countByStatus = (status) => students.value.filter((s) => s.attendStatus === status).length
+	const pendingCountByStatus = (status) => students.value.filter((s) => s.attendStatus === status && !s.attendId).length
+	const savedCount = computed(() => students.value.filter((s) => s.attendId).length)
+	const pendingCount = computed(() => students.value.filter((s) => !s.attendId).length)
 	const statusText = (status) => ({ ATTEND: '到课', LEAVE: '请假', ABSENT: '缺勤' }[status] || '待标记')
 	const statusClass = (status) =>
 		status === 'ATTEND' ? 'st-attend' : status === 'LEAVE' ? 'st-leave' : 'st-absent'
@@ -298,7 +348,8 @@
 		courseApi
 			.attendConfirm({ scheduleId: scheduleId.value, attendList })
 			.then((res) => {
-				const result = res?.data
+				// 请求拦截器已解包 CommonResult.data，这里 res 就是结果对象
+				const result = res || {}
 				const skipped = result?.skippedList || []
 				if (skipped.length) {
 					// 课时不足的学员不阻断整班点名，单独提示
@@ -310,6 +361,11 @@
 					message.success(`点名完成，${result?.deductCount ?? attendList.length} 人已消课`)
 				}
 				loadAttendPage()
+				// 放在 loadAttendPage 之后，避免被其内部的清空覆盖
+				lastResult.value = {
+					deductCount: result?.deductCount ?? attendList.length,
+					skipped
+				}
 			})
 	}
 	const onCancelAttend = (record) => {
@@ -500,5 +556,10 @@
 		margin-left: auto;
 		font-size: 12px;
 		color: #e5484d;
+	}
+	.attend-skip-line {
+		margin-top: 4px;
+		font-size: 12px;
+		color: var(--text-color-secondary);
 	}
 </style>

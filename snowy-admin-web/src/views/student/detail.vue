@@ -394,7 +394,7 @@
 					message.success('下单成功，请登记收款')
 					// 下单 → 收款 一步完成
 					payFormData.value = {
-						orderId: res?.data,
+						orderId: res,
 						studentName: student.value.name,
 						packageName: packageLabel(orderFormData.value.coursePackageId),
 						amount: packagePrice(orderFormData.value.coursePackageId)

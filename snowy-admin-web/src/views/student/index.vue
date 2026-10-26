@@ -231,7 +231,7 @@
 					payChannel: signupFormData.value.payChannel
 				})
 				.then((res) => {
-					const orderId = res?.data
+					const orderId = res
 					signupOpen.value = false
 					message.success('下单成功，请登记收款')
 					// 下单 → 收款 一步完成：直接打开收款弹窗
