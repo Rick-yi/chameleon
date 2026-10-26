@@ -51,6 +51,18 @@ public class BizAutomationConfig extends CommonEntity {
     @Schema(description = "规则参数")
     private String params;
 
+    /** 每日执行上限（0 表示不限） */
+    @Schema(description = "每日执行上限")
+    private Integer dailyCap;
+
+    /** holdout 对照组比例（0-100） */
+    @Schema(description = "holdout 对照组比例")
+    private Integer holdoutPercent;
+
+    /** 配置版本 */
+    @Schema(description = "配置版本")
+    private Integer version;
+
     /** 备注 */
     @Schema(description = "备注")
     private String remark;

@@ -145,7 +145,9 @@ public class CrmLeadServiceImpl extends ServiceImpl<CrmLeadMapper, CrmLead> impl
         // 自动化规则「线索自动分配」：没有指定跟进人时自动分给在跟线索最少的顾问
         if (StrUtil.isBlank(crmLead.getFollowUserId()) && bizAutomationApi.isEnabled(AutoAssignLeadHandler.RULE_CODE)) {
             try {
-                autoAssignLeadHandler.assign(crmLead, bizAutomationApi.getParam(AutoAssignLeadHandler.RULE_CODE, "excludeUserName", ""));
+                autoAssignLeadHandler.assign(crmLead,
+                        bizAutomationApi.getParam(AutoAssignLeadHandler.RULE_CODE, "excludeUserName", ""),
+                        bizAutomationApi.getParam(AutoAssignLeadHandler.RULE_CODE, "candidateRoleCode", "sales"));
             } catch (Exception e) {
                 log.warn(">>> 线索自动分配失败：{}", e.getMessage());
             }

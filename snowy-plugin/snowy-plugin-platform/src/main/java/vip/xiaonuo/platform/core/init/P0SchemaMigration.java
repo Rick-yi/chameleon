@@ -190,9 +190,81 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
             ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '异步导出任务';
             """;
 
-    private static final String TENANT_LOGIN_DDL = """
-            CREATE TABLE IF NOT EXISTS `T_TENANT_LOGIN` (
+    /** 自动化租户设置 */
+    private static final String AUTOMATION_SETTING_DDL = """
+            CREATE TABLE IF NOT EXISTS `BIZ_AUTOMATION_SETTING` (
               `ID` varchar(20) NOT NULL COMMENT '主键',
+              `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '租户id',
+              `PAUSED` varchar(10) NULL DEFAULT 'NO' COMMENT '是否暂停(YES/NO)',
+              `QUIET_START` varchar(5) NULL DEFAULT NULL COMMENT '静默开始 HH:mm',
+              `QUIET_END` varchar(5) NULL DEFAULT NULL COMMENT '静默结束 HH:mm',
+              `TIMEZONE` varchar(64) NULL DEFAULT 'Asia/Shanghai' COMMENT '时区',
+              `DELETE_FLAG` varchar(255) NULL DEFAULT 'NOT_DELETE' COMMENT '删除标志',
+              `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+              `CREATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '创建人',
+              `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '更新时间',
+              `UPDATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '更新人',
+              PRIMARY KEY (`ID`),
+              INDEX `IDX_AUTO_SETTING_TENANT` (`TENANT_ID`)
+            ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '自动化租户设置';
+            """;
+
+    /** 自动化目标级执行记录 */
+    private static final String AUTOMATION_TARGET_DDL = """
+            CREATE TABLE IF NOT EXISTS `BIZ_AUTOMATION_TARGET` (
+              `ID` varchar(20) NOT NULL COMMENT '主键',
+              `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '租户id',
+              `LOG_ID` varchar(20) NULL DEFAULT NULL COMMENT '执行记录id',
+              `RULE_CODE` varchar(64) NOT NULL COMMENT '规则编码',
+              `TARGET_TYPE` varchar(30) NULL DEFAULT NULL COMMENT '目标类型',
+              `TARGET_ID` varchar(100) NULL DEFAULT NULL COMMENT '目标id',
+              `ACTION` varchar(30) NULL DEFAULT NULL COMMENT '动作',
+              `STATUS` varchar(20) NULL DEFAULT NULL COMMENT '状态',
+              `REASON` varchar(500) NULL DEFAULT NULL COMMENT '失败或跳过原因',
+              `IDEMPOTENCY_KEY` varchar(255) NOT NULL COMMENT '幂等键',
+              `MESSAGE_ID` varchar(20) NULL DEFAULT NULL COMMENT '站内信id',
+              `EXPERIMENT_GROUP` varchar(20) NULL DEFAULT 'NONE' COMMENT '实验分组',
+              `OUTCOME_STATUS` varchar(20) NULL DEFAULT 'NA' COMMENT '归因状态',
+              `OUTCOME_TIME` datetime NULL DEFAULT NULL COMMENT '归因时间',
+              `OUTCOME_VALUE` decimal(12,2) NULL DEFAULT 0.00 COMMENT '归因金额',
+              `RETRY_COUNT` int NULL DEFAULT 0 COMMENT '重试次数',
+              `ACTION_TIME` datetime NULL DEFAULT NULL COMMENT '动作时间',
+              `DELETE_FLAG` varchar(255) NULL DEFAULT 'NOT_DELETE' COMMENT '删除标志',
+              `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+              `CREATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '创建人',
+              `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '更新时间',
+              `UPDATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '更新人',
+              PRIMARY KEY (`ID`),
+              UNIQUE INDEX `UK_AUTO_TARGET_KEY` (`TENANT_ID`, `RULE_CODE`, `IDEMPOTENCY_KEY`),
+              INDEX `IDX_AUTO_TARGET_LOG` (`LOG_ID`),
+              INDEX `IDX_AUTO_TARGET_TENANT_RULE_TIME` (`TENANT_ID`, `RULE_CODE`, `CREATE_TIME`)
+            ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '自动化目标级执行记录';
+            """;
+
+    /** 自动化配置变更历史 */
+    private static final String AUTOMATION_CONFIG_HISTORY_DDL = """
+            CREATE TABLE IF NOT EXISTS `BIZ_AUTOMATION_CONFIG_HISTORY` (
+              `ID` varchar(20) NOT NULL COMMENT '主键',
+              `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '租户id',
+              `RULE_CODE` varchar(64) NULL DEFAULT NULL COMMENT '规则编码',
+              `VERSION` int NULL DEFAULT 1 COMMENT '配置版本',
+              `OLD_ENABLED` varchar(10) NULL DEFAULT NULL COMMENT '变更前开关',
+              `NEW_ENABLED` varchar(10) NULL DEFAULT NULL COMMENT '变更后开关',
+              `OLD_PARAMS` longtext NULL COMMENT '变更前参数',
+              `NEW_PARAMS` longtext NULL COMMENT '变更后参数',
+              `OPERATOR_ID` varchar(20) NULL DEFAULT NULL COMMENT '操作人id',
+              `DELETE_FLAG` varchar(255) NULL DEFAULT 'NOT_DELETE' COMMENT '删除标志',
+              `CREATE_TIME` datetime NULL DEFAULT NULL COMMENT '创建时间',
+              `CREATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '创建人',
+              `UPDATE_TIME` datetime NULL DEFAULT NULL COMMENT '更新时间',
+              `UPDATE_USER` varchar(20) NULL DEFAULT NULL COMMENT '更新人',
+              PRIMARY KEY (`ID`),
+              INDEX `IDX_AUTO_HISTORY_TENANT_RULE` (`TENANT_ID`, `RULE_CODE`, `CREATE_TIME`)
+            ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '自动化配置变更历史';
+            """;
+
+    private static final String TENANT_LOGIN_DDL = """
+            CREATE TABLE IF NOT EXISTS `T_TENANT_LOGIN` (              `ID` varchar(20) NOT NULL COMMENT '主键',
               `TENANT_ID` varchar(20) NULL DEFAULT NULL COMMENT '租户id',
               `USER_ID` varchar(20) NULL DEFAULT NULL COMMENT '用户id',
               `ACCOUNT` varchar(100) NULL DEFAULT NULL COMMENT '账号',
@@ -555,6 +627,94 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
             if (!tableExists("BIZ_EXPORT_TASK")) {
                 jdbcTemplate.execute(BIZ_EXPORT_TASK_DDL);
                 log.info(">>> 平台结构升级：BIZ_EXPORT_TASK 异步导出任务表已创建");
+            }
+            // 自动化引擎升级：配置版本/配额/实验、目标级记录、租户设置、配置审计
+            if (tableExists("BIZ_AUTOMATION_CONFIG")) {
+                if (!columnExists("BIZ_AUTOMATION_CONFIG", "DAILY_CAP")) {
+                    jdbcTemplate.execute("ALTER TABLE `BIZ_AUTOMATION_CONFIG` ADD COLUMN `DAILY_CAP` int NULL DEFAULT 0 COMMENT '每日执行上限(0不限)' AFTER `PARAMS`");
+                    log.info(">>> 自动化结构升级：BIZ_AUTOMATION_CONFIG.DAILY_CAP 已添加");
+                }
+                if (!columnExists("BIZ_AUTOMATION_CONFIG", "HOLDOUT_PERCENT")) {
+                    jdbcTemplate.execute("ALTER TABLE `BIZ_AUTOMATION_CONFIG` ADD COLUMN `HOLDOUT_PERCENT` int NULL DEFAULT 0 COMMENT 'holdout比例(0-100)' AFTER `DAILY_CAP`");
+                    log.info(">>> 自动化结构升级：BIZ_AUTOMATION_CONFIG.HOLDOUT_PERCENT 已添加");
+                }
+                if (!columnExists("BIZ_AUTOMATION_CONFIG", "VERSION")) {
+                    jdbcTemplate.execute("ALTER TABLE `BIZ_AUTOMATION_CONFIG` ADD COLUMN `VERSION` int NULL DEFAULT 1 COMMENT '配置版本' AFTER `HOLDOUT_PERCENT`");
+                    log.info(">>> 自动化结构升级：BIZ_AUTOMATION_CONFIG.VERSION 已添加");
+                }
+            }
+            if (tableExists("BIZ_AUTOMATION_LOG")) {
+                if (!columnExists("BIZ_AUTOMATION_LOG", "RULE_VERSION")) {
+                    jdbcTemplate.execute("ALTER TABLE `BIZ_AUTOMATION_LOG` ADD COLUMN `RULE_VERSION` int NULL DEFAULT 1 COMMENT '规则版本' AFTER `AFFECTED_COUNT`");
+                }
+                if (!columnExists("BIZ_AUTOMATION_LOG", "INPUT_HASH")) {
+                    jdbcTemplate.execute("ALTER TABLE `BIZ_AUTOMATION_LOG` ADD COLUMN `INPUT_HASH` varchar(64) NULL DEFAULT NULL COMMENT '输入哈希' AFTER `RULE_VERSION`");
+                }
+                if (!columnExists("BIZ_AUTOMATION_LOG", "TARGET_COUNT")) {
+                    jdbcTemplate.execute("ALTER TABLE `BIZ_AUTOMATION_LOG` ADD COLUMN `TARGET_COUNT` int NULL DEFAULT 0 COMMENT '目标总数' AFTER `INPUT_HASH`");
+                }
+                if (!columnExists("BIZ_AUTOMATION_LOG", "SUCCESS_COUNT")) {
+                    jdbcTemplate.execute("ALTER TABLE `BIZ_AUTOMATION_LOG` ADD COLUMN `SUCCESS_COUNT` int NULL DEFAULT 0 COMMENT '成功数' AFTER `TARGET_COUNT`");
+                }
+                if (!columnExists("BIZ_AUTOMATION_LOG", "FAIL_COUNT")) {
+                    jdbcTemplate.execute("ALTER TABLE `BIZ_AUTOMATION_LOG` ADD COLUMN `FAIL_COUNT` int NULL DEFAULT 0 COMMENT '失败数' AFTER `SUCCESS_COUNT`");
+                }
+                if (!columnExists("BIZ_AUTOMATION_LOG", "SKIP_COUNT")) {
+                    jdbcTemplate.execute("ALTER TABLE `BIZ_AUTOMATION_LOG` ADD COLUMN `SKIP_COUNT` int NULL DEFAULT 0 COMMENT '跳过数' AFTER `FAIL_COUNT`");
+                }
+                if (!columnExists("BIZ_AUTOMATION_LOG", "DELIVERY_STATUS")) {
+                    jdbcTemplate.execute("ALTER TABLE `BIZ_AUTOMATION_LOG` ADD COLUMN `DELIVERY_STATUS` varchar(20) NULL DEFAULT NULL COMMENT '触达状态' AFTER `SKIP_COUNT`");
+                }
+                if (!columnExists("BIZ_AUTOMATION_LOG", "DELIVERY_COUNT")) {
+                    jdbcTemplate.execute("ALTER TABLE `BIZ_AUTOMATION_LOG` ADD COLUMN `DELIVERY_COUNT` int NULL DEFAULT 0 COMMENT '触达条数' AFTER `DELIVERY_STATUS`");
+                }
+                if (!columnExists("BIZ_AUTOMATION_LOG", "MESSAGE_ID")) {
+                    jdbcTemplate.execute("ALTER TABLE `BIZ_AUTOMATION_LOG` ADD COLUMN `MESSAGE_ID` varchar(20) NULL DEFAULT NULL COMMENT '站内信id' AFTER `DELIVERY_COUNT`");
+                }
+                if (!columnExists("BIZ_AUTOMATION_LOG", "DRY_RUN")) {
+                    jdbcTemplate.execute("ALTER TABLE `BIZ_AUTOMATION_LOG` ADD COLUMN `DRY_RUN` varchar(10) NULL DEFAULT 'NO' COMMENT '是否预览' AFTER `MESSAGE_ID`");
+                }
+                if (!columnExists("BIZ_AUTOMATION_LOG", "EXPERIMENT_GROUP")) {
+                    jdbcTemplate.execute("ALTER TABLE `BIZ_AUTOMATION_LOG` ADD COLUMN `EXPERIMENT_GROUP` varchar(20) NULL DEFAULT 'NONE' COMMENT '实验分组' AFTER `DRY_RUN`");
+                }
+                if (!columnExists("BIZ_AUTOMATION_LOG", "ATTRIBUTION_STATUS")) {
+                    jdbcTemplate.execute("ALTER TABLE `BIZ_AUTOMATION_LOG` ADD COLUMN `ATTRIBUTION_STATUS` varchar(20) NULL DEFAULT 'NA' COMMENT '归因状态' AFTER `EXPERIMENT_GROUP`");
+                }
+            }
+            if (!tableExists("BIZ_AUTOMATION_SETTING")) {
+                jdbcTemplate.execute(AUTOMATION_SETTING_DDL);
+                log.info(">>> 自动化结构升级：BIZ_AUTOMATION_SETTING 已创建");
+            }
+            if (!tableExists("BIZ_AUTOMATION_TARGET")) {
+                jdbcTemplate.execute(AUTOMATION_TARGET_DDL);
+                log.info(">>> 自动化结构升级：BIZ_AUTOMATION_TARGET 已创建");
+            }
+            if (!tableExists("BIZ_AUTOMATION_CONFIG_HISTORY")) {
+                jdbcTemplate.execute(AUTOMATION_CONFIG_HISTORY_DDL);
+                log.info(">>> 自动化结构升级：BIZ_AUTOMATION_CONFIG_HISTORY 已创建");
+            }
+            // 新增自动化接口的权限授予所有租户超管，供新租户初始化时复制
+            int automationPermAdded = jdbcTemplate.update("""
+                    INSERT IGNORE INTO `SYS_RELATION`
+                        (`ID`, `TENANT_ID`, `OBJECT_ID`, `TARGET_ID`, `CATEGORY`, `EXT_JSON`)
+                    SELECT CONCAT('ra_', LEFT(MD5(CONCAT(r.`ID`, p.`api_url`)), 17)),
+                           r.`TENANT_ID`, r.`ID`, p.`api_url`, 'SYS_ROLE_HAS_PERMISSION',
+                           JSON_OBJECT('apiUrl', p.`api_url`, 'scopeCategory', 'SCOPE_ALL',
+                                       'scopeDefineOrgIdList', JSON_ARRAY())
+                    FROM `SYS_ROLE` r
+                    JOIN (
+                        SELECT '/biz/automation/setting' AS `api_url`
+                        UNION ALL SELECT '/biz/automation/experiment'
+                    ) p
+                    WHERE r.`CODE` = 'superAdmin'
+                      AND NOT EXISTS (
+                          SELECT 1 FROM `SYS_RELATION` s
+                          WHERE s.`OBJECT_ID` = r.`ID` AND s.`TARGET_ID` = p.`api_url`
+                            AND s.`CATEGORY` = 'SYS_ROLE_HAS_PERMISSION'
+                      )
+                    """);
+            if (automationPermAdded > 0) {
+                log.info(">>> 自动化结构升级：已补充 {} 条自动化接口权限", automationPermAdded);
             }
 
             // 定时任务归属租户

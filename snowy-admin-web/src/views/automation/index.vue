@@ -14,6 +14,28 @@
 			所有自动操作都会留下执行记录，出问题可以随时查、也可以在对应业务页手工撤销。
 		</div>
 
+		<div class="auto-setting ent-body">
+			<div class="auto-setting-row">
+				<span class="auto-setting-label">自动化总开关</span>
+				<a-switch
+					:checked="setting.paused !== 'YES'"
+					checked-children="运行中"
+					un-checked-children="已暂停"
+					:loading="settingSaving"
+					@change="onPauseChange"
+				/>
+				<span class="auto-setting-label">静默时段</span>
+				<a-input v-model:value="setting.quietStart" placeholder="22:00" style="width: 78px" allow-clear />
+				<span class="auto-setting-sep">至</span>
+				<a-input v-model:value="setting.quietEnd" placeholder="08:00" style="width: 78px" allow-clear />
+				<a-button size="small" :loading="settingSaving" @click="saveSetting">保存</a-button>
+				<a-tag v-if="setting.inQuietHours" color="orange">当前静默中</a-tag>
+			</div>
+			<div class="auto-setting-hint">
+				静默时段只跳过提醒类规则；自动结算、线索分配不受影响。时区：{{ setting.timezone || 'Asia/Shanghai' }}
+			</div>
+		</div>
+
 		<a-spin :spinning="loading">
 			<a-row :gutter="12">
 				<a-col v-for="rule in ruleList" :key="rule.ruleCode" :xs="24" :sm="12" :xl="12">
@@ -45,7 +67,8 @@
 									<a-input-number
 										v-if="param.type === 'NUMBER'"
 										v-model:value="paramModel[rule.ruleCode][param.key]"
-										:min="0"
+										:min="param.min ?? 0"
+										:max="param.max"
 										:step="1"
 										style="width: 130px"
 										@change="onParamChange(rule)"
@@ -58,12 +81,38 @@
 									<a-input
 										v-else
 										v-model:value="paramModel[rule.ruleCode][param.key]"
-										placeholder="留空表示不排除任何人"
+										:placeholder="param.remark || '请输入'"
 										style="width: 180px"
 										@blur="onParamChange(rule)"
 									/>
 								</div>
 							</div>
+						</div>
+
+						<div class="auto-guard">
+							<span class="auto-guard-label">每日上限</span>
+							<a-input-number
+								v-model:value="rule.dailyCap"
+								:min="0"
+								:max="100000"
+								size="small"
+								style="width: 100px"
+								@change="onRuleGuardChange(rule)"
+							/>
+							<span class="auto-guard-hint">0 表示不限</span>
+							<template v-if="rule.supportsHoldout">
+								<span class="auto-guard-label">对照组</span>
+								<a-input-number
+									v-model:value="rule.holdoutPercent"
+									:min="0"
+									:max="100"
+									size="small"
+									style="width: 84px"
+									@change="onRuleGuardChange(rule)"
+								/>
+								<span class="auto-guard-hint">%</span>
+							</template>
+							<span class="auto-version">v{{ rule.version || 1 }}</span>
 						</div>
 
 						<div class="auto-card-foot">
@@ -74,15 +123,24 @@
 										{{ rule.lastRunSuccess ? '成功' : '失败' }}
 									</a-tag>
 									<div class="auto-last-msg">{{ rule.lastRunMessage }}</div>
+									<div v-if="rule.lastRunTime" class="auto-last-counts">
+										成功 {{ rule.lastSuccessCount ?? 0 }} · 失败 {{ rule.lastFailCount ?? 0 }}
+									</div>
 								</template>
 								<template v-else>
 									<span class="auto-last-muted">尚未执行过（累计 0 次）</span>
 								</template>
 							</div>
-							<a-button v-if="rule.mode === 'TIMER' && hasPerm('/biz/automation/run')" type="primary" ghost :loading="running === rule.ruleCode" @click="onRun(rule)">
-								<template #icon><play-circle-outlined /></template>
-								立即执行
-							</a-button>
+							<div class="auto-card-actions">
+								<a-button v-if="rule.supportsHoldout" size="small" @click="onExperiment(rule)">效果</a-button>
+								<a-button v-if="rule.mode === 'TIMER' && hasPerm('/biz/automation/run')" size="small" @click="onRun(rule, true)">
+									预览
+								</a-button>
+								<a-button v-if="rule.mode === 'TIMER' && hasPerm('/biz/automation/run')" type="primary" ghost :loading="running === rule.ruleCode" @click="onRun(rule)">
+									<template #icon><play-circle-outlined /></template>
+									立即执行
+								</a-button>
+							</div>
 						</div>
 					</div>
 				</a-col>
@@ -111,6 +169,23 @@
 								{{ record.success === 'YES' ? '成功' : '失败' }}
 							</a-tag>
 						</template>
+						<template v-if="column.dataIndex === 'counts'">
+							<span class="auto-log-counts">
+								成功 {{ record.successCount ?? 0 }} · 失败 {{ record.failCount ?? 0 }} · 跳过 {{ record.skipCount ?? 0 }}
+							</span>
+						</template>
+						<template v-if="column.dataIndex === 'delivery'">
+							<a-tag :color="deliveryColor(record.deliveryStatus)">
+								{{ deliveryText(record.deliveryStatus) }}
+							</a-tag>
+							<span v-if="record.deliveryCount" class="auto-log-counts"> {{ record.deliveryCount }} 条</span>
+						</template>
+						<template v-if="column.dataIndex === 'experimentGroup'">
+							<a-tag v-if="record.experimentGroup && record.experimentGroup !== 'NONE'">
+								{{ record.experimentGroup }}
+							</a-tag>
+							<span v-else>-</span>
+						</template>
 						<template v-if="column.dataIndex === 'message'">
 							<span class="auto-log-msg">{{ record.message }}</span>
 						</template>
@@ -118,11 +193,22 @@
 				</a-table>
 			</div>
 		</a-spin>
+
+		<a-modal v-model:open="experimentOpen" title="效果归因" :width="680" :footer="null">
+			<a-alert type="info" show-icon :message="experimentData.note || '按 holdout 分组的观察性统计'" style="margin-bottom: 12px" />
+			<a-table
+				:columns="experimentColumns"
+				:data-source="experimentData.groups || []"
+				:row-key="(r) => r.group"
+				size="small"
+				:pagination="false"
+			/>
+		</a-modal>
 	</div>
 </template>
 
 <script setup name="bizAutomation">
-	import { message } from 'ant-design-vue'
+	import { message, Modal } from 'ant-design-vue'
 	import automationApi from '@/api/biz/automationApi'
 
 	const loading = ref(false)
@@ -131,19 +217,34 @@
 	const ruleList = ref([])
 	const logList = ref([])
 	const logLoading = ref(false)
+	const settingSaving = ref(false)
+	const setting = ref({ paused: 'NO', quietStart: '', quietEnd: '', timezone: 'Asia/Shanghai' })
+	const experimentOpen = ref(false)
+	const experimentData = ref({ groups: [], note: '' })
 
 	const logColumns = [
-		{ title: '规则', dataIndex: 'ruleName', width: 160 },
-		{ title: '触发方式', dataIndex: 'triggerType', width: 100 },
-		{ title: '结果', dataIndex: 'success', width: 80 },
+		{ title: '规则', dataIndex: 'ruleName', width: 150 },
+		{ title: '触发方式', dataIndex: 'triggerType', width: 90 },
+		{ title: '结果', dataIndex: 'success', width: 76 },
+		{ title: '成功/失败/跳过', dataIndex: 'counts', width: 160 },
+		{ title: '触达', dataIndex: 'delivery', width: 110 },
+		{ title: '实验组', dataIndex: 'experimentGroup', width: 100 },
 		{ title: '说明', dataIndex: 'message' },
-		{ title: '影响条数', dataIndex: 'affectedCount', width: 90 },
-		{ title: '耗时', dataIndex: 'costMs', width: 80 },
+		{ title: '耗时', dataIndex: 'costMs', width: 76 },
 		{ title: '执行时间', dataIndex: 'createTime', width: 160 }
+	]
+	const experimentColumns = [
+		{ title: '分组', dataIndex: 'group', width: 100 },
+		{ title: '目标数', dataIndex: 'total', width: 90 },
+		{ title: '成功数', dataIndex: 'success', width: 90 },
+		{ title: '转化率', dataIndex: 'rate', width: 90, customRender: ({ text }) => `${text ?? 0}%` },
+		{ title: '归因金额', dataIndex: 'value', width: 110 }
 	]
 
 	const triggerText = (type) => ({ TIMER: '定时', MANUAL: '手动', TRIGGER: '实时' }[type] || type)
 	const triggerColor = (type) => ({ TIMER: 'blue', MANUAL: 'orange', TRIGGER: 'purple' }[type] || 'default')
+	const deliveryText = (status) => ({ CREATED: '已创建', FAILED: '失败', NONE: '未触达' }[status] || '-')
+	const deliveryColor = (status) => ({ CREATED: 'green', FAILED: 'red' }[status] || 'default')
 
 	// 参数编辑模型：ruleCode -> {paramKey: 值}（开关存布尔，数字存数值）
 	const paramModel = ref({})
@@ -187,6 +288,7 @@
 			ruleList.value = data || []
 			buildParamModel(ruleList.value)
 			loadLog()
+			loadSetting()
 		} finally {
 			loading.value = false
 		}
@@ -202,6 +304,46 @@
 		}
 	}
 
+	const loadSetting = async () => {
+		try {
+			const data = await automationApi.getSetting()
+			setting.value = {
+				paused: data?.paused || 'NO',
+				quietStart: data?.quietStart || '',
+				quietEnd: data?.quietEnd || '',
+				timezone: data?.timezone || 'Asia/Shanghai',
+				inQuietHours: !!data?.inQuietHours
+			}
+		} catch (e) {
+			// 设置接口失败不影响规则列表
+		}
+	}
+
+	const saveSetting = () => {
+		settingSaving.value = true
+		automationApi
+			.saveSetting({
+				paused: setting.value.paused,
+				quietStart: setting.value.quietStart,
+				quietEnd: setting.value.quietEnd,
+				timezone: setting.value.timezone
+			})
+			.then(() => {
+				message.success('自动化设置已保存')
+				loadSetting()
+			})
+			.finally(() => (settingSaving.value = false))
+	}
+
+	const onPauseChange = (checked) => {
+		setting.value.paused = checked ? 'NO' : 'YES'
+		saveSetting()
+	}
+
+	const onRuleGuardChange = (rule) => {
+		save(rule, rule.enabled ? 'YES' : 'NO', collectParams(rule), false)
+	}
+
 	const onParamChange = (rule) => {
 		save(rule, rule.enabled ? 'YES' : 'NO', collectParams(rule))
 	}
@@ -211,27 +353,69 @@
 		save(rule, checked ? 'YES' : 'NO', collectParams(rule)).finally(() => (switching.value = ''))
 	}
 
-	const save = (rule, enabled, params) => {
+	const save = (rule, enabled, params, showMessage = true) => {
 		return automationApi
-			.toggle({ ruleCode: rule.ruleCode, enabled, params })
+			.toggle({
+				ruleCode: rule.ruleCode,
+				enabled,
+				params,
+				dailyCap: rule.dailyCap || 0,
+				holdoutPercent: rule.holdoutPercent || 0
+			})
 			.then(() => {
 				rule.enabled = enabled === 'YES'
-				message.success(enabled === 'YES' ? `已开启「${rule.ruleName}」` : `已关闭「${rule.ruleName}」`)
+				if (showMessage) {
+					message.success(enabled === 'YES' ? `已开启「${rule.ruleName}」` : `已关闭「${rule.ruleName}」`)
+				}
 			})
 			.catch(() => {
 				loadRules()
 			})
 	}
 
-	const onRun = (rule) => {
+	const runRule = (rule) => {
 		running.value = rule.ruleCode
-		automationApi
-			.run({ ruleCode: rule.ruleCode })
+		return automationApi
+			.run({ ruleCode: rule.ruleCode, preview: false })
 			.then((data) => {
 				message.success(data?.message || '执行完成')
 				loadRules()
 			})
 			.finally(() => (running.value = ''))
+	}
+
+	const onRun = (rule, previewOnly = false) => {
+		running.value = rule.ruleCode
+		automationApi
+			.run({ ruleCode: rule.ruleCode, preview: true })
+			.then((data) => {
+				running.value = ''
+				if (previewOnly) {
+					Modal.info({ title: '影响面预览', content: data?.message || '没有需要处理的目标' })
+					return
+				}
+				if (!data?.affectedCount) {
+					message.info(data?.message || '没有需要处理的目标')
+					return
+				}
+				Modal.confirm({
+					title: `确认执行「${rule.ruleName}」`,
+					content: `${data.message}，确认立即执行？`,
+					okText: '确认执行',
+					cancelText: '取消',
+					onOk: () => runRule(rule)
+				})
+			})
+			.catch(() => {
+				running.value = ''
+			})
+	}
+
+	const onExperiment = (rule) => {
+		automationApi.experiment(rule.ruleCode, 90).then((data) => {
+			experimentData.value = data || { groups: [], note: '' }
+			experimentOpen.value = true
+		})
 	}
 
 	loadRules()
@@ -240,6 +424,62 @@
 <style lang="less" scoped>
 	.auto-tip {
 		margin-bottom: 12px;
+	}
+	.auto-setting {
+		margin-bottom: 12px;
+	}
+	.auto-setting-row {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+	}
+	.auto-setting-label {
+		font-size: 13px;
+		color: var(--text-color-secondary);
+	}
+	.auto-setting-sep {
+		color: var(--text-color-tertiary);
+	}
+	.auto-setting-hint {
+		margin-top: 6px;
+		font-size: 12px;
+		color: var(--text-color-tertiary);
+	}
+	.auto-guard {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		flex-wrap: wrap;
+		margin-top: 10px;
+		padding: 8px 12px;
+		border: 1px dashed var(--border-color-split);
+		border-radius: var(--radius-control);
+	}
+	.auto-guard-label {
+		font-size: 12px;
+		color: var(--text-color-secondary);
+	}
+	.auto-guard-hint {
+		font-size: 12px;
+		color: var(--text-color-tertiary);
+	}
+	.auto-version {
+		margin-left: auto;
+		font-size: 12px;
+		color: var(--text-color-tertiary);
+	}
+	.auto-card-actions {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+	}
+	.auto-last-counts {
+		margin-top: 2px;
+		font-size: 12px;
+		color: var(--text-color-tertiary);
 	}
 	.auto-card {
 		background: #fff;

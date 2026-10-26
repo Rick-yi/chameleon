@@ -35,5 +35,17 @@ export default {
 	// 执行记录分页
 	logPage(data) {
 		return request('log', data, 'get')
+	},
+	// 租户级自动化设置
+	getSetting() {
+		return request('setting', null, 'get')
+	},
+	// 保存租户级自动化设置
+	saveSetting(data) {
+		return request('setting', data)
+	},
+	// 规则实验/归因统计
+	experiment(ruleCode, windowDays) {
+		return request(`experiment?ruleCode=${encodeURIComponent(ruleCode)}&windowDays=${windowDays || 90}`, null, 'get')
 	}
 }

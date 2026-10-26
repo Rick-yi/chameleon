@@ -42,4 +42,12 @@ public class BizAutomationToggleParam {
     /** 规则参数 */
     @Schema(description = "规则参数")
     private Map<String, String> params;
+
+    /** 每日执行上限（0 表示不限） */
+    @Schema(description = "每日执行上限")
+    private Integer dailyCap;
+
+    /** holdout 对照组比例（0-100） */
+    @Schema(description = "holdout 对照组比例")
+    private Integer holdoutPercent;
 }

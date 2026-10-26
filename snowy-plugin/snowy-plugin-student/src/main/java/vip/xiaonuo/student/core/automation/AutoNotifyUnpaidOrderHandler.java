@@ -92,12 +92,22 @@ public class AutoNotifyUnpaidOrderHandler implements BizAutomationHandler {
     }
 
     @Override
+    public boolean isNotificationRule() {
+        return true;
+    }
+
+    @Override
+    public int getRuleVersion() {
+        return 2;
+    }
+
+    @Override
     public List<AutomationParam> getParamDef() {
         return List.of(
                 new AutomationParam("overdueHours", "超时未付小时数", "NUMBER", "24",
-                        "订单创建超过多少小时仍未支付才提醒"),
+                        "订单创建超过多少小时仍未支付才提醒", 1, 720),
                 new AutomationParam("repeatHours", "重复提醒间隔（小时）", "NUMBER", "24",
-                        "同一笔订单提醒过一次后，至少间隔这么久才再次提醒")
+                        "同一笔订单提醒过一次后，至少间隔这么久才再次提醒", 1, 720)
         );
     }
 
@@ -105,6 +115,10 @@ public class AutoNotifyUnpaidOrderHandler implements BizAutomationHandler {
     public AutomationResult execute(AutomationContext context) {
         int overdueHours = context.getIntParam("overdueHours", 24);
         int repeatHours = context.getIntParam("repeatHours", 24);
+        int limit = Math.min(context.remainingQuota(), 200);
+        if (limit <= 0) {
+            return AutomationResult.ok("今日已达执行上限", 0);
+        }
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime overdueBefore = now.minusHours(overdueHours);
         LocalDateTime repeatBefore = now.minusHours(repeatHours);
@@ -113,12 +127,17 @@ public class AutoNotifyUnpaidOrderHandler implements BizAutomationHandler {
                 .eq(StudentOrder::getStatus, ORDER_STATUS_UNPAID)
                 .lt(StudentOrder::getCreateTime, Date.from(overdueBefore.atZone(java.time.ZoneId.systemDefault()).toInstant()))
                 .and(wrapper -> wrapper.isNull(StudentOrder::getLastNotifyTime)
-                        .or().lt(StudentOrder::getLastNotifyTime, Date.from(repeatBefore.atZone(java.time.ZoneId.systemDefault()).toInstant()))));
+                        .or().lt(StudentOrder::getLastNotifyTime, Date.from(repeatBefore.atZone(java.time.ZoneId.systemDefault()).toInstant())))
+                .orderByAsc(StudentOrder::getCreateTime)
+                .last("LIMIT " + limit));
         if (orderList.isEmpty()) {
             return AutomationResult.ok("没有需要提醒的未支付订单", 0);
         }
         List<String> receiverIdList = adminUserIdList();
         if (receiverIdList.isEmpty()) {
+            for (StudentOrder order : orderList) {
+                context.skip("ORDER", order.getId(), "NOTIFY", "没有找到接收提醒的管理员");
+            }
             return AutomationResult.ok("没有找到接收提醒的管理员", 0);
         }
         Map<String, String> studentNameMap = new HashMap<>();
@@ -128,22 +147,57 @@ public class AutoNotifyUnpaidOrderHandler implements BizAutomationHandler {
                 .in(Student::getId, studentIdList))) {
             studentNameMap.put(student.getId(), student.getName());
         }
+        // 同一重复窗口内只允许一次触达；holdout 目标只占位、不发送
+        String windowKey = "R" + repeatHours + ":" + (System.currentTimeMillis() / (repeatHours * 3600_000L));
+        List<StudentOrder> notifyList = new ArrayList<>();
         List<String> contentList = new ArrayList<>();
         for (StudentOrder order : orderList) {
+            boolean holdout = context.isHoldout(order.getId());
+            if (!context.claim("ORDER", order.getId(), "NOTIFY", windowKey)) {
+                continue;
+            }
+            if (holdout) {
+                context.skip("ORDER", order.getId(), "NOTIFY", "命中实验对照组，不发送", "HOLDOUT");
+                continue;
+            }
+            notifyList.add(order);
             contentList.add("学员 " + StrUtil.blankToDefault(studentNameMap.get(order.getStudentId()), order.getStudentId())
                     + "，" + StrUtil.blankToDefault(order.getPackageName(), "课包")
                     + "，待收 ¥" + (order.getAmount() == null ? "0" : order.getAmount().toPlainString())
                     + "（开单 " + (order.getCreateTime() == null ? "-" : cn.hutool.core.date.DateUtil.formatDateTime(order.getCreateTime())) + "）");
         }
-        devMessageApi.sendMessageWithContent(receiverIdList, "未支付订单提醒",
-                "共 " + contentList.size() + " 笔订单超时未支付：\n" + String.join("\n", contentList));
-        for (StudentOrder order : orderList) {
-            StudentOrder update = new StudentOrder();
-            update.setId(order.getId());
-            update.setLastNotifyTime(new Date());
-            studentOrderMapper.updateById(update);
+        if (notifyList.isEmpty()) {
+            return AutomationResult.ok("本轮没有需要发送的未支付订单", 0,
+                    "holdout 或窗口内已处理");
         }
-        return AutomationResult.ok("已提醒 " + contentList.size() + " 笔未支付订单", contentList.size());
+        if (context.dryRun()) {
+            return AutomationResult.ok("预览：将提醒 " + notifyList.size() + " 笔未支付订单",
+                    notifyList.size(), String.join(",", notifyList.stream().map(StudentOrder::getId).toList()));
+        }
+        String messageId;
+        try {
+            messageId = devMessageApi.sendMessageWithContentReceipt(receiverIdList, "未支付订单提醒",
+                    "共 " + contentList.size() + " 笔订单超时未支付：\n" + String.join("\n", contentList));
+        } catch (Exception e) {
+            for (StudentOrder order : notifyList) {
+                context.fail("ORDER", order.getId(), "NOTIFY", "发送失败：" + e.getMessage());
+            }
+            return AutomationResult.fail("未支付订单提醒发送失败：" + e.getMessage());
+        }
+        for (StudentOrder order : notifyList) {
+            try {
+                StudentOrder update = new StudentOrder();
+                update.setId(order.getId());
+                update.setLastNotifyTime(new Date());
+                studentOrderMapper.updateById(update);
+                context.success("ORDER", order.getId(), "NOTIFY", messageId, null);
+            } catch (Exception e) {
+                log.warn(">>> 未支付订单[{}]提醒状态回写失败：{}", order.getId(), e.getMessage());
+                context.success("ORDER", order.getId(), "NOTIFY", messageId, "状态回写失败");
+            }
+        }
+        return AutomationResult.ok("已提醒 " + notifyList.size() + " 笔未支付订单", notifyList.size(),
+                String.join(",", notifyList.stream().map(StudentOrder::getId).toList()));
     }
 
     /** 机构管理员用户id列表 */
@@ -158,7 +212,7 @@ public class AutoNotifyUnpaidOrderHandler implements BizAutomationHandler {
             if (StrUtil.isBlank(userId)) {
                 continue;
             }
-            List<String> roleList = sysUserApi.ownRole(userId);
+            List<String> roleList = sysUserApi.ownRoleCode(userId);
             if (roleList != null && roleList.contains(ADMIN_ROLE_CODE)) {
                 resultList.add(userId);
             }

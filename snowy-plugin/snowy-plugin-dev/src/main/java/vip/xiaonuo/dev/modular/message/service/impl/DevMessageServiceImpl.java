@@ -70,6 +70,12 @@ public class DevMessageServiceImpl extends ServiceImpl<DevMessageMapper, DevMess
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void send(DevMessageSendParam devMessageSendParam) {
+        this.sendForReceipt(devMessageSendParam);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public String sendForReceipt(DevMessageSendParam devMessageSendParam) {
         devMessageSendParam.setContent(ObjectUtil.isEmpty(devMessageSendParam.getContent())?
                 devMessageSendParam.getSubject():devMessageSendParam.getContent());
         devMessageSendParam.setCategory(ObjectUtil.isEmpty(devMessageSendParam.getCategory())?
@@ -85,6 +91,7 @@ public class DevMessageServiceImpl extends ServiceImpl<DevMessageMapper, DevMess
             // 发送WebSocket消息
             DevMessageWebSocket.sendMessage(receiverIdList);
         }
+        return devMessage.getId();
     }
 
     @Override

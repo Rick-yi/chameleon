@@ -63,6 +63,54 @@ public class BizAutomationLog extends CommonEntity {
     @Schema(description = "影响条数")
     private Integer affectedCount;
 
+    /** 规则版本 */
+    @Schema(description = "规则版本")
+    private Integer ruleVersion;
+
+    /** 输入哈希（租户+规则+版本+参数） */
+    @Schema(description = "输入哈希")
+    private String inputHash;
+
+    /** 目标总数 */
+    @Schema(description = "目标总数")
+    private Integer targetCount;
+
+    /** 成功数 */
+    @Schema(description = "成功数")
+    private Integer successCount;
+
+    /** 失败数 */
+    @Schema(description = "失败数")
+    private Integer failCount;
+
+    /** 跳过数 */
+    @Schema(description = "跳过数")
+    private Integer skipCount;
+
+    /** 触达状态：CREATED/NONE/FAILED */
+    @Schema(description = "触达状态")
+    private String deliveryStatus;
+
+    /** 触达条数 */
+    @Schema(description = "触达条数")
+    private Integer deliveryCount;
+
+    /** 站内信id（单条消息时） */
+    @Schema(description = "站内信id")
+    private String messageId;
+
+    /** 是否预览 */
+    @Schema(description = "是否预览")
+    private String dryRun;
+
+    /** 实验分组：TREATMENT/HOLDOUT/MIXED/NONE */
+    @Schema(description = "实验分组")
+    private String experimentGroup;
+
+    /** 归因状态：PENDING/SUCCESS/FAILED/NA */
+    @Schema(description = "归因状态")
+    private String attributionStatus;
+
     /** 明细（JSON） */
     @Schema(description = "明细")
     private String detail;

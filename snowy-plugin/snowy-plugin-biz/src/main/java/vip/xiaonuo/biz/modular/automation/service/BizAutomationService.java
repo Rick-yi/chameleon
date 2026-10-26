@@ -38,6 +38,9 @@ public interface BizAutomationService {
     /** 立即执行一条规则 */
     BizAutomationHandler.AutomationResult run(String ruleCode, String triggerType);
 
+    /** 执行一条规则；dryRun=true 时只计算影响面 */
+    BizAutomationHandler.AutomationResult run(String ruleCode, String triggerType, boolean dryRun);
+
     /** 执行记录分页 */
     Page<BizAutomationLog> logPage(BizAutomationLogPageParam bizAutomationLogPageParam);
 
@@ -49,4 +52,13 @@ public interface BizAutomationService {
 
     /** 执行当前租户下所有已开启的定时型规则，返回执行的规则数 */
     int runTimerRules();
+
+    /** 租户级自动化设置 */
+    java.util.Map<String, Object> getSetting();
+
+    /** 保存租户级自动化设置 */
+    void saveSetting(vip.xiaonuo.biz.modular.automation.param.BizAutomationSettingParam param);
+
+    /** 规则实验/归因统计 */
+    java.util.Map<String, Object> experimentStats(String ruleCode, Integer windowDays);
 }

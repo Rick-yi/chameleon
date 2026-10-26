@@ -91,10 +91,20 @@ public class AutoNotifyRenewWarnHandler implements BizAutomationHandler {
     }
 
     @Override
+    public boolean isNotificationRule() {
+        return true;
+    }
+
+    @Override
+    public int getRuleVersion() {
+        return 2;
+    }
+
+    @Override
     public List<AutomationParam> getParamDef() {
         return List.of(
                 new AutomationParam("repeatHours", "重复提醒间隔（小时）", "NUMBER", "24",
-                        "同一条预警提醒过一次后，至少间隔这么久才再次提醒"),
+                        "同一条预警提醒过一次后，至少间隔这么久才再次提醒", 1, 720),
                 new AutomationParam("notifyRoleCode", "接收人角色码", "TEXT", "superAdmin",
                         "接收提醒的角色码，机构管理员默认为 superAdmin")
         );
@@ -104,17 +114,26 @@ public class AutoNotifyRenewWarnHandler implements BizAutomationHandler {
     public AutomationResult execute(AutomationContext context) {
         int repeatHours = context.getIntParam("repeatHours", 24);
         String roleCode = context.getParam("notifyRoleCode", ADMIN_ROLE_CODE);
+        int limit = Math.min(context.remainingQuota(), 200);
+        if (limit <= 0) {
+            return AutomationResult.ok("今日已达执行上限", 0);
+        }
         // 上次提醒时间超过间隔（或从未提醒）且仍待处理
         LocalDateTime notifyBefore = LocalDateTime.now().minusHours(repeatHours);
         List<StudentRenewWarn> warnList = studentRenewWarnMapper.selectList(new LambdaQueryWrapper<StudentRenewWarn>()
                 .eq(StudentRenewWarn::getStatus, StudentRenewWarnStatusEnum.PENDING)
                 .and(wrapper -> wrapper.isNull(StudentRenewWarn::getLastNotifyTime)
-                        .or().lt(StudentRenewWarn::getLastNotifyTime, Date.from(notifyBefore.atZone(java.time.ZoneId.systemDefault()).toInstant()))));
+                        .or().lt(StudentRenewWarn::getLastNotifyTime, Date.from(notifyBefore.atZone(java.time.ZoneId.systemDefault()).toInstant())))
+                .orderByAsc(StudentRenewWarn::getCreateTime)
+                .last("LIMIT " + limit));
         if (warnList.isEmpty()) {
             return AutomationResult.ok("没有需要提醒的续费预警", 0);
         }
         List<String> receiverIdList = adminUserIdList(roleCode);
         if (receiverIdList.isEmpty()) {
+            for (StudentRenewWarn warn : warnList) {
+                context.skip("RENEW_WARN", warn.getId(), "NOTIFY", "没有找到接收提醒的管理员");
+            }
             return AutomationResult.ok("没有找到接收提醒的管理员", 0);
         }
         // 学员名称（预警表里不冗余存名称，这里统一补齐）
@@ -125,24 +144,56 @@ public class AutoNotifyRenewWarnHandler implements BizAutomationHandler {
                 .in(Student::getId, studentIdList))) {
             studentNameMap.put(student.getId(), student.getName());
         }
+        String windowKey = "R" + repeatHours + ":" + (System.currentTimeMillis() / (repeatHours * 3600_000L));
+        List<StudentRenewWarn> notifyList = new ArrayList<>();
         List<String> contentList = new ArrayList<>();
         for (StudentRenewWarn warn : warnList) {
+            boolean holdout = context.isHoldout(warn.getId());
+            if (!context.claim("RENEW_WARN", warn.getId(), "NOTIFY", windowKey)) {
+                continue;
+            }
+            if (holdout) {
+                context.skip("RENEW_WARN", warn.getId(), "NOTIFY", "命中实验对照组，不发送", "HOLDOUT");
+                continue;
+            }
+            notifyList.add(warn);
             contentList.add("学员 " + StrUtil.blankToDefault(studentNameMap.get(warn.getStudentId()), warn.getStudentId())
                     + "：" + (StudentRenewWarnStatusEnum.REASON_LESSON_LOW.equals(warn.getWarnReason())
                     ? (warn.getRemainLessons() != null ? "剩余 " + warn.getRemainLessons() + " 课时" : "课时不足")
                     : "课包即将到期")
                     + "，请及时跟进续费");
         }
-        devMessageApi.sendMessageWithContent(receiverIdList, "续费预警提醒",
-                "共 " + contentList.size() + " 条续费预警待处理：\n" + String.join("\n", contentList));
-        // 记录提醒时间，避免重复打扰
-        for (StudentRenewWarn warn : warnList) {
-            StudentRenewWarn update = new StudentRenewWarn();
-            update.setId(warn.getId());
-            update.setLastNotifyTime(new Date());
-            studentRenewWarnMapper.updateById(update);
+        if (notifyList.isEmpty()) {
+            return AutomationResult.ok("本轮没有需要发送的续费预警", 0, "holdout 或窗口内已处理");
         }
-        return AutomationResult.ok("已提醒 " + contentList.size() + " 条续费预警", contentList.size());
+        if (context.dryRun()) {
+            return AutomationResult.ok("预览：将提醒 " + notifyList.size() + " 条续费预警",
+                    notifyList.size(), String.join(",", notifyList.stream().map(StudentRenewWarn::getId).toList()));
+        }
+        String messageId;
+        try {
+            messageId = devMessageApi.sendMessageWithContentReceipt(receiverIdList, "续费预警提醒",
+                    "共 " + contentList.size() + " 条续费预警待处理：\n" + String.join("\n", contentList));
+        } catch (Exception e) {
+            for (StudentRenewWarn warn : notifyList) {
+                context.fail("RENEW_WARN", warn.getId(), "NOTIFY", "发送失败：" + e.getMessage());
+            }
+            return AutomationResult.fail("续费预警提醒发送失败：" + e.getMessage());
+        }
+        // 记录提醒时间，避免重复打扰；回写失败不重发，避免重复触达
+        for (StudentRenewWarn warn : notifyList) {
+            try {
+                StudentRenewWarn update = new StudentRenewWarn();
+                update.setId(warn.getId());
+                update.setLastNotifyTime(new Date());
+                studentRenewWarnMapper.updateById(update);
+            } catch (Exception e) {
+                log.warn(">>> 续费预警[{}]提醒状态回写失败：{}", warn.getId(), e.getMessage());
+            }
+            context.success("RENEW_WARN", warn.getId(), "NOTIFY", messageId, null);
+        }
+        return AutomationResult.ok("已提醒 " + notifyList.size() + " 条续费预警", notifyList.size(),
+                String.join(",", notifyList.stream().map(StudentRenewWarn::getId).toList()));
     }
 
     /** 机构管理员用户id列表 */
@@ -157,7 +208,7 @@ public class AutoNotifyRenewWarnHandler implements BizAutomationHandler {
             if (StrUtil.isBlank(userId)) {
                 continue;
             }
-            List<String> roleList = sysUserApi.ownRole(userId);
+            List<String> roleList = sysUserApi.ownRoleCode(userId);
             if (roleList != null && roleList.contains(roleCode)) {
                 resultList.add(userId);
             }

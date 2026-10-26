@@ -65,12 +65,22 @@ public class DevMessageProvider implements DevMessageApi {
 
     @Override
     public void sendMessageWithContent(List<String> receiverIdList, String category, String subject, String content) {
+        this.sendMessageWithContentReceipt(receiverIdList, category, subject, content);
+    }
+
+    @Override
+    public String sendMessageWithContentReceipt(List<String> receiverIdList, String subject, String content) {
+        return this.sendMessageWithContentReceipt(receiverIdList, null, subject, content);
+    }
+
+    @Override
+    public String sendMessageWithContentReceipt(List<String> receiverIdList, String category, String subject, String content) {
         DevMessageSendParam devMessageSendParam = new DevMessageSendParam();
         devMessageSendParam.setReceiverIdList(receiverIdList);
         devMessageSendParam.setCategory(category);
         devMessageSendParam.setSubject(subject);
         devMessageSendParam.setContent(ObjectUtil.isEmpty(content)?subject:content);
-        devMessageService.send(devMessageSendParam);
+        return devMessageService.sendForReceipt(devMessageSendParam);
     }
 
     @Override

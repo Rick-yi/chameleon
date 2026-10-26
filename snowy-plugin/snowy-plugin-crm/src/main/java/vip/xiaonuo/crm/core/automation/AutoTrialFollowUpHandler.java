@@ -87,10 +87,15 @@ public class AutoTrialFollowUpHandler implements BizAutomationHandler {
     }
 
     @Override
+    public int getRuleVersion() {
+        return 2;
+    }
+
+    @Override
     public List<AutomationParam> getParamDef() {
         return List.of(
                 new AutomationParam("graceMinutes", "宽限时间（分钟）", "NUMBER", "30",
-                        "试听结束后等待多久仍未处理才自动推进，留出顾问当场录入结果的时间"),
+                        "试听结束后等待多久仍未处理才自动推进，留出顾问当场录入结果的时间", 1, 1440),
                 new AutomationParam("notify", "提醒跟进人", "SWITCH", "YES",
                         "推进后给线索跟进人发站内信，提醒录入试听结果并跟进转化")
         );
@@ -100,6 +105,10 @@ public class AutoTrialFollowUpHandler implements BizAutomationHandler {
     public AutomationResult execute(AutomationContext context) {
         int graceMinutes = context.getIntParam("graceMinutes", 30);
         boolean notify = !"NO".equalsIgnoreCase(context.getParam("notify", "YES"));
+        int limit = Math.min(context.remainingQuota(), 200);
+        if (limit <= 0) {
+            return AutomationResult.ok("今日已达执行上限", 0);
+        }
         Date deadline = DateUtil.offsetMinute(new Date(), -Math.max(graceMinutes, 0));
 
         // 已过试听时间、仍停在「待试听」的预约
@@ -107,40 +116,68 @@ public class AutoTrialFollowUpHandler implements BizAutomationHandler {
                 new LambdaQueryWrapper<CrmTrialAppointment>()
                         .eq(CrmTrialAppointment::getStatus, CrmTrialStatusEnum.PENDING)
                         .isNotNull(CrmTrialAppointment::getTrialTime)
-                        .lt(CrmTrialAppointment::getTrialTime, deadline));
+                        .lt(CrmTrialAppointment::getTrialTime, deadline)
+                        .orderByAsc(CrmTrialAppointment::getTrialTime)
+                        .last("LIMIT " + limit));
         if (trialList.isEmpty()) {
             return AutomationResult.ok("没有需要推进的试听预约", 0);
         }
 
+        List<CrmTrialAppointment> advancedTrials = new ArrayList<>();
         List<String> leadIdList = new ArrayList<>();
         List<String> detailList = new ArrayList<>();
         for (CrmTrialAppointment trial : trialList) {
-            // 预约置为已完成（结果留空，等顾问录入意向）
-            CrmTrialAppointment update = new CrmTrialAppointment();
-            update.setId(trial.getId());
-            update.setStatus(CrmTrialStatusEnum.DONE);
-            crmTrialAppointmentMapper.updateById(update);
+            if (context.dryRun()) {
+                advancedTrials.add(trial);
+                if (StrUtil.isNotBlank(trial.getLeadId())) {
+                    leadIdList.add(trial.getLeadId());
+                }
+                detailList.add(trial.getId());
+                continue;
+            }
+            if (!context.claim("TRIAL", trial.getId(), "ADVANCE", "ADVANCE")) {
+                continue;
+            }
+            // 条件更新：只有仍为「待试听」才推进，避免和顾问手工操作打架
+            int updated = crmTrialAppointmentMapper.update(null,
+                    new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<CrmTrialAppointment>()
+                            .eq(CrmTrialAppointment::getId, trial.getId())
+                            .eq(CrmTrialAppointment::getStatus, CrmTrialStatusEnum.PENDING)
+                            .set(CrmTrialAppointment::getStatus, CrmTrialStatusEnum.DONE));
+            if (updated == 0) {
+                context.skip("TRIAL", trial.getId(), "ADVANCE", "预约状态已被手工修改");
+                continue;
+            }
+            advancedTrials.add(trial);
             if (StrUtil.isNotBlank(trial.getLeadId())) {
                 leadIdList.add(trial.getLeadId());
             }
             detailList.add(trial.getId());
+            context.success("TRIAL", trial.getId(), "ADVANCE", null, null);
+        }
+        if (context.dryRun()) {
+            return AutomationResult.ok("预览：将推进 " + advancedTrials.size() + " 场试听",
+                    advancedTrials.size(), detailList.isEmpty() ? null : String.join(",", detailList));
+        }
+        if (advancedTrials.isEmpty()) {
+            return AutomationResult.ok("没有需要推进的试听预约", 0);
         }
 
         int advancedLeadCount = 0;
+        List<String> notifyUserIdList = new ArrayList<>();
+        List<String> messageLineList = new ArrayList<>();
         if (!leadIdList.isEmpty()) {
             List<CrmLead> leadList = crmLeadMapper.selectList(new LambdaQueryWrapper<CrmLead>()
                     .in(CrmLead::getId, leadIdList));
-            List<String> notifyUserIdList = new ArrayList<>();
-            List<String> messageLineList = new ArrayList<>();
             for (CrmLead lead : leadList) {
                 // 线索推进：新线索/跟进中 → 已试听（已报名/已流失不动）
-                boolean canAdvance = CrmLeadStatusEnum.NEW.getValue().equals(lead.getStatus())
-                        || CrmLeadStatusEnum.FOLLOWED.getValue().equals(lead.getStatus());
-                if (canAdvance) {
-                    CrmLead leadUpdate = new CrmLead();
-                    leadUpdate.setId(lead.getId());
-                    leadUpdate.setStatus(CrmLeadStatusEnum.TRIALED.getValue());
-                    crmLeadMapper.updateById(leadUpdate);
+                int leadUpdated = crmLeadMapper.update(null,
+                        new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<CrmLead>()
+                                .eq(CrmLead::getId, lead.getId())
+                                .in(CrmLead::getStatus, CrmLeadStatusEnum.NEW.getValue(),
+                                        CrmLeadStatusEnum.FOLLOWED.getValue())
+                                .set(CrmLead::getStatus, CrmLeadStatusEnum.TRIALED.getValue()));
+                if (leadUpdated > 0) {
                     advancedLeadCount++;
                 }
                 // 约试听时线索可能已被置为「已试听」，结果仍需录入，提醒照发
@@ -151,15 +188,27 @@ public class AutoTrialFollowUpHandler implements BizAutomationHandler {
                     messageLineList.add("· " + lead.getName() + "（" + StrUtil.blankToDefault(lead.getParentPhone(), "无电话") + "）");
                 }
             }
-            if (notify && !notifyUserIdList.isEmpty()) {
-                devMessageApi.sendMessageWithContent(notifyUserIdList.stream().distinct().toList(),
+        }
+        if (notify && !notifyUserIdList.isEmpty()) {
+            try {
+                String messageId = devMessageApi.sendMessageWithContentReceipt(
+                        notifyUserIdList.stream().distinct().toList(),
                         "试听已完成，请跟进转化",
                         "以下线索的试听时间已过，预约已置为「已完成」，请录入试听结果并推进转化：\n"
                                 + String.join("\n", messageLineList));
+                for (CrmTrialAppointment trial : advancedTrials) {
+                    context.success("TRIAL", trial.getId(), "NOTIFY", messageId, null);
+                }
+            } catch (Exception e) {
+                for (CrmTrialAppointment trial : advancedTrials) {
+                    context.fail("TRIAL", trial.getId(), "NOTIFY", "推进成功但通知失败：" + e.getMessage());
+                }
+                return AutomationResult.fail("已推进 " + advancedTrials.size() + " 场试听，但通知失败："
+                        + e.getMessage());
             }
         }
-        String message = "已推进 " + trialList.size() + " 场试听、更新 " + advancedLeadCount + " 条线索";
-        return AutomationResult.ok(message, trialList.size(),
+        String message = "已推进 " + advancedTrials.size() + " 场试听、更新 " + advancedLeadCount + " 条线索";
+        return AutomationResult.ok(message, advancedTrials.size(),
                 detailList.isEmpty() ? null : String.join(",", detailList));
     }
 }

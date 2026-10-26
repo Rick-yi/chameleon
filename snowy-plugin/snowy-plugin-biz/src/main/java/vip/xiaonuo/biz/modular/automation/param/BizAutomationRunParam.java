@@ -31,4 +31,8 @@ public class BizAutomationRunParam {
     @Schema(description = "规则编码", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "规则编码不能为空")
     private String ruleCode;
+
+    /** 是否只预览影响面，不产生副作用 */
+    @Schema(description = "是否预览")
+    private Boolean preview;
 }

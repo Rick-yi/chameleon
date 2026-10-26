@@ -50,6 +50,9 @@ public class SysUserApiProvider implements SysUserApi {
     @Resource
     private SysUserService sysUserService;
 
+    @Resource
+    private vip.xiaonuo.sys.modular.role.service.SysRoleService sysRoleService;
+
     @Override
     public JSONObject getUserByIdWithoutException(String userId) {
         SysUser sysUser = sysUserService.getById(userId);
@@ -84,6 +87,19 @@ public class SysUserApiProvider implements SysUserApi {
         SysUserIdParam sysUserIdParam = new SysUserIdParam();
         sysUserIdParam.setId(userId);
         return sysUserService.ownRole(sysUserIdParam);
+    }
+
+    @Override
+    public List<String> ownRoleCode(String userId) {
+        List<String> roleIdList = ownRole(userId);
+        if (roleIdList == null || roleIdList.isEmpty()) {
+            return List.of();
+        }
+        return sysRoleService.listByIds(roleIdList).stream()
+                .map(vip.xiaonuo.sys.modular.role.entity.SysRole::getCode)
+                .filter(cn.hutool.core.util.StrUtil::isNotBlank)
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     @Override

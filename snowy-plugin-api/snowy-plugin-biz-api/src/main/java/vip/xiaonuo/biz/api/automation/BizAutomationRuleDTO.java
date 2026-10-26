@@ -45,6 +45,30 @@ public class BizAutomationRuleDTO {
     /** 当前参数 */
     private java.util.Map<String, String> params;
 
+    /** 每日执行上限（0 表示不限） */
+    private Integer dailyCap;
+
+    /** holdout 对照组比例（0-100） */
+    private Integer holdoutPercent;
+
+    /** 配置版本 */
+    private Integer version;
+
+    /** 最近一次配置变更时间 */
+    private String lastChangeTime;
+
+    /** 最近一次执行成功数 */
+    private Integer lastSuccessCount;
+
+    /** 最近一次执行失败数 */
+    private Integer lastFailCount;
+
+    /** 是否提醒类规则 */
+    private Boolean notificationRule;
+
+    /** 是否支持 holdout */
+    private Boolean supportsHoldout;
+
     /** 参数定义 */
     private List<BizAutomationHandler.AutomationParam> paramDef;
 

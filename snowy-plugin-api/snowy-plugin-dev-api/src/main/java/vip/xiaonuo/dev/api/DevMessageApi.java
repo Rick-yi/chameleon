@@ -68,6 +68,16 @@ public interface DevMessageApi {
     void sendMessageWithContent(List<String> receiverIdList, String category, String subject, String content);
 
     /**
+     * 发送站内信并返回消息id（自动化触达回执用）
+     */
+    String sendMessageWithContentReceipt(List<String> receiverIdList, String subject, String content);
+
+    /**
+     * 发送站内信并返回消息id，指定分类
+     */
+    String sendMessageWithContentReceipt(List<String> receiverIdList, String category, String subject, String content);
+
+    /**
      * 获取未读站内信列表
      *
      * @author xuyuxiang

@@ -32,8 +32,13 @@ import vip.xiaonuo.dev.api.DevMessageApi;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 自动化规则：课节自动结算
@@ -96,10 +101,17 @@ public class AutoSettleAttendHandler implements BizAutomationHandler {
     }
 
     @Override
+    public int getRuleVersion() {
+        return 2;
+    }
+
+    @Override
     public List<AutomationParam> getParamDef() {
         return List.of(
                 new AutomationParam("graceMinutes", "宽限时间（分钟）", "NUMBER", "120",
-                        "课节结束后等待多久仍未点名才自动结算，建议不小于 60 分钟"),
+                        "课节结束后等待多久仍未点名才自动结算，建议不小于 60 分钟", 1, 1440),
+                new AutomationParam("lookbackDays", "回溯天数", "NUMBER", "7",
+                        "只扫描最近多少天内结束的课节，避免每轮扫全历史", 1, 30),
                 new AutomationParam("notifyTeacher", "通知任课老师", "SWITCH", "YES",
                         "自动结算后给任课老师发站内信")
         );
@@ -108,30 +120,52 @@ public class AutoSettleAttendHandler implements BizAutomationHandler {
     @Override
     public AutomationResult execute(AutomationContext context) {
         int graceMinutes = context.getIntParam("graceMinutes", 120);
+        int lookbackDays = context.getIntParam("lookbackDays", 7);
         boolean notifyTeacher = !"NO".equalsIgnoreCase(context.getParam("notifyTeacher", "YES"));
-        // 截止时间：现在往前推宽限期
-        LocalDateTime deadline = LocalDateTime.now().minusMinutes(graceMinutes);
+        ZoneId zone = ZoneId.systemDefault();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime deadline = now.minusMinutes(graceMinutes);
+        LocalDate minDate = now.toLocalDate().minusDays(lookbackDays);
 
-        // 待结算课节：截止日期之前的正常课节（精确到「日期+下课时间」的判断在下面做）
+        // 只扫最近窗口，避免每 10 分钟扫全历史
         List<CourseSchedule> scheduleList = courseScheduleMapper.selectList(new LambdaQueryWrapper<CourseSchedule>()
                 .eq(CourseSchedule::getStatus, CourseScheduleStatusEnum.NORMAL.getValue())
-                .le(CourseSchedule::getScheduleDate, deadline.toLocalDate().atStartOfDay())
+                .ge(CourseSchedule::getScheduleDate, Date.from(minDate.atStartOfDay(zone).toInstant()))
+                .le(CourseSchedule::getScheduleDate, Date.from(deadline.toLocalDate().atStartOfDay(zone).toInstant()))
                 .orderByAsc(CourseSchedule::getScheduleDate));
+        if (scheduleList.isEmpty()) {
+            return AutomationResult.ok("没有需要自动结算的课节", 0);
+        }
+        // 批量查已有点名，替代逐节课 selectCount
+        List<String> scheduleIdList = scheduleList.stream().map(CourseSchedule::getId)
+                .filter(StrUtil::isNotBlank).toList();
+        Set<String> attendedScheduleIds = courseClassAttendMapper.selectList(
+                        new LambdaQueryWrapper<CourseClassAttend>()
+                                .select(CourseClassAttend::getScheduleId)
+                                .in(CourseClassAttend::getScheduleId, scheduleIdList))
+                .stream().map(CourseClassAttend::getScheduleId).collect(Collectors.toCollection(HashSet::new));
 
-        int settledCount = 0;
         List<String> detailList = new ArrayList<>();
+        List<String> failList = new ArrayList<>();
+        int settledCount = 0;
+        int candidateCount = 0;
         for (CourseSchedule schedule : scheduleList) {
-            if (!isEnded(schedule, deadline)) {
-                continue;
+            if (settledCount + failList.size() >= context.remainingQuota()) {
+                break;
             }
-            // 已有点名记录则跳过（老师已经点过了）
-            Long attendCount = courseClassAttendMapper.selectCount(new LambdaQueryWrapper<CourseClassAttend>()
-                    .eq(CourseClassAttend::getScheduleId, schedule.getId()));
-            if (attendCount != null && attendCount > 0) {
+            if (!isEnded(schedule, deadline) || attendedScheduleIds.contains(schedule.getId())) {
                 continue;
             }
             List<String> rosterStudentIdList = courseScheduleService.listRosterStudentIds(schedule.getId());
             if (rosterStudentIdList.isEmpty()) {
+                continue;
+            }
+            candidateCount++;
+            if (context.dryRun()) {
+                detailList.add(schedule.getId());
+                continue;
+            }
+            if (!context.claim("SCHEDULE", schedule.getId(), "SETTLE", "SETTLE")) {
                 continue;
             }
             try {
@@ -148,22 +182,40 @@ public class AutoSettleAttendHandler implements BizAutomationHandler {
                 courseClassAttendService.confirm(confirmParam);
                 settledCount++;
                 detailList.add(schedule.getId());
-                // 通知任课老师
-                if (notifyTeacher && StrUtil.isNotBlank(schedule.getTeacherId())) {
-                    devMessageApi.sendMessageWithContent(List.of(schedule.getTeacherId()),
-                            "课节已自动结算",
+                context.success("SCHEDULE", schedule.getId(), "SETTLE", null, null);
+            } catch (Exception e) {
+                failList.add(schedule.getId());
+                context.fail("SCHEDULE", schedule.getId(), "SETTLE", StrUtil.maxLength(e.getMessage(), 480));
+                log.warn(">>> 课节[{}]自动结算失败：{}", schedule.getId(), e.getMessage());
+                continue;
+            }
+            // 通知失败不影响已完成的结算，但必须单独记录，不能把整轮报成成功
+            if (notifyTeacher && StrUtil.isNotBlank(schedule.getTeacherId())) {
+                try {
+                    String messageId = devMessageApi.sendMessageWithContentReceipt(
+                            List.of(schedule.getTeacherId()), "课节已自动结算",
                             "【" + (StrUtil.isBlank(schedule.getClassroom()) ? "未设教室" : schedule.getClassroom())
                                     + "】这节课已超过 " + graceMinutes + " 分钟未点名，系统已按缺勤自动结算并扣除课时，如有异议可在「点名消课」中撤销。");
+                    context.success("SCHEDULE", schedule.getId(), "NOTIFY", messageId, null);
+                } catch (Exception e) {
+                    context.fail("SCHEDULE", schedule.getId(), "NOTIFY", "结算成功但通知失败：" + e.getMessage());
+                    log.warn(">>> 课节[{}]自动结算通知失败：{}", schedule.getId(), e.getMessage());
                 }
-            } catch (Exception e) {
-                log.warn(">>> 课节[{}]自动结算失败：{}", schedule.getId(), e.getMessage());
             }
         }
-        String message = settledCount > 0
-                ? "已自动结算 " + settledCount + " 节课"
-                : "没有需要自动结算的课节";
-        return AutomationResult.ok(message, settledCount,
-                detailList.isEmpty() ? null : String.join(",", detailList));
+        if (context.dryRun()) {
+            return AutomationResult.ok("预览：将自动结算 " + candidateCount + " 节课", candidateCount,
+                    detailList.isEmpty() ? null : String.join(",", detailList));
+        }
+        if (settledCount == 0 && failList.isEmpty()) {
+            return AutomationResult.ok("没有需要自动结算的课节", 0);
+        }
+        String detail = detailList.isEmpty() ? null : String.join(",", detailList);
+        if (!failList.isEmpty()) {
+            return AutomationResult.fail("自动结算完成 " + settledCount + " 节，失败 " + failList.size()
+                    + " 节：" + String.join(",", failList));
+        }
+        return AutomationResult.ok("已自动结算 " + settledCount + " 节课", settledCount, detail);
     }
 
     /** 课节是否已结束（课节日期 + 下课时间 <= 截止时间） */

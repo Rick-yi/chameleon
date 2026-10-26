@@ -41,6 +41,14 @@ public interface DevMessageService extends IService<DevMessage> {
     void send(DevMessageSendParam devMessageSendParam);
 
     /**
+     * 发送站内信并返回消息id
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 18:00
+     **/
+    String sendForReceipt(DevMessageSendParam devMessageSendParam);
+
+    /**
      * 获取站内信分页
      *
      * @author xuyuxiang

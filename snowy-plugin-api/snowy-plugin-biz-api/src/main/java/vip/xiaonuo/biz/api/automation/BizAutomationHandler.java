@@ -44,6 +44,21 @@ public interface BizAutomationHandler {
         return false;
     }
 
+    /** 规则版本：决策日志用它定位当时执行的规则定义 */
+    default int getRuleVersion() {
+        return 1;
+    }
+
+    /** 是否是提醒类规则（受静默时段约束） */
+    default boolean isNotificationRule() {
+        return false;
+    }
+
+    /** 是否支持 holdout 实验分组 */
+    default boolean supportsHoldout() {
+        return isNotificationRule();
+    }
+
     /**
      * 参数定义（前端据此渲染配置表单）
      *
@@ -69,8 +84,68 @@ public interface BizAutomationHandler {
      * @param type     参数类型：NUMBER 数字 / TEXT 文本 / SWITCH 开关
      * @param defaultValue 默认值
      * @param remark   参数说明
+     * @param min      数字最小值（可空）
+     * @param max      数字最大值（可空）
      */
-    record AutomationParam(String key, String label, String type, String defaultValue, String remark) {
+    record AutomationParam(String key, String label, String type, String defaultValue, String remark,
+                           Integer min, Integer max) {
+
+        public AutomationParam(String key, String label, String type, String defaultValue, String remark) {
+            this(key, label, type, defaultValue, remark, null, null);
+        }
+    }
+
+    /**
+     * 目标级结果记录器：由引擎实现，规则通过上下文调用
+     */
+    interface TargetRecorder {
+
+        /** 占位成功返回 true；已执行过、超出配额或并发冲突返回 false */
+        boolean claim(String targetType, String targetId, String action, String windowKey);
+
+        /** 动作成功 */
+        void success(String targetType, String targetId, String action, String messageId, String detail);
+
+        /** 动作失败：保留失败记录，允许下一轮按重试次数重试 */
+        void fail(String targetType, String targetId, String action, String reason);
+
+        /** 跳过：如数据不满足、实验对照组、无接收人等 */
+        void skip(String targetType, String targetId, String action, String reason, String experimentGroup);
+
+        /** 是否命中 holdout 对照组 */
+        boolean isHoldout(String targetId);
+
+        /** 实验分组：TREATMENT / HOLDOUT / NONE */
+        String experimentGroup(String targetId);
+
+        TargetRecorder NOOP = new TargetRecorder() {
+            @Override
+            public boolean claim(String targetType, String targetId, String action, String windowKey) {
+                return true;
+            }
+
+            @Override
+            public void success(String targetType, String targetId, String action, String messageId, String detail) {
+            }
+
+            @Override
+            public void fail(String targetType, String targetId, String action, String reason) {
+            }
+
+            @Override
+            public void skip(String targetType, String targetId, String action, String reason, String experimentGroup) {
+            }
+
+            @Override
+            public boolean isHoldout(String targetId) {
+                return false;
+            }
+
+            @Override
+            public String experimentGroup(String targetId) {
+                return "NONE";
+            }
+        };
     }
 
     /**
@@ -79,8 +154,20 @@ public interface BizAutomationHandler {
      * @param params      规则参数
      * @param triggerType 触发方式：TIMER 定时 / MANUAL 手动 / TRIGGER 实时
      * @param operatorId  操作人（系统任务为 -1）
+     * @param dryRun      预览模式：只计算影响面，不产生副作用
+     * @param remainingQuota 本轮剩余可执行条数
+     * @param tenantId    租户id
+     * @param ruleCode    规则编码
+     * @param recorder    目标级结果记录器
      */
-    record AutomationContext(Map<String, String> params, String triggerType, String operatorId) {
+    record AutomationContext(Map<String, String> params, String triggerType, String operatorId,
+                             boolean dryRun, int remainingQuota, String tenantId, String ruleCode,
+                             TargetRecorder recorder) {
+
+        /** 兼容旧构造：非预览、不限制、无记录器 */
+        public AutomationContext(Map<String, String> params, String triggerType, String operatorId) {
+            this(params, triggerType, operatorId, false, Integer.MAX_VALUE, null, null, TargetRecorder.NOOP);
+        }
 
         /** 取参数（带默认值兜底） */
         public String getParam(String key, String defaultValue) {
@@ -94,6 +181,40 @@ public interface BizAutomationHandler {
                 return Integer.parseInt(getParam(key, String.valueOf(defaultValue)));
             } catch (NumberFormatException e) {
                 return defaultValue;
+            }
+        }
+
+        public boolean isHoldout(String targetId) {
+            return recorder != null && recorder.isHoldout(targetId);
+        }
+
+        public String experimentGroup(String targetId) {
+            return recorder == null ? "NONE" : recorder.experimentGroup(targetId);
+        }
+
+        public boolean claim(String targetType, String targetId, String action, String windowKey) {
+            return dryRun || (recorder != null && recorder.claim(targetType, targetId, action, windowKey));
+        }
+
+        public void success(String targetType, String targetId, String action, String messageId, String detail) {
+            if (!dryRun && recorder != null) {
+                recorder.success(targetType, targetId, action, messageId, detail);
+            }
+        }
+
+        public void fail(String targetType, String targetId, String action, String reason) {
+            if (!dryRun && recorder != null) {
+                recorder.fail(targetType, targetId, action, reason);
+            }
+        }
+
+        public void skip(String targetType, String targetId, String action, String reason) {
+            skip(targetType, targetId, action, reason, experimentGroup(targetId));
+        }
+
+        public void skip(String targetType, String targetId, String action, String reason, String experimentGroup) {
+            if (!dryRun && recorder != null) {
+                recorder.skip(targetType, targetId, action, reason, experimentGroup);
             }
         }
     }

@@ -66,6 +66,11 @@ public interface SysUserApi {
     List<String> ownRole(String userId);
 
     /**
+     * 用户拥有的角色编码（如 superAdmin/sales/teacher）
+     */
+    List<String> ownRoleCode(String userId);
+
+    /**
      * 给用户授权角色
      *
      * @author xuyuxiang

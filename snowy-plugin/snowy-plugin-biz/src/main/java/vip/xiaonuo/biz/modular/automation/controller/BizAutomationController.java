@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vip.xiaonuo.biz.api.automation.BizAutomationHandler;
 import vip.xiaonuo.biz.api.automation.BizAutomationRuleDTO;
@@ -72,7 +73,37 @@ public class BizAutomationController {
     @PostMapping("/run")
     public CommonResult<BizAutomationHandler.AutomationResult> run(@RequestBody @Valid BizAutomationRunParam bizAutomationRunParam) {
         return CommonResult.data(bizAutomationService.run(bizAutomationRunParam.getRuleCode(),
-                BizAutomationServiceImpl.TRIGGER_TYPE_MANUAL));
+                BizAutomationServiceImpl.TRIGGER_TYPE_MANUAL,
+                Boolean.TRUE.equals(bizAutomationRunParam.getPreview())));
+    }
+
+    /**
+     * 租户级自动化设置
+     */
+    @SaCheckPermission("/biz/automation/toggle")
+    @GetMapping("/setting")
+    public CommonResult<java.util.Map<String, Object>> setting() {
+        return CommonResult.data(bizAutomationService.getSetting());
+    }
+
+    /**
+     * 保存租户级自动化设置
+     */
+    @SaCheckPermission("/biz/automation/toggle")
+    @PostMapping("/setting")
+    public CommonResult<String> saveSetting(@RequestBody vip.xiaonuo.biz.modular.automation.param.BizAutomationSettingParam param) {
+        bizAutomationService.saveSetting(param);
+        return CommonResult.ok();
+    }
+
+    /**
+     * 规则实验/归因统计
+     */
+    @SaCheckPermission("/biz/automation/log")
+    @GetMapping("/experiment")
+    public CommonResult<java.util.Map<String, Object>> experiment(@RequestParam String ruleCode,
+                                                                  @RequestParam(required = false) Integer windowDays) {
+        return CommonResult.data(bizAutomationService.experimentStats(ruleCode, windowDays));
     }
 
     /**
