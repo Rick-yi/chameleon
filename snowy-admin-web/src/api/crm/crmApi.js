@@ -50,5 +50,8 @@ export default {
 	},
 	trialCancel(data) {
 		return request('trial/cancel', data)
+	},
+	trialUpdate(data) {
+		return request('trial/update', data)
 	}
 }

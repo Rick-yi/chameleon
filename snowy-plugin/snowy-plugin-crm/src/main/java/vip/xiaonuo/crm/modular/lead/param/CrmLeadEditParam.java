@@ -37,9 +37,8 @@ public class CrmLeadEditParam {
     @NotBlank(message = "学员姓名不能为空")
     private String name;
 
-    /** 家长手机 */
-    @Schema(description = "家长手机", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotBlank(message = "家长手机不能为空")
+    /** 家长手机（可为空） */
+    @Schema(description = "家长手机")
     private String parentPhone;
 
     /** 意向课程id */

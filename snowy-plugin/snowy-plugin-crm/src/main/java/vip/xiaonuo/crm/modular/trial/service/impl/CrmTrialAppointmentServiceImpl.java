@@ -14,6 +14,8 @@ package vip.xiaonuo.crm.modular.trial.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -24,6 +26,7 @@ import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.crm.modular.lead.entity.CrmLead;
 import vip.xiaonuo.crm.modular.lead.enums.CrmLeadStatusEnum;
+import vip.xiaonuo.crm.modular.lead.mapper.CrmLeadMapper;
 import vip.xiaonuo.crm.modular.lead.service.CrmLeadService;
 import vip.xiaonuo.platform.api.BizEventApi;
 import vip.xiaonuo.platform.api.enums.BizEventCodeEnum;
@@ -33,8 +36,14 @@ import vip.xiaonuo.crm.modular.trial.mapper.CrmTrialAppointmentMapper;
 import vip.xiaonuo.crm.modular.trial.param.CrmTrialAppointmentAddParam;
 import vip.xiaonuo.crm.modular.trial.param.CrmTrialAppointmentIdParam;
 import vip.xiaonuo.crm.modular.trial.param.CrmTrialAppointmentPageParam;
+import vip.xiaonuo.crm.modular.trial.param.CrmTrialAppointmentUpdateParam;
 import vip.xiaonuo.crm.modular.trial.service.CrmTrialAppointmentService;
+import vip.xiaonuo.sys.api.SysUserApi;
+
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 试听预约Service接口实现类
@@ -51,6 +60,12 @@ public class CrmTrialAppointmentServiceImpl extends ServiceImpl<CrmTrialAppointm
     @Resource
     private BizEventApi bizEventApi;
 
+    @Resource
+    private CrmLeadMapper crmLeadMapper;
+
+    @Resource
+    private SysUserApi sysUserApi;
+
     @Override
     public Page<CrmTrialAppointment> page(CrmTrialAppointmentPageParam crmTrialAppointmentPageParam) {
         QueryWrapper<CrmTrialAppointment> queryWrapper = new QueryWrapper<CrmTrialAppointment>().checkSqlInjection();
@@ -58,7 +73,43 @@ public class CrmTrialAppointmentServiceImpl extends ServiceImpl<CrmTrialAppointm
                 .eq(ObjectUtil.isNotEmpty(crmTrialAppointmentPageParam.getLeadId()), CrmTrialAppointment::getLeadId, crmTrialAppointmentPageParam.getLeadId())
                 .eq(ObjectUtil.isNotEmpty(crmTrialAppointmentPageParam.getStatus()), CrmTrialAppointment::getStatus, crmTrialAppointmentPageParam.getStatus())
                 .orderByDesc(CrmTrialAppointment::getTrialTime);
-        return this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        Page<CrmTrialAppointment> page = this.page(CommonPageRequest.defaultPage(), queryWrapper);
+        fillLeadInfo(page.getRecords());
+        return page;
+    }
+
+    /**
+     * 批量回填学员姓名/手机/顾问姓名（试听列表展示用）
+     */
+    private void fillLeadInfo(List<CrmTrialAppointment> appointmentList) {
+        if (ObjectUtil.isEmpty(appointmentList)) {
+            return;
+        }
+        List<String> leadIdList = appointmentList.stream().map(CrmTrialAppointment::getLeadId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (ObjectUtil.isEmpty(leadIdList)) {
+            return;
+        }
+        Map<String, CrmLead> leadMap = new HashMap<>();
+        crmLeadMapper.selectBatchIds(leadIdList).forEach(lead -> leadMap.put(lead.getId(), lead));
+        List<String> userIdList = leadMap.values().stream().map(CrmLead::getFollowUserId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        Map<String, String> userNameMap = new HashMap<>();
+        if (ObjectUtil.isNotEmpty(userIdList)) {
+            for (JSONObject user : sysUserApi.getUserListByIdListWithoutException(userIdList)) {
+                userNameMap.put(user.getStr("id"), user.getStr("name"));
+            }
+        }
+        for (CrmTrialAppointment appointment : appointmentList) {
+            CrmLead lead = leadMap.get(appointment.getLeadId());
+            if (ObjectUtil.isEmpty(lead)) {
+                continue;
+            }
+            appointment.setLeadName(lead.getName());
+            appointment.setParentPhone(lead.getParentPhone());
+            appointment.setFollowUserName(userNameMap.get(lead.getFollowUserId()));
+            appointment.setLeadStatus(lead.getStatus());
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -86,6 +137,22 @@ public class CrmTrialAppointmentServiceImpl extends ServiceImpl<CrmTrialAppointm
             throw new CommonException("仅待试听预约可取消");
         }
         appointment.setStatus(CrmTrialStatusEnum.CANCELED);
+        this.updateById(appointment);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public void updateResult(CrmTrialAppointmentUpdateParam crmTrialAppointmentUpdateParam) {
+        CrmTrialAppointment appointment = this.queryEntity(crmTrialAppointmentUpdateParam.getId());
+        if (StrUtil.isNotBlank(crmTrialAppointmentUpdateParam.getStatus())) {
+            appointment.setStatus(crmTrialAppointmentUpdateParam.getStatus());
+        }
+        if (StrUtil.isNotBlank(crmTrialAppointmentUpdateParam.getResult())) {
+            appointment.setResult(crmTrialAppointmentUpdateParam.getResult());
+        }
+        if (crmTrialAppointmentUpdateParam.getRemark() != null) {
+            appointment.setRemark(crmTrialAppointmentUpdateParam.getRemark());
+        }
         this.updateById(appointment);
     }
 

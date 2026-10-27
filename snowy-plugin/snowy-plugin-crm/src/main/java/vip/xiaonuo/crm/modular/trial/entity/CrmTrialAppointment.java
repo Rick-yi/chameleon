@@ -12,6 +12,7 @@
  */
 package vip.xiaonuo.crm.modular.trial.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
@@ -62,4 +63,24 @@ public class CrmTrialAppointment extends CommonEntity {
     /** 备注 */
     @Schema(description = "备注")
     private String remark;
+
+    /** 学员姓名（列表查询时由线索回填，非数据库字段） */
+    @Schema(description = "学员姓名")
+    @TableField(exist = false)
+    private String leadName;
+
+    /** 家长手机（列表查询时由线索回填，非数据库字段） */
+    @Schema(description = "家长手机")
+    @TableField(exist = false)
+    private String parentPhone;
+
+    /** 顾问/跟进人姓名（列表查询时由线索回填，非数据库字段） */
+    @Schema(description = "顾问姓名")
+    @TableField(exist = false)
+    private String followUserName;
+
+    /** 线索状态（列表查询时由线索回填，非数据库字段） */
+    @Schema(description = "线索状态")
+    @TableField(exist = false)
+    private String leadStatus;
 }

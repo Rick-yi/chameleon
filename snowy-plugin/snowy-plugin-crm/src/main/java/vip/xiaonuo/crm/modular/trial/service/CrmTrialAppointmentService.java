@@ -17,6 +17,7 @@ import vip.xiaonuo.crm.modular.trial.entity.CrmTrialAppointment;
 import vip.xiaonuo.crm.modular.trial.param.CrmTrialAppointmentAddParam;
 import vip.xiaonuo.crm.modular.trial.param.CrmTrialAppointmentIdParam;
 import vip.xiaonuo.crm.modular.trial.param.CrmTrialAppointmentPageParam;
+import vip.xiaonuo.crm.modular.trial.param.CrmTrialAppointmentUpdateParam;
 
 /**
  * 试听预约Service接口
@@ -34,6 +35,9 @@ public interface CrmTrialAppointmentService {
 
     /** 取消试听预约 */
     void cancel(CrmTrialAppointmentIdParam crmTrialAppointmentIdParam);
+
+    /** 更新试听状态/结果 */
+    void updateResult(CrmTrialAppointmentUpdateParam crmTrialAppointmentUpdateParam);
 
     /** 获取预约详情（内部用） */
     CrmTrialAppointment queryEntity(String id);

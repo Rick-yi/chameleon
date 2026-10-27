@@ -15,6 +15,7 @@ package vip.xiaonuo.crm.modular.follow.service.impl;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -54,6 +55,8 @@ public class CrmLeadFollowServiceImpl extends ServiceImpl<CrmLeadFollowMapper, C
         QueryWrapper<CrmLeadFollow> queryWrapper = new QueryWrapper<CrmLeadFollow>().checkSqlInjection();
         queryWrapper.lambda()
                 .eq(CrmLeadFollow::getLeadId, crmLeadFollowPageParam.getLeadId())
+                .eq(StrUtil.isNotBlank(crmLeadFollowPageParam.getFollowType()),
+                        CrmLeadFollow::getFollowType, crmLeadFollowPageParam.getFollowType())
                 .orderByDesc(CrmLeadFollow::getCreateTime);
         return this.page(CommonPageRequest.defaultPage(), queryWrapper);
     }
