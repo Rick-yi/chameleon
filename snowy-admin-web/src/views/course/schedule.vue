@@ -71,14 +71,21 @@
 						v-for="d in weekDays"
 						:key="d.date + slot.start"
 						class="sched-cell"
-						:class="{ 'is-today': d.date === fmtToday() }"
+						:class="{ 'is-today': d.date === fmtToday(), 'is-drop-target': dragOverKey === d.date + '|' + slot.start }"
+						@dragover.prevent="onDragOver(d, slot)"
+						@dragleave="onDragLeave(d, slot)"
+						@drop.prevent="onDrop($event, d, slot)"
 					>
 						<div
 							v-for="s in scheduleMap[d.date + '|' + slot.start] || []"
 							:key="s.id"
 							class="ent-schedule-card"
-							:class="{ 'is-conflict': conflictIdSet.has(s.id) }"
-							@click="onOpenChange(s)"
+							:class="{ 'is-conflict': conflictIdSet.has(s.id), 'is-dragging': draggingSchedule?.id === s.id }"
+							:draggable="hasPerm('/course/schedule/change')"
+							:title="hasPerm('/course/schedule/change') ? '拖拽到其他日期/时段可调课' : ''"
+							@dragstart="onDragStart($event, s)"
+							@dragend="onDragEnd"
+							@click="onCardClick(s)"
 						>
 							<div class="sched-card-head">
 								<span class="sched-card-title">{{ s.className || className(s.classId) }}</span>
@@ -98,7 +105,7 @@
 				</template>
 			</div>
 			<div class="ent-note" :class="{ 'is-error': conflictIdSet.size }">
-				{{ conflictTip || `本周共 ${scheduleList.length} 节课${conflictIdSet.size ? '，存在 ' + conflictIdSet.size + ' 节冲突（教室或教师撞课）' : ''}` }}
+				{{ conflictTip || `本周共 ${scheduleList.length} 节课${conflictIdSet.size ? '，存在 ' + conflictIdSet.size + ' 节冲突（教室或教师撞课）' : ''}${hasPerm('/course/schedule/change') ? ' · 可拖拽课节调整日期/时段' : ''}` }}
 			</div>
 		</div>
 
@@ -536,6 +543,9 @@
 	const teacherOptions = ref([])
 	const scheduleList = ref([])
 	const scheduleMap = ref({})
+	const draggingSchedule = ref(null)
+	const dragOverKey = ref('')
+	const suppressCardClick = ref(false)
 	const weekDays = ref([])
 	const weekLabel = ref('')
 	const monday = ref(null)
@@ -1228,6 +1238,93 @@
 		})
 	}
 
+	const onCardClick = (record) => {
+		if (suppressCardClick.value) return
+		onOpenChange(record)
+	}
+	const onDragStart = (event, record) => {
+		draggingSchedule.value = record
+		dragOverKey.value = ''
+		suppressCardClick.value = true
+		if (event.dataTransfer) {
+			event.dataTransfer.effectAllowed = 'move'
+			event.dataTransfer.setData('text/plain', record.id)
+		}
+	}
+	const onDragEnd = () => {
+		draggingSchedule.value = null
+		dragOverKey.value = ''
+		setTimeout(() => (suppressCardClick.value = false), 120)
+	}
+	const onDragOver = (day, slot) => {
+		if (!draggingSchedule.value) return
+		dragOverKey.value = `${day.date}|${slot.start}`
+	}
+	const onDragLeave = (day, slot) => {
+		if (dragOverKey.value === `${day.date}|${slot.start}`) dragOverKey.value = ''
+	}
+	const moveConflicts = (record, date, start, end) => {
+		const startMin = toMinutes(start)
+		const endMin = toMinutes(end)
+		return scheduleList.value.filter((item) => {
+			if (item.id === record.id || dateOf(item) !== date) return false
+			const overlap = toMinutes(startOf(item)) < endMin && toMinutes(endOf(item)) > startMin
+			if (!overlap) return false
+			const sameRoom = record.classroom && item.classroom && record.classroom === item.classroom
+			const sameTeacher = record.teacherId && item.teacherId && record.teacherId === item.teacherId
+			return sameRoom || sameTeacher
+		})
+	}
+	const applyDragChange = (record, date, start, end) =>
+		courseApi.scheduleChange({
+			scheduleId: record.id,
+			scheduleDate: `${date} 00:00:00`,
+			startTime: start,
+			endTime: end,
+			classroom: record.classroom,
+			teacherId: record.teacherId,
+			changeReason: '拖拽调课'
+		})
+	const onDrop = (event, day, slot) => {
+		event.preventDefault()
+		const record = draggingSchedule.value
+		draggingSchedule.value = null
+		dragOverKey.value = ''
+		if (!record) return
+		setTimeout(() => (suppressCardClick.value = false), 120)
+		const newStart = slot.start
+		const duration = Math.max(30, toMinutes(endOf(record)) - toMinutes(startOf(record)))
+		const newEnd = toTimeText(toMinutes(newStart) + duration)
+		if (toMinutes(newStart) + duration >= 24 * 60) {
+			message.warning('调课后结束时间超过当天 24:00，请选择更早的时段')
+			return
+		}
+		if (dateOf(record) === day.date && startOf(record) === newStart) return
+		if (closureMap.value[day.date]) {
+			message.warning(`${day.date} 是停课日【${closureMap.value[day.date]}】，不能调课`)
+			return
+		}
+		const conflicts = moveConflicts(record, day.date, newStart, newEnd)
+		if (conflicts.length) {
+			const names = [...new Set(conflicts.map((item) => item.className || className(item.classId)))].join('、')
+			message.warning(`目标时段与 ${names} 冲突，不能调课`)
+			return
+		}
+		Modal.confirm({
+			title: '拖拽调课',
+			content: `将 ${record.className || className(record.classId)} 从 ${dateOf(record)} ${startOf(record)}-${endOf(record)} 调整到 ${day.date} ${newStart}-${newEnd}，确认调课？`,
+			okText: '确认调课',
+			cancelText: '取消',
+			onOk: () =>
+				applyDragChange(record, day.date, newStart, newEnd)
+					.then(() => {
+						message.success('调课成功')
+						loadWeek()
+					})
+					.catch(() => {})
+		})
+	}
+
 	const onOpenChange = (record) => {
 		changeFormData.value = {
 			scheduleId: record.id,
@@ -1271,6 +1368,17 @@
 </script>
 
 <style lang="less" scoped>
+	.ent-schedule-card[draggable='true'] {
+		cursor: grab;
+	}
+	.ent-schedule-card.is-dragging {
+		opacity: 0.45;
+	}
+	.sched-cell.is-drop-target {
+		outline: 2px dashed var(--primary-6);
+		outline-offset: -2px;
+		background: var(--primary-1);
+	}
 	.sched-card-actions {
 		display: flex;
 		align-items: center;
