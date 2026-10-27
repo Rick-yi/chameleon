@@ -32,6 +32,9 @@
 							<a-menu-item v-if="hasPerm('/course/schedule/export')" key="export">
 								<file-text-outlined /> 导出课表
 							</a-menu-item>
+							<a-menu-item v-if="hasPerm('/course/schedule/add')" key="copy">
+								<copy-outlined /> 复制上周
+							</a-menu-item>
 							<a-menu-item key="template">
 								<profile-outlined /> 课表模板
 							</a-menu-item>
@@ -265,6 +268,25 @@
 		</a-tabs>
 	</a-modal>
 
+	<!-- 复制上周课表 -->
+	<a-modal v-model:open="copyOpen" title="复制上周课表" :width="520" :destroy-on-close="true" @ok="onSubmitCopy">
+		<a-form layout="vertical">
+			<a-form-item label="班级" required>
+				<a-select v-model:value="copyForm.classId" placeholder="请选择要复制的班级" :options="classOptions" show-search option-filter-prop="label" />
+			</a-form-item>
+			<a-form-item label="复制到">
+				<span>{{ weekLabel }}（上一周 → 本周）</span>
+			</a-form-item>
+			<a-alert type="info" show-icon message="停课日、已有相同课节、教室/教师冲突的课节会跳过，并在结果中说明原因。" style="margin-bottom: 12px" />
+			<div v-if="copyResult" class="copy-result">
+				<div>计划 {{ copyResult.plannedCount || 0 }} 节 · 新增 {{ copyResult.createdCount || 0 }} 节 · 跳过 {{ copyResult.skippedCount || 0 }} 节</div>
+				<div v-if="copyResult.skipReasons?.length" class="copy-result-reasons">
+					<div v-for="(item, index) in copyResult.skipReasons" :key="index">· {{ item }}</div>
+				</div>
+			</div>
+		</a-form>
+	</a-modal>
+
 	<!-- 手动排课 -->
 	<a-modal v-model:open="addOpen" title="手动排课" :width="560" :destroy-on-close="true" @ok="onSubmitAdd">
 		<a-form ref="addFormRef" :model="addFormData" layout="vertical">
@@ -308,6 +330,27 @@
 					</a-form-item>
 				</a-col>
 			</a-row>
+			<a-alert v-if="addConflicts.length" type="warning" show-icon style="margin-bottom: 12px">
+				<template #message>
+					<div v-for="(item, index) in addConflicts" :key="index">· {{ item }}</div>
+				</template>
+			</a-alert>
+			<div v-if="addAlternatives.length" class="suggest-box">
+				<div class="suggest-title">
+					<span>可替代时段</span>
+				</div>
+				<div class="suggest-list">
+					<a-tag
+						v-for="item in addAlternatives"
+						:key="item.scheduleDate + item.startTime"
+						class="suggest-item"
+						color="green"
+						@click="applySuggest(item)"
+					>
+						{{ item.label }}
+					</a-tag>
+				</div>
+			</div>
 			<!-- 排课助手：按班级/教师/教室占用推荐可用时段 -->
 			<div class="suggest-box">
 				<div class="suggest-title">
@@ -546,7 +589,7 @@
 <script setup name="courseSchedule">
 	import { useRoute, useRouter } from 'vue-router'
 	import { message, Modal } from 'ant-design-vue'
-	import { DownOutlined, FileTextOutlined, HistoryOutlined, MoreOutlined, PlusOutlined, ProfileOutlined, SettingOutlined, TeamOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
+	import { CopyOutlined, DownOutlined, FileTextOutlined, HistoryOutlined, MoreOutlined, PlusOutlined, ProfileOutlined, SettingOutlined, TeamOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
 	import courseApi from '@/api/course/courseApi'
 	import { runAsyncExport } from '@/utils/asyncExport'
 	import studentApi from '@/api/student/studentApi'
@@ -571,9 +614,32 @@
 	}
 	const onMoreMenuClick = ({ key }) => {
 		if (key === 'export') onExport()
+		else if (key === 'copy') onOpenCopy()
 		else if (key === 'template') onOpenTemplate()
 		else if (key === 'history') openChangeDrawer()
 		else if (key === 'config') openConfig()
+	}
+	const onOpenCopy = () => {
+		copyForm.value = { classId: searchFormState.value.classId || undefined }
+		copyResult.value = null
+		copyOpen.value = true
+	}
+	const onSubmitCopy = () => {
+		if (!copyForm.value.classId) {
+			message.warning('请选择要复制的班级')
+			return
+		}
+		courseApi
+			.scheduleCopyLastWeek({
+				classId: copyForm.value.classId,
+				weekStartDate: fmtDate(monday.value)
+			})
+			.then((result) => {
+				copyResult.value = result || null
+				if (Number(result?.createdCount || 0) > 0) loadWeek()
+				message.success(`复制完成：新增 ${result?.createdCount || 0} 节，跳过 ${result?.skippedCount || 0} 节`)
+			})
+			.catch(() => {})
 	}
 
 	const searchFormState = ref({})
@@ -596,6 +662,13 @@
 	const addOpen = ref(false)
 	const addFormRef = ref()
 	const addFormData = ref({})
+	const addConflicts = ref([])
+	const addAlternatives = ref([])
+	let addConflictTimer = null
+	// 复制上周
+	const copyOpen = ref(false)
+	const copyForm = ref({})
+	const copyResult = ref(null)
 	// 排课助手：推荐时段
 	const suggestList = ref([])
 	const suggestLoading = ref(false)
@@ -1130,9 +1203,58 @@
 
 	const onOpenAdd = () => {
 		addFormData.value = { classId: searchFormState.value.classId, startTime: '09:00', endTime: '10:30' }
+		addConflicts.value = []
+		addAlternatives.value = []
 		addOpen.value = true
 		loadSuggest()
+		checkAddConflicts()
 	}
+
+	/** 手动排课实时预检：冲突对象 + 可替代时段 */
+	const checkAddConflicts = () => {
+		if (addConflictTimer) clearTimeout(addConflictTimer)
+		const form = addFormData.value
+		if (!addOpen.value || !form.scheduleDate || !form.startTime || !form.endTime) {
+			addConflicts.value = []
+			addAlternatives.value = []
+			return
+		}
+		addConflictTimer = setTimeout(() => {
+			courseApi
+				.scheduleConflictCheckBatch({
+					classId: form.classId,
+					teacherId: form.teacherId,
+					classroom: form.classroom,
+					slots: [
+						{
+							scheduleDate: form.scheduleDate,
+							startTime: form.startTime,
+							endTime: form.endTime
+						}
+					]
+				})
+				.then((list) => {
+					const first = (list || [])[0]
+					addConflicts.value = first?.conflicts || []
+					addAlternatives.value = (first?.alternatives || []).slice(0, 6)
+				})
+				.catch(() => {
+					addConflicts.value = []
+					addAlternatives.value = []
+				})
+		}, 250)
+	}
+	watch(
+		() => [
+			addFormData.value.classId,
+			addFormData.value.scheduleDate,
+			addFormData.value.startTime,
+			addFormData.value.endTime,
+			addFormData.value.teacherId,
+			addFormData.value.classroom
+		],
+		() => checkAddConflicts()
+	)
 
 	// 排课助手：按班级/教师/教室的占用推荐可用时段（默认看未来 7 天）
 	const loadSuggest = () => {
@@ -1167,15 +1289,22 @@
 		addFormData.value.scheduleDate = item.scheduleDate
 		addFormData.value.startTime = item.startTime.slice(0, 5)
 		addFormData.value.endTime = item.endTime.slice(0, 5)
+		checkAddConflicts()
 		message.success(`已填入 ${item.label}`)
 	}
 	const onSubmitAdd = () => {
 		addFormRef.value.validate().then(() => {
+			if (addConflicts.value.length) {
+				message.warning('当前时段存在冲突，请先调整时间或点选可替代时段')
+				return
+			}
 			const body = { ...addFormData.value, scheduleDate: `${addFormData.value.scheduleDate} 00:00:00` }
 			courseApi
 				.scheduleAdd(body)
 				.then(() => {
 					addOpen.value = false
+					addConflicts.value = []
+					addAlternatives.value = []
 					conflictTip.value = ''
 					loadWeek()
 				})
@@ -1185,6 +1314,7 @@
 					if (msg.includes('冲突')) {
 						message.warning('该时段冲突，已为你重新计算可用时段')
 						loadSuggest()
+						checkAddConflicts()
 					}
 				})
 		})
@@ -1477,5 +1607,18 @@
 		margin-top: 8px;
 		font-size: 12px;
 		color: var(--text-color-tertiary);
+	}
+	.copy-result {
+		padding: 10px 12px;
+		background: var(--background-color-light);
+		border-radius: var(--radius-control);
+		font-size: 13px;
+	}
+	.copy-result-reasons {
+		margin-top: 6px;
+		max-height: 160px;
+		overflow-y: auto;
+		font-size: 12px;
+		color: var(--text-color-secondary);
 	}
 </style>

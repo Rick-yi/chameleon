@@ -46,6 +46,8 @@ import vip.xiaonuo.course.modular.courseschedule.mapper.CourseScheduleMapper;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleAddParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleAdhocParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleChangeParam;
+import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleConflictBatchParam;
+import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleCopyParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleGenerateParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleIdParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseSchedulePageParam;
@@ -62,6 +64,7 @@ import vip.xiaonuo.platform.api.enums.BizEventCodeEnum;
 import vip.xiaonuo.course.api.dto.CourseScheduleGenerateResultDTO;
 import vip.xiaonuo.course.api.dto.CourseScheduleViewDTO;
 import vip.xiaonuo.course.core.util.CourseScheduleAttendStatusUtil;
+import vip.xiaonuo.course.modular.courseschedule.dto.CourseScheduleConflictResultDTO;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleWeekParam;
 
 import java.time.DayOfWeek;
@@ -798,6 +801,357 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             }
         }
         return new ArrayList<>(conflictSet);
+    }
+
+    /**
+     * 批量冲突预检：一次加载日期区间内的排课、停课日与教师不可用时段，
+     * 逐个时段给出冲突对象（教室/教师/班级/停课日），并为有冲突的时段附上可替代时段。
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 10:00
+     **/
+    @Override
+    public List<CourseScheduleConflictResultDTO> conflictCheckBatch(CourseScheduleConflictBatchParam param) {
+        List<BatchSlotInfo> infoList = new ArrayList<>();
+        if (param == null || ObjectUtil.isEmpty(param.getSlots())) {
+            return new ArrayList<>();
+        }
+        LocalDate minDate = null;
+        LocalDate maxDate = null;
+        for (CourseScheduleConflictBatchParam.Slot slot : param.getSlots()) {
+            CourseScheduleConflictResultDTO dto = new CourseScheduleConflictResultDTO();
+            String label = StrUtil.blankToDefault(slot.getScheduleDate(), "") + " "
+                    + StrUtil.blankToDefault(slot.getStartTime(), "") + "-"
+                    + StrUtil.blankToDefault(slot.getEndTime(), "");
+            dto.setLabel(label.trim());
+            LocalDate date = parseLocalDate(slot.getScheduleDate(), null);
+            LocalTime startTime = parseLocalTime(slot.getStartTime());
+            LocalTime endTime = parseLocalTime(slot.getEndTime());
+            if (date == null || startTime == null || endTime == null || !startTime.isBefore(endTime)) {
+                dto.getConflicts().add("时段格式不正确或结束时间不晚于开始时间");
+                infoList.add(new BatchSlotInfo(date, startTime, endTime, dto));
+                continue;
+            }
+            minDate = minDate == null || date.isBefore(minDate) ? date : minDate;
+            maxDate = maxDate == null || date.isAfter(maxDate) ? date : maxDate;
+            infoList.add(new BatchSlotInfo(date, startTime, endTime, dto));
+        }
+        if (minDate == null) {
+            return infoList.stream().map(item -> item.dto).collect(Collectors.toList());
+        }
+        Date rangeStart = Date.from(minDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        Date rangeEnd = Date.from(maxDate.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant());
+        List<CourseSchedule> existList = this.list(new LambdaQueryWrapper<CourseSchedule>()
+                .eq(CourseSchedule::getStatus, CourseScheduleStatusEnum.NORMAL.getValue())
+                .ge(CourseSchedule::getScheduleDate, rangeStart)
+                .le(CourseSchedule::getScheduleDate, rangeEnd));
+        // 冲突文案要能定位到具体班级/教师
+        Map<String, String> classNameMap = new HashMap<>();
+        List<String> existClassIdList = existList.stream().map(CourseSchedule::getClassId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (StrUtil.isNotBlank(param.getClassId())) {
+            existClassIdList.add(param.getClassId());
+        }
+        if (ObjectUtil.isNotEmpty(existClassIdList)) {
+            courseClassMapper.selectBatchIds(existClassIdList)
+                    .forEach(item -> classNameMap.put(item.getId(), item.getName()));
+        }
+        Map<String, String> teacherNameMap = new HashMap<>();
+        List<String> teacherIdList = new ArrayList<>();
+        if (StrUtil.isNotBlank(param.getTeacherId())) {
+            teacherIdList.add(param.getTeacherId());
+        }
+        existList.stream().map(CourseSchedule::getTeacherId).filter(StrUtil::isNotBlank).forEach(teacherIdList::add);
+        List<String> distinctTeacherIdList = teacherIdList.stream().distinct().collect(Collectors.toList());
+        if (ObjectUtil.isNotEmpty(distinctTeacherIdList)) {
+            sysUserApi.getUserListByIdListWithoutException(distinctTeacherIdList)
+                    .forEach(user -> teacherNameMap.put(user.getStr("id"), user.getStr("name")));
+        }
+        java.util.Map<String, String> closureMap = courseScheduleConfigService.closureMap(rangeStart, rangeEnd);
+        List<CourseTeacherUnavailable> unavailableList = StrUtil.isBlank(param.getTeacherId())
+                ? java.util.Collections.emptyList()
+                : courseScheduleConfigService.listUnavailableInRange(rangeStart,
+                        Date.from(maxDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        String className = StrUtil.blankToDefault(classNameMap.get(param.getClassId()), param.getClassId());
+        String teacherName = StrUtil.blankToDefault(teacherNameMap.get(param.getTeacherId()), param.getTeacherId());
+        for (int i = 0; i < infoList.size(); i++) {
+            BatchSlotInfo info = infoList.get(i);
+            if (info.date == null || info.startTime == null || info.endTime == null
+                    || !info.startTime.isBefore(info.endTime)) {
+                continue;
+            }
+            Date scheduleDate = Date.from(info.date.atStartOfDay(ZoneId.systemDefault()).toInstant());
+            String slotText = info.date + " " + info.startTime + "-" + info.endTime;
+            String closureName = closureMap.get(info.date.toString());
+            if (StrUtil.isNotBlank(closureName)) {
+                info.dto.getConflicts().add(info.date + " 为停课日【" + closureName + "】，不能排课");
+            }
+            for (CourseSchedule exist : existList) {
+                if (!sameDate(exist.getScheduleDate(), scheduleDate)) {
+                    continue;
+                }
+                if (exist.getStartTime() == null || exist.getEndTime() == null) {
+                    continue;
+                }
+                if (!(exist.getStartTime().isBefore(info.endTime) && exist.getEndTime().isAfter(info.startTime))) {
+                    continue;
+                }
+                String existClassName = classNameMap.get(exist.getClassId());
+                String existDesc = StrUtil.isBlank(existClassName) ? "其他课程" : "【" + existClassName + "】";
+                String existTeacherName = StrUtil.blankToDefault(teacherNameMap.get(exist.getTeacherId()),
+                        exist.getTeacherId());
+                if (StrUtil.isNotBlank(param.getClassroom())
+                        && sameClassroom(param.getClassroom(), exist.getClassroom())) {
+                    info.dto.getConflicts().add("教室【" + param.getClassroom() + "】已被" + existDesc + "占用（"
+                            + exist.getStartTime() + "-" + exist.getEndTime()
+                            + (StrUtil.isBlank(existTeacherName) ? "" : "，" + existTeacherName) + "）");
+                }
+                if (StrUtil.isNotBlank(param.getTeacherId()) && param.getTeacherId().equals(exist.getTeacherId())) {
+                    info.dto.getConflicts().add("教师【" + teacherName + "】在 " + exist.getStartTime() + "-"
+                            + exist.getEndTime() + " 已有排课" + existDesc);
+                }
+                if (StrUtil.isNotBlank(param.getClassId()) && param.getClassId().equals(exist.getClassId())) {
+                    info.dto.getConflicts().add("班级【" + className + "】在 " + slotText + " 已有排课");
+                }
+            }
+            if (StrUtil.isNotBlank(param.getTeacherId())) {
+                Date slotStart = Date.from(info.date.atTime(info.startTime).atZone(ZoneId.systemDefault()).toInstant());
+                Date slotEnd = Date.from(info.date.atTime(info.endTime).atZone(ZoneId.systemDefault()).toInstant());
+                for (CourseTeacherUnavailable unavailable : unavailableList) {
+                    if (!param.getTeacherId().equals(unavailable.getTeacherId())) {
+                        continue;
+                    }
+                    if (unavailable.getStartTime().before(slotEnd) && unavailable.getEndTime().after(slotStart)) {
+                        info.dto.getConflicts().add("教师【" + teacherName + "】在 " + slotText + " 不可用"
+                                + (StrUtil.isBlank(unavailable.getReason()) ? "" : "（" + unavailable.getReason() + "）"));
+                    }
+                }
+            }
+            // 本批时段之间互相重叠：同一班级/教师/教室在同一时间排两节课
+            for (int j = 0; j < i; j++) {
+                BatchSlotInfo checked = infoList.get(j);
+                if (checked.date == null || checked.startTime == null || checked.endTime == null
+                        || !checked.date.equals(info.date)) {
+                    continue;
+                }
+                if (!(checked.startTime.isBefore(info.endTime) && checked.endTime.isAfter(info.startTime))) {
+                    continue;
+                }
+                boolean sameClass = StrUtil.isNotBlank(param.getClassId());
+                boolean sameTeacher = StrUtil.isNotBlank(param.getTeacherId());
+                // 本批时段共用同一教室，只要填写了教室就视为占用同一资源
+                boolean sameRoom = StrUtil.isNotBlank(param.getClassroom());
+                if (sameClass || sameTeacher || sameRoom) {
+                    info.dto.getConflicts().add("与本次填写的其他时段重复（"
+                            + checked.startTime + "-" + checked.endTime + "）");
+                }
+            }
+            info.dto.setConflicts(new ArrayList<>(new LinkedHashSet<>(info.dto.getConflicts())));
+            if (ObjectUtil.isNotEmpty(info.dto.getConflicts())) {
+                info.dto.setAlternatives(buildAlternatives(param, info));
+            }
+        }
+        return infoList.stream().map(item -> item.dto).collect(Collectors.toList());
+    }
+
+    /** 为冲突时段推荐 3 个可替代时段 */
+    private List<vip.xiaonuo.course.api.dto.CourseScheduleSuggestDTO> buildAlternatives(
+            CourseScheduleConflictBatchParam param, BatchSlotInfo info) {
+        try {
+            CourseScheduleSuggestParam suggestParam = new CourseScheduleSuggestParam();
+            suggestParam.setClassId(param.getClassId());
+            suggestParam.setTeacherId(param.getTeacherId());
+            suggestParam.setClassroom(param.getClassroom());
+            suggestParam.setStartDate(info.date.toString());
+            suggestParam.setEndDate(info.date.plusDays(6).toString());
+            int duration = (int) java.time.Duration.between(info.startTime, info.endTime).toMinutes();
+            suggestParam.setDurationMinutes(Math.max(30, duration));
+            suggestParam.setLimit(3);
+            return suggest(suggestParam);
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
+    }
+
+    /** 批量预检的单个时段 */
+    private static class BatchSlotInfo {
+        private final LocalDate date;
+        private final LocalTime startTime;
+        private final LocalTime endTime;
+        private final CourseScheduleConflictResultDTO dto;
+
+        private BatchSlotInfo(LocalDate date, LocalTime startTime, LocalTime endTime,
+                              CourseScheduleConflictResultDTO dto) {
+            this.date = date;
+            this.startTime = startTime;
+            this.endTime = endTime;
+            this.dto = dto;
+        }
+    }
+
+    /**
+     * 复制上周课表到目标周
+     * <p>
+     * 以目标周周一为基准，把上一周同一班级的正常课节平移到本周；停课日、本周已有相同课节、
+     * 与本周已有排课/本批复制课节冲突的课节跳过，并在结果里逐条列出原因，不影响其余课节。
+     * </p>
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 10:00
+     **/
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public CourseScheduleGenerateResultDTO copyLastWeek(CourseScheduleCopyParam param) {
+        CourseScheduleGenerateResultDTO result = new CourseScheduleGenerateResultDTO();
+        CourseClass courseClass = courseClassService.queryEntity(param.getClassId());
+        LocalDate targetStart = parseLocalDate(param.getWeekStartDate(), LocalDate.now()).with(DayOfWeek.MONDAY);
+        LocalDate targetEnd = targetStart.plusDays(6);
+        LocalDate sourceStart = targetStart.minusWeeks(1);
+        LocalDate sourceEnd = sourceStart.plusDays(6);
+        List<CourseSchedule> sourceList = this.list(new LambdaQueryWrapper<CourseSchedule>()
+                .eq(CourseSchedule::getClassId, param.getClassId())
+                .eq(CourseSchedule::getStatus, CourseScheduleStatusEnum.NORMAL.getValue())
+                .ge(CourseSchedule::getScheduleDate, Date.from(sourceStart.atStartOfDay(ZoneId.systemDefault()).toInstant()))
+                .le(CourseSchedule::getScheduleDate, Date.from(sourceEnd.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant()))
+                .orderByAsc(CourseSchedule::getScheduleDate)
+                .orderByAsc(CourseSchedule::getStartTime));
+        result.setPlannedCount(sourceList.size());
+        if (ObjectUtil.isEmpty(sourceList)) {
+            result.getSkipReasons().add("上一周（" + sourceStart + " ~ " + sourceEnd + "）没有可复制的课节");
+            return result;
+        }
+        Date targetStartDate = Date.from(targetStart.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        Date targetEndDate = Date.from(targetEnd.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant());
+        List<CourseSchedule> targetExistList = this.list(new LambdaQueryWrapper<CourseSchedule>()
+                .eq(CourseSchedule::getStatus, CourseScheduleStatusEnum.NORMAL.getValue())
+                .ge(CourseSchedule::getScheduleDate, targetStartDate)
+                .le(CourseSchedule::getScheduleDate, targetEndDate));
+        Set<String> existKeySet = new HashSet<>();
+        for (CourseSchedule exist : targetExistList) {
+            existKeySet.add(scheduleKey(exist.getClassId(), exist.getScheduleDate(), exist.getStartTime(), exist.getEndTime()));
+        }
+        // 冲突说明带上具体班级/教师名
+        Map<String, String> classNameMap = new HashMap<>();
+        List<String> existClassIdList = targetExistList.stream().map(CourseSchedule::getClassId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (ObjectUtil.isNotEmpty(existClassIdList)) {
+            courseClassMapper.selectBatchIds(existClassIdList)
+                    .forEach(item -> classNameMap.put(item.getId(), item.getName()));
+        }
+        Map<String, String> teacherNameMap = new HashMap<>();
+        List<String> teacherIdList = new ArrayList<>();
+        targetExistList.stream().map(CourseSchedule::getTeacherId).filter(StrUtil::isNotBlank)
+                .forEach(teacherIdList::add);
+        sourceList.stream().map(CourseSchedule::getTeacherId).filter(StrUtil::isNotBlank)
+                .forEach(teacherIdList::add);
+        teacherIdList = teacherIdList.stream().distinct().collect(Collectors.toList());
+        if (ObjectUtil.isNotEmpty(teacherIdList)) {
+            sysUserApi.getUserListByIdListWithoutException(teacherIdList)
+                    .forEach(user -> teacherNameMap.put(user.getStr("id"), user.getStr("name")));
+        }
+        java.util.Map<String, String> closureMap = courseScheduleConfigService.closureMap(targetStartDate, targetEndDate);
+        List<CourseSchedule> toSaveList = new ArrayList<>();
+        int skippedCount = 0;
+        for (CourseSchedule source : sourceList) {
+            LocalDate targetDate = source.getScheduleDate().toInstant()
+                    .atZone(ZoneId.systemDefault()).toLocalDate().plusWeeks(1);
+            String dateText = targetDate.toString();
+            String slotText = dateText + " " + source.getStartTime() + "-" + source.getEndTime();
+            String closureName = closureMap.get(dateText);
+            if (StrUtil.isNotBlank(closureName)) {
+                skippedCount++;
+                result.getSkipReasons().add(slotText + " 停课日【" + closureName + "】，已跳过");
+                continue;
+            }
+            Date scheduleDate = Date.from(targetDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+            if (existKeySet.contains(scheduleKey(param.getClassId(), scheduleDate,
+                    source.getStartTime(), source.getEndTime()))) {
+                skippedCount++;
+                result.getSkipReasons().add(slotText + " 本周已有相同课节，已跳过");
+                continue;
+            }
+            List<String> slotConflicts = new ArrayList<>();
+            for (CourseSchedule exist : targetExistList) {
+                if (!sameDate(exist.getScheduleDate(), scheduleDate)) {
+                    continue;
+                }
+                if (!(exist.getStartTime().isBefore(source.getEndTime())
+                        && exist.getEndTime().isAfter(source.getStartTime()))) {
+                    continue;
+                }
+                String existClassName = classNameMap.get(exist.getClassId());
+                String existDesc = StrUtil.isBlank(existClassName) ? "其他课程" : "【" + existClassName + "】";
+                if (param.getClassId().equals(exist.getClassId())) {
+                    slotConflicts.add("本周该时段已有本节班级的排课");
+                }
+                if (sameClassroom(source.getClassroom(), exist.getClassroom())) {
+                    slotConflicts.add("教室【" + source.getClassroom() + "】已被" + existDesc + "占用");
+                }
+                if (StrUtil.isNotBlank(source.getTeacherId()) && source.getTeacherId().equals(exist.getTeacherId())) {
+                    slotConflicts.add("教师【" + StrUtil.blankToDefault(teacherNameMap.get(source.getTeacherId()),
+                            source.getTeacherId()) + "】已有排课" + existDesc);
+                }
+            }
+            for (CourseSchedule planned : toSaveList) {
+                if (!sameDate(planned.getScheduleDate(), scheduleDate)) {
+                    continue;
+                }
+                if (!(planned.getStartTime().isBefore(source.getEndTime())
+                        && planned.getEndTime().isAfter(source.getStartTime()))) {
+                    continue;
+                }
+                if (sameClassroom(source.getClassroom(), planned.getClassroom())) {
+                    slotConflicts.add("教室【" + source.getClassroom() + "】与本次复制的其他课节冲突");
+                }
+                if (StrUtil.isNotBlank(source.getTeacherId()) && source.getTeacherId().equals(planned.getTeacherId())) {
+                    slotConflicts.add("教师【" + StrUtil.blankToDefault(teacherNameMap.get(source.getTeacherId()),
+                            source.getTeacherId()) + "】与本次复制的其他课节冲突");
+                }
+            }
+            if (ObjectUtil.isNotEmpty(slotConflicts)) {
+                skippedCount++;
+                result.getSkipReasons().add(slotText + " 冲突：" + String.join("；", new LinkedHashSet<>(slotConflicts)));
+                continue;
+            }
+            CourseSchedule copy = new CourseSchedule();
+            copy.setClassId(param.getClassId());
+            copy.setCourseId(StrUtil.isNotBlank(source.getCourseId()) ? source.getCourseId() : courseClass.getCourseId());
+            copy.setCampusId(courseClass.getCampusId());
+            copy.setScheduleDate(scheduleDate);
+            copy.setStartTime(source.getStartTime());
+            copy.setEndTime(source.getEndTime());
+            copy.setClassroom(source.getClassroom());
+            copy.setTeacherId(source.getTeacherId());
+            copy.setStatus(CourseScheduleStatusEnum.NORMAL.getValue());
+            toSaveList.add(copy);
+        }
+        result.setSkippedCount(skippedCount);
+        if (ObjectUtil.isNotEmpty(toSaveList)) {
+            try {
+                this.saveBatch(toSaveList);
+            } catch (DuplicateKeyException e) {
+                throw new CommonException("部分时段已被其他排课占用，请刷新后重试");
+            }
+            bizEventApi.log(BizEventCodeEnum.SCHEDULE_GENERATE.getValue(), "schedule", courseClass.getId(),
+                    courseClass.getName(), Map.of("来源周", sourceStart + " ~ " + sourceEnd,
+                            "目标周", targetStart + " ~ " + targetEnd,
+                            "新增", String.valueOf(toSaveList.size()),
+                            "跳过", String.valueOf(skippedCount)));
+        }
+        result.setCreatedCount(toSaveList.size());
+        return result;
+    }
+
+    /** 解析 HH:mm 或 HH:mm:ss，非法返回 null */
+    private LocalTime parseLocalTime(String text) {
+        if (StrUtil.isBlank(text)) {
+            return null;
+        }
+        try {
+            return LocalTime.parse(text.length() > 5 ? text.substring(0, 5) : text);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**

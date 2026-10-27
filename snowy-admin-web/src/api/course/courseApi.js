@@ -138,6 +138,14 @@ export default {
 	scheduleGenerateAdhoc(data) {
 		return request('schedule/generateAdhoc', data)
 	},
+	// 排课冲突预检（单个或多个时段，返回冲突对象与可替代时段）
+	scheduleConflictCheckBatch(data) {
+		return request('schedule/conflictCheckBatch', data)
+	},
+	// 复制上周课表到目标周（停课日/冲突课节跳过并返回原因）
+	scheduleCopyLastWeek(data) {
+		return request('schedule/copyLastWeek', data)
+	},
 	// 调课记录
 	scheduleChangePage(data) {
 		return request('scheduleChange/page', data, 'get')

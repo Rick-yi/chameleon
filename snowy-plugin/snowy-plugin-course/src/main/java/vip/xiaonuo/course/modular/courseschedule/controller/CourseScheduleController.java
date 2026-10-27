@@ -31,10 +31,14 @@ import vip.xiaonuo.common.annotation.CommonLog;
 import vip.xiaonuo.common.pojo.CommonResult;
 import vip.xiaonuo.course.api.dto.CourseScheduleViewDTO;
 import vip.xiaonuo.course.api.dto.CourseScheduleGenerateResultDTO;
+import vip.xiaonuo.course.modular.courseschedule.dto.CourseScheduleConflictResultDTO;
 import vip.xiaonuo.course.modular.courseschedule.entity.CourseSchedule;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleAddParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleAdhocParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleChangeParam;
+import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleConflictBatchParam;
+import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleConflictCheckParam;
+import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleCopyParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleGenerateParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleIdParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseSchedulePageParam;
@@ -233,10 +237,43 @@ public class CourseScheduleController {
      */
     @Operation(summary = "冲突检测")
     @GetMapping("/course/schedule/conflictCheck")
-    public CommonResult<List<String>> conflictCheck(@Valid CourseScheduleAddParam courseScheduleAddParam) {
-        return CommonResult.data(courseScheduleService.conflictCheck(courseScheduleAddParam.getClassId(),
-                courseScheduleAddParam.getScheduleDate(), courseScheduleAddParam.getStartTime(),
-                courseScheduleAddParam.getEndTime(), courseScheduleAddParam.getClassroom(),
-                courseScheduleAddParam.getTeacherId(), null));
+    public CommonResult<List<String>> conflictCheck(@Valid CourseScheduleConflictCheckParam param) {
+        return CommonResult.data(courseScheduleService.conflictCheck(param.getClassId(),
+                cn.hutool.core.date.DateUtil.parse(param.getScheduleDate()),
+                toLocalTime(param.getStartTime()), toLocalTime(param.getEndTime()),
+                param.getClassroom(), param.getTeacherId(), param.getExcludeScheduleId()));
+    }
+
+    /**
+     * 批量冲突预检（直接排课的多个每周时段一次校验）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 10:00
+     */
+    @Operation(summary = "批量冲突预检")
+    @PostMapping("/course/schedule/conflictCheckBatch")
+    public CommonResult<List<CourseScheduleConflictResultDTO>> conflictCheckBatch(
+            @RequestBody @Valid CourseScheduleConflictBatchParam param) {
+        return CommonResult.data(courseScheduleService.conflictCheckBatch(param));
+    }
+
+    /**
+     * 复制上周课表到目标周
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 10:00
+     */
+    @Operation(summary = "复制上周课表")
+    @CommonLog("复制上周课表")
+    @PostMapping("/course/schedule/copyLastWeek")
+    public CommonResult<CourseScheduleGenerateResultDTO> copyLastWeek(
+            @RequestBody @Valid CourseScheduleCopyParam param) {
+        return CommonResult.data(courseScheduleService.copyLastWeek(param));
+    }
+
+    /** 解析 HH:mm / HH:mm:ss，用于 GET 预检参数 */
+    private java.time.LocalTime toLocalTime(String text) {
+        String normalized = text != null && text.length() > 5 ? text.substring(0, 5) : text;
+        return java.time.LocalTime.parse(normalized);
     }
 }
