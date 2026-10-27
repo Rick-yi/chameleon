@@ -18,6 +18,10 @@
 			/>
 		</div>
 
+		<div v-if="canManage" class="m-teacher-add">
+			<a-button type="primary" block @click="onOpenAdd">新增老师</a-button>
+		</div>
+
 		<a-spin :spinning="loading">
 			<div v-if="!list.length" class="m-empty">
 				<div>没有符合条件的老师</div>
@@ -289,6 +293,13 @@
 		border-radius: var(--radius-card);
 		:deep(.ant-input) {
 			font-size: 16px;
+		}
+	}
+	.m-teacher-add {
+		margin-bottom: 10px;
+		:deep(.ant-btn) {
+			height: 42px;
+			font-weight: 500;
 		}
 	}
 	.m-empty {
