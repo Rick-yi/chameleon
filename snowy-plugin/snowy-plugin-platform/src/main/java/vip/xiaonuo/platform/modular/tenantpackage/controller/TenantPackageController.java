@@ -27,9 +27,11 @@ import vip.xiaonuo.common.annotation.CommonLog;
 import vip.xiaonuo.common.pojo.CommonResult;
 import vip.xiaonuo.platform.modular.tenantpackage.entity.TenantPackage;
 import vip.xiaonuo.platform.modular.tenantpackage.param.TenantPackageAddParam;
+import vip.xiaonuo.platform.modular.tenantpackage.param.TenantPackageCopyParam;
 import vip.xiaonuo.platform.modular.tenantpackage.param.TenantPackageEditParam;
 import vip.xiaonuo.platform.modular.tenantpackage.param.TenantPackageIdParam;
 import vip.xiaonuo.platform.modular.tenantpackage.param.TenantPackagePageParam;
+import vip.xiaonuo.platform.modular.tenantpackage.param.TenantPackageStatusParam;
 import vip.xiaonuo.platform.modular.tenantpackage.service.TenantPackageService;
 
 import javax.validation.Valid;
@@ -91,6 +93,33 @@ public class TenantPackageController {
     public CommonResult<String> edit(@RequestBody @Valid TenantPackageEditParam tenantPackageEditParam) {
         tenantPackageService.edit(tenantPackageEditParam);
         return CommonResult.ok();
+    }
+
+    /**
+     * 上架/下架套餐
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 10:00
+     */
+    @Operation(summary = "上架/下架套餐")
+    @CommonLog("套餐上下架")
+    @PostMapping("/platform/package/status")
+    public CommonResult<String> changeStatus(@RequestBody @Valid TenantPackageStatusParam tenantPackageStatusParam) {
+        tenantPackageService.changeStatus(tenantPackageStatusParam);
+        return CommonResult.ok();
+    }
+
+    /**
+     * 复制套餐（副本默认下架，便于先调整再上架）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 10:00
+     */
+    @Operation(summary = "复制套餐")
+    @CommonLog("复制套餐")
+    @PostMapping("/platform/package/copy")
+    public CommonResult<String> copy(@RequestBody @Valid TenantPackageCopyParam tenantPackageCopyParam) {
+        return CommonResult.data(tenantPackageService.copy(tenantPackageCopyParam));
     }
 
     /**

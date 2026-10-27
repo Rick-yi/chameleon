@@ -45,4 +45,8 @@ public class TenantPackagePageParam {
     /** 名称关键词 */
     @Schema(description = "名称关键词")
     private String searchKey;
+
+    /** 上下架状态(ON/OFF) */
+    @Schema(description = "上下架状态(ON/OFF)")
+    private String status;
 }

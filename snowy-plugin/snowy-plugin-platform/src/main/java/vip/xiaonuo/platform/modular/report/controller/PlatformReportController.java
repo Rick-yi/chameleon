@@ -23,8 +23,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import vip.xiaonuo.common.pojo.CommonResult;
 import vip.xiaonuo.platform.modular.report.dto.PlatformExpiringTenantDTO;
+import vip.xiaonuo.platform.modular.report.dto.PlatformMetricsDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformOverviewDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformPackageDistributionDTO;
+import vip.xiaonuo.platform.modular.report.dto.PlatformTenantHealthDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformTenantRankDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformTenantTrendDTO;
 import vip.xiaonuo.platform.modular.report.service.PlatformReportService;
@@ -111,6 +113,34 @@ public class PlatformReportController {
     public CommonResult<List<PlatformTenantRankDTO>> tenantRank(
             @RequestParam(required = false, defaultValue = "20") Integer limit) {
         return CommonResult.data(platformReportService.tenantRank(limit));
+    }
+
+    /**
+     * 平台经营指标（MRR / 续费率 / 流失率 / 到期分布 / 试用转化）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 10:00
+     */
+    @Operation(summary = "平台经营指标")
+    @GetMapping("/platform/report/metrics")
+    public CommonResult<PlatformMetricsDTO> metrics(
+            @RequestParam(required = false) String packageId,
+            @RequestParam(required = false) String month) {
+        return CommonResult.data(platformReportService.metrics(packageId, month));
+    }
+
+    /**
+     * 租户健康度评分与流失预警
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 10:00
+     */
+    @Operation(summary = "租户健康度评分")
+    @GetMapping("/platform/report/tenantHealth")
+    public CommonResult<List<PlatformTenantHealthDTO>> tenantHealth(
+            @RequestParam(required = false) String packageId,
+            @RequestParam(required = false, defaultValue = "20") Integer limit) {
+        return CommonResult.data(platformReportService.tenantHealth(packageId, limit));
     }
 
     /**

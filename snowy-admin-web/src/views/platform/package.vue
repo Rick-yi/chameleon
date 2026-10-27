@@ -7,7 +7,12 @@
 						<a-input v-model:value="searchFormState.searchKey" placeholder="请输入套餐名称" allow-clear />
 					</a-form-item>
 				</a-col>
-				<a-col :xs="24" :sm="24" :md="24" :lg="16" :xl="16">
+				<a-col :xs="24" :sm="24" :md="24" :lg="6" :xl="6">
+					<a-form-item label="上下架" name="status">
+						<a-select v-model:value="searchFormState.status" placeholder="全部" :options="statusOptions" allow-clear />
+					</a-form-item>
+				</a-col>
+				<a-col :xs="24" :sm="24" :md="24" :lg="10" :xl="10">
 					<a-form-item>
 						<a-space>
 							<a-button type="primary" @click="tableRef.refresh(true)">
@@ -38,11 +43,33 @@
 				</a-button>
 			</template>
 			<template #bodyCell="{ column, record }">
+				<template v-if="column.dataIndex === 'status'">
+					<a-tag :color="record.status === 'OFF' ? 'default' : 'green'">{{ record.status === 'OFF' ? '已下架' : '已上架' }}</a-tag>
+				</template>
+				<template v-if="column.dataIndex === 'limits'">
+					<div class="limit-cell">
+						<span>学员 {{ record.studentLimit ?? '不限' }}</span>
+						<span>校区 {{ record.campusLimit ?? '不限' }}</span>
+						<span>账号 {{ record.accountLimit ?? '不限' }}</span>
+					</div>
+				</template>
+				<template v-if="column.dataIndex === 'features'">
+					<a-space wrap :size="[4, 4]">
+						<a-tag v-for="item in funcOptions" :key="item.value" :color="isFuncOn(record, item.value) ? 'blue' : 'default'">
+							{{ item.label }}
+						</a-tag>
+					</a-space>
+				</template>
 				<template v-if="column.dataIndex === 'action'">
-					<a-space>
+					<a-space :size="4">
 						<a @click="onOpenEdit(record)">编辑</a>
 						<a-divider type="vertical" />
-						<a-popconfirm title="确定删除该套餐吗？" @confirm="onDelete(record)">
+						<a @click="onCopy(record)">复制</a>
+						<a-divider type="vertical" />
+						<a v-if="record.status === 'OFF'" @click="onChangeStatus(record, 'ON')">上架</a>
+						<a v-else @click="onChangeStatus(record, 'OFF')">下架</a>
+						<a-divider type="vertical" />
+						<a-popconfirm title="确定删除该套餐吗？已被租户使用时不允许删除。" @confirm="onDelete(record)">
 							<a-button type="link" danger size="small">删除</a-button>
 						</a-popconfirm>
 					</a-space>
@@ -84,6 +111,16 @@
 						<a-input-number v-model:value="formData.campusLimit" :min="0" style="width: 100%" />
 					</a-form-item>
 				</a-col>
+				<a-col :span="12">
+					<a-form-item label="账号数上限" name="accountLimit">
+						<a-input-number v-model:value="formData.accountLimit" :min="0" style="width: 100%" />
+					</a-form-item>
+				</a-col>
+				<a-col :span="12">
+					<a-form-item label="上下架" name="status">
+						<a-radio-group v-model:value="formData.status" :options="statusOptions" />
+					</a-form-item>
+				</a-col>
 				<a-col :span="24">
 					<a-form-item label="功能开关" name="funcConfig">
 						<a-space wrap>
@@ -99,7 +136,7 @@
 							</a-tag>
 						</a-space>
 						<div style="color: rgba(0, 0, 0, 0.45); font-size: 12px; margin-top: 6px">
-							关闭后对应模块的菜单不再下发给该租户
+							报表 / 自动化 / 家长端 / 支付为增值功能开关；招生、学员、课务、财务控制对应菜单是否下发。关闭后该租户看不到对应入口。
 						</div>
 					</a-form-item>
 				</a-col>
@@ -114,6 +151,7 @@
 </template>
 
 <script setup name="platformPackage">
+	import { message } from 'ant-design-vue'
 	import tenantApi from '@/api/platform/tenantApi'
 	const searchFormState = ref({})
 	const tableRef = ref()
@@ -121,15 +159,20 @@
 	const formData = ref({})
 	const funcConfig = ref({})
 	const open = ref(false)
+	const statusOptions = [
+		{ value: 'ON', label: '上架' },
+		{ value: 'OFF', label: '下架' }
+	]
 	const columns = [
 		{ title: '套餐名称', dataIndex: 'name' },
+		{ title: '状态', dataIndex: 'status', width: 90 },
 		{ title: '价格(元)', dataIndex: 'price' },
 		{ title: '有效期(天)', dataIndex: 'validityDays' },
-		{ title: '学员上限', dataIndex: 'studentLimit' },
-		{ title: '校区上限', dataIndex: 'campusLimit' },
-		{ title: '排序', dataIndex: 'sortCode' },
+		{ title: '套餐限额', dataIndex: 'limits' },
+		{ title: '功能开关', dataIndex: 'features' },
+		{ title: '排序', dataIndex: 'sortCode', width: 70 },
 		{ title: '备注', dataIndex: 'remark' },
-		{ title: '操作', dataIndex: 'action', align: 'center', fixed: 'right' }
+		{ title: '操作', dataIndex: 'action', align: 'center', fixed: 'right', width: 220 }
 	]
 	const loadData = (parameter) => {
 		return tenantApi.packagePage(Object.assign(parameter, searchFormState.value)).then((data) => data)
@@ -139,11 +182,14 @@
 		tableRef.value.refresh(true)
 	}
 	const funcOptions = [
+		{ value: 'report', label: '报表' },
+		{ value: 'automation', label: '自动化' },
+		{ value: 'parent', label: '家长端' },
+		{ value: 'payment', label: '支付' },
 		{ value: 'crm', label: '招生' },
 		{ value: 'student', label: '学员' },
 		{ value: 'course', label: '课务' },
-		{ value: 'finance', label: '财务' },
-		{ value: 'report', label: '报表' }
+		{ value: 'finance', label: '财务' }
 	]
 	const defaultFuncConfig = () => {
 		const config = {}
@@ -165,8 +211,9 @@
 		}
 		return config
 	}
+	const isFuncOn = (record, key) => parseFuncConfig(record.funcConfig)[key] !== false
 	const onOpenAdd = () => {
-		formData.value = { validityDays: 365, sortCode: 1 }
+		formData.value = { validityDays: 365, sortCode: 1, status: 'ON' }
 		funcConfig.value = defaultFuncConfig()
 		open.value = true
 	}
@@ -189,4 +236,25 @@
 	const onDelete = (record) => {
 		tenantApi.packageDelete([{ id: record.id }]).then(() => tableRef.value.refresh())
 	}
+	const onCopy = (record) => {
+		tenantApi.packageCopy({ id: record.id }).then(() => {
+			message.success('已复制套餐，副本默认下架，请按需调整后上架')
+			tableRef.value.refresh()
+		})
+	}
+	const onChangeStatus = (record, status) => {
+		tenantApi.packageStatus({ id: record.id, status }).then(() => {
+			message.success(status === 'ON' ? '套餐已上架' : '套餐已下架')
+			tableRef.value.refresh()
+		})
+	}
 </script>
+
+<style scoped>
+	.limit-cell {
+		display: flex;
+		gap: 10px;
+		white-space: nowrap;
+		color: var(--text-color-secondary);
+	}
+</style>

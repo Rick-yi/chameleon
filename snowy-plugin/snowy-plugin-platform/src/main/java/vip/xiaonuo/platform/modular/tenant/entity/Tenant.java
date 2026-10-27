@@ -84,6 +84,31 @@ public class Tenant extends CommonEntity {
     @TableField(exist = false)
     private Integer campusLimit;
 
+    /** 账号数上限（展示用） */
+    @Schema(description = "账号数上限")
+    @TableField(exist = false)
+    private Integer accountLimit;
+
+    /** 账号数（展示用） */
+    @Schema(description = "账号数")
+    @TableField(exist = false)
+    private Long accountCount = 0L;
+
+    /** 健康度评分（展示用，0-100） */
+    @Schema(description = "健康度评分")
+    @TableField(exist = false)
+    private Integer healthScore;
+
+    /** 健康度等级（展示用：HEALTHY/WARNING/RISK） */
+    @Schema(description = "健康度等级")
+    @TableField(exist = false)
+    private String healthLevel;
+
+    /** 健康度扣分原因（展示用，逗号分隔） */
+    @Schema(description = "健康度扣分原因")
+    @TableField(exist = false)
+    private String healthReasons;
+
     /** 剩余天数（展示用，负数表示已过期） */
     @Schema(description = "剩余天数")
     @TableField(exist = false)

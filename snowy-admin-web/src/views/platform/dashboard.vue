@@ -50,6 +50,27 @@
 			</a-row>
 
 			<a-row :gutter="16" style="margin-top: 16px">
+				<a-col :xs="12" :sm="8" :xl="4">
+					<a-card :bordered="false"><a-statistic title="MRR" :value="metrics.mrr || 0" prefix="¥" :precision="2" /></a-card>
+				</a-col>
+				<a-col :xs="12" :sm="8" :xl="4">
+					<a-card :bordered="false"><a-statistic title="ARR" :value="metrics.arr || 0" prefix="¥" :precision="2" /></a-card>
+				</a-col>
+				<a-col :xs="12" :sm="8" :xl="4">
+					<a-card :bordered="false"><a-statistic title="续费率" :value="metrics.renewalRate || 0" suffix="%" :precision="1" :value-style="{ color: '#2ba471' }" /></a-card>
+				</a-col>
+				<a-col :xs="12" :sm="8" :xl="4">
+					<a-card :bordered="false"><a-statistic title="流失率" :value="metrics.churnRate || 0" suffix="%" :precision="1" :value-style="{ color: '#e5484d' }" /></a-card>
+				</a-col>
+				<a-col :xs="12" :sm="8" :xl="4">
+					<a-card :bordered="false"><a-statistic title="试用转化率" :value="metrics.trialConversionRate || 0" suffix="%" :precision="1" /></a-card>
+				</a-col>
+				<a-col :xs="12" :sm="8" :xl="4">
+					<a-card :bordered="false"><a-statistic title="30 天内到期" :value="metrics.expiring30Count || 0" suffix="家" :value-style="{ color: '#faad14' }" /></a-card>
+				</a-col>
+			</a-row>
+
+			<a-row :gutter="16" style="margin-top: 16px">
 				<a-col :xs="24" :xl="16">
 					<a-card title="租户增长趋势" :bordered="false">
 						<div id="platformTenantTrendChart" class="report-chart"></div>
@@ -89,6 +110,30 @@
 					size="middle"
 				/>
 			</a-card>
+
+			<a-card title="租户健康度" :bordered="false" style="margin-top: 16px">
+				<a-table
+					:columns="healthColumns"
+					:data-source="healthList"
+					:row-key="(r) => r.tenantId"
+					:pagination="{ pageSize: 10, showSizeChanger: true }"
+					bordered
+					size="middle"
+				>
+					<template #bodyCell="{ column, record }">
+						<template v-if="column.dataIndex === 'score'">
+							<a-tag :color="healthColor(record.level)">{{ record.score || 0 }} 分</a-tag>
+						</template>
+						<template v-if="column.dataIndex === 'churnWarning'">
+							<a-tag v-if="record.churnWarning" color="red">流失风险</a-tag>
+							<span v-else>-</span>
+						</template>
+						<template v-if="column.dataIndex === 'reasons'">
+							<span class="health-reasons">{{ (record.reasons || []).join('；') || '-' }}</span>
+						</template>
+					</template>
+				</a-table>
+			</a-card>
 		</a-spin>
 	</div>
 </template>
@@ -125,6 +170,8 @@
 	const packageList = ref([])
 	const expiringList = ref([])
 	const rankList = ref([])
+	const metrics = ref({})
+	const healthList = ref([])
 
 	let trendChart
 	let packageChart
@@ -176,14 +223,18 @@
 			platformReportApi.tenantTrend({ months: 12 }),
 			platformReportApi.packageDistribution(),
 			platformReportApi.expiring({ days: expiringDays.value }),
-			platformReportApi.tenantRank({ limit: 20 })
+			platformReportApi.tenantRank({ limit: 20 }),
+			platformReportApi.metrics({}),
+			platformReportApi.tenantHealth({ limit: 10 })
 		])
-			.then(([overviewData, trendData, packageData, expiringData, rankData]) => {
+			.then(([overviewData, trendData, packageData, expiringData, rankData, metricsData, healthData]) => {
 				overview.value = overviewData || overview.value
 				trendList.value = trendData || []
 				packageList.value = packageData || []
 				expiringList.value = expiringData || []
 				rankList.value = rankData || []
+				metrics.value = metricsData || {}
+				healthList.value = healthData || []
 				nextTick(renderCharts)
 			})
 			.finally(() => {
@@ -231,6 +282,18 @@
 		{ title: '最近支付时间', dataIndex: 'lastPayTime' },
 		{ title: '最近登录时间', dataIndex: 'lastLoginTime' }
 	]
+	const healthColumns = [
+		{ title: '机构编码', dataIndex: 'tenantCode', width: 110 },
+		{ title: '机构名称', dataIndex: 'tenantName' },
+		{ title: '套餐', dataIndex: 'packageName', width: 130 },
+		{ title: '健康度', dataIndex: 'score', width: 90 },
+		{ title: '到期剩余', dataIndex: 'daysLeft', width: 100, customRender: ({ text }) => (Number(text) < 0 ? `已过期 ${Math.abs(text)} 天` : `${text ?? 0} 天`) },
+		{ title: '近30天登录', dataIndex: 'loginCount30d', width: 110 },
+		{ title: '近30天课消', dataIndex: 'consumeCount30d', width: 110 },
+		{ title: '流失风险', dataIndex: 'churnWarning', width: 100 },
+		{ title: '扣分原因', dataIndex: 'reasons' }
+	]
+	const healthColor = (level) => ({ HEALTHY: 'green', WARNING: 'orange', RISK: 'red' }[level] || 'default')
 
 	onMounted(loadAll)
 </script>
@@ -242,5 +305,9 @@
 	.report-chart {
 		width: 100%;
 		min-height: 320px;
+	}
+	.health-reasons {
+		font-size: 12px;
+		color: var(--text-color-secondary);
 	}
 </style>

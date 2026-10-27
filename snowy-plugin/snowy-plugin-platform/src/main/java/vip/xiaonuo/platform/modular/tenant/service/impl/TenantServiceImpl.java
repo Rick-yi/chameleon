@@ -39,7 +39,10 @@ import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.common.util.CommonCryptogramUtil;
 import vip.xiaonuo.platform.core.service.TenantCapabilityService;
+import vip.xiaonuo.platform.core.service.TenantHealthService;
+import vip.xiaonuo.platform.modular.report.dto.PlatformTenantHealthDTO;
 import vip.xiaonuo.platform.modular.tenantpackage.entity.TenantPackage;
+import vip.xiaonuo.platform.modular.tenantpackage.enums.TenantPackageStatusEnum;
 import vip.xiaonuo.platform.modular.tenantpackage.mapper.TenantPackageMapper;
 import vip.xiaonuo.platform.modular.tenantpackage.service.TenantPackageService;
 import vip.xiaonuo.platform.modular.tenant.entity.Tenant;
@@ -85,6 +88,9 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
 
     @Resource
     private TenantCapabilityService tenantCapabilityService;
+
+    @Resource
+    private TenantHealthService tenantHealthService;
 
     @Resource
     private TenantInitService tenantInitService;
@@ -148,6 +154,8 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
         Map<String, Long> orderCountMap = countByTenant(
                 "SELECT TENANT_ID, COUNT(*) AS CNT FROM STUDENT_ORDER WHERE DELETE_FLAG = 'NOT_DELETE' "
                         + "AND STATUS IN ('PAID','REFUNDED') GROUP BY TENANT_ID");
+        Map<String, Long> accountCountMap = countByTenant(
+                "SELECT TENANT_ID, COUNT(*) AS CNT FROM SYS_USER WHERE DELETE_FLAG = 'NOT_DELETE' GROUP BY TENANT_ID");
         Map<String, BigDecimal> paidAmountMap = new HashMap<>();
         for (Map<String, Object> row : jdbcTemplate.queryForList(
                 "SELECT TENANT_ID, COALESCE(SUM(PAID_AMOUNT),0) AS AMT FROM STUDENT_ORDER "
@@ -157,12 +165,15 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
                     amount instanceof BigDecimal decimal ? decimal : BigDecimal.ZERO);
         }
         long today = System.currentTimeMillis();
+        // 健康度评分（登录频次 / 课消 / 收款 / 到期风险）
+        Map<String, PlatformTenantHealthDTO> healthMap = tenantHealthService.evaluate(tenantList);
         for (Tenant tenant : tenantList) {
             TenantPackage tenantPackage = packageMap.get(tenant.getPackageId());
             if (ObjectUtil.isNotEmpty(tenantPackage)) {
                 tenant.setPackageName(tenantPackage.getName());
                 tenant.setStudentLimit(tenantPackage.getStudentLimit());
                 tenant.setCampusLimit(tenantPackage.getCampusLimit());
+                tenant.setAccountLimit(tenantPackage.getAccountLimit());
             }
             if (tenant.getExpireTime() != null) {
                 long days = (tenant.getExpireTime().getTime() - today) / (24 * 60 * 60 * 1000L);
@@ -171,7 +182,14 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
             tenant.setLastLoginTime(lastLoginMap.get(tenant.getId()));
             tenant.setStudentCount(studentCountMap.getOrDefault(tenant.getId(), 0L));
             tenant.setOrderCount(orderCountMap.getOrDefault(tenant.getId(), 0L));
+            tenant.setAccountCount(accountCountMap.getOrDefault(tenant.getId(), 0L));
             tenant.setPaidAmount(paidAmountMap.getOrDefault(tenant.getId(), BigDecimal.ZERO));
+            PlatformTenantHealthDTO health = healthMap.get(tenant.getId());
+            if (ObjectUtil.isNotEmpty(health)) {
+                tenant.setHealthScore(health.getScore());
+                tenant.setHealthLevel(health.getLevel());
+                tenant.setHealthReasons(String.join("；", health.getReasons()));
+            }
         }
     }
 
@@ -214,6 +232,9 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
         // 套餐联动：校验套餐并按套餐有效期自动计算到期时间
         if (ObjectUtil.isNotEmpty(tenant.getPackageId())) {
             TenantPackage tenantPackage = tenantPackageService.queryEntity(tenant.getPackageId());
+            if (TenantPackageStatusEnum.OFF.getValue().equals(tenantPackage.getStatus())) {
+                throw new CommonException("套餐【{}】已下架，不能用于开通租户", tenantPackage.getName());
+            }
             if (ObjectUtil.isEmpty(tenant.getExpireTime())) {
                 int validityDays = ObjectUtil.isNotEmpty(tenantPackage.getValidityDays())
                         ? tenantPackage.getValidityDays() : 365;
@@ -332,6 +353,9 @@ public class TenantServiceImpl extends ServiceImpl<TenantMapper, Tenant> impleme
         Date newExpireTime = DateUtil.offsetDay(baseTime, tenantRenewParam.getDays());
         if (StrUtil.isNotBlank(tenantRenewParam.getPackageId())) {
             TenantPackage tenantPackage = tenantPackageService.queryEntity(tenantRenewParam.getPackageId());
+            if (TenantPackageStatusEnum.OFF.getValue().equals(tenantPackage.getStatus())) {
+                throw new CommonException("套餐【{}】已下架，不能用于续费", tenantPackage.getName());
+            }
             tenant.setPackageId(tenantPackage.getId());
         }
         tenant.setExpireTime(newExpireTime);

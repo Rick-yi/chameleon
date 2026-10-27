@@ -15,9 +15,11 @@ package vip.xiaonuo.platform.modular.tenantpackage.service;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import vip.xiaonuo.platform.modular.tenantpackage.entity.TenantPackage;
 import vip.xiaonuo.platform.modular.tenantpackage.param.TenantPackageAddParam;
+import vip.xiaonuo.platform.modular.tenantpackage.param.TenantPackageCopyParam;
 import vip.xiaonuo.platform.modular.tenantpackage.param.TenantPackageEditParam;
 import vip.xiaonuo.platform.modular.tenantpackage.param.TenantPackageIdParam;
 import vip.xiaonuo.platform.modular.tenantpackage.param.TenantPackagePageParam;
+import vip.xiaonuo.platform.modular.tenantpackage.param.TenantPackageStatusParam;
 
 import java.util.List;
 
@@ -37,6 +39,12 @@ public interface TenantPackageService {
 
     /** 编辑套餐 */
     void edit(TenantPackageEditParam tenantPackageEditParam);
+
+    /** 上架/下架套餐 */
+    void changeStatus(TenantPackageStatusParam tenantPackageStatusParam);
+
+    /** 复制套餐，返回新套餐id */
+    String copy(TenantPackageCopyParam tenantPackageCopyParam);
 
     /** 删除套餐（被租户引用时不允许删除） */
     void delete(List<TenantPackageIdParam> tenantPackageIdParamList);
