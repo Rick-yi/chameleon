@@ -1064,6 +1064,14 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         courseClassAttendMapper.selectList(new LambdaQueryWrapper<CourseClassAttend>()
                         .in(CourseClassAttend::getScheduleId, scheduleIdList))
                 .forEach(item -> attendCountMap.merge(item.getScheduleId(), 1, Integer::sum));
+        // 直接排课（无班级）的应到人数取这节课指定学员数，课表卡片才能展示「应到/已点」进度
+        Map<String, Integer> directStudentCountMap = new HashMap<>();
+        for (CourseSchedule schedule : scheduleList) {
+            if (StrUtil.isBlank(schedule.getClassId())) {
+                directStudentCountMap.put(schedule.getId(),
+                        courseScheduleStudentService.listStudentIdsByScheduleId(schedule.getId()).size());
+            }
+        }
         for (CourseSchedule schedule : scheduleList) {
             CourseScheduleViewDTO dto = new CourseScheduleViewDTO();
             dto.setId(schedule.getId());
@@ -1075,7 +1083,9 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             dto.setEndTime(schedule.getEndTime() == null ? null : schedule.getEndTime().toString());
             dto.setClassroom(schedule.getClassroom());
             dto.setStatus(schedule.getStatus());
-            int studentCount = studentCountMap.getOrDefault(schedule.getClassId(), 0);
+            int studentCount = StrUtil.isNotBlank(schedule.getClassId())
+                    ? studentCountMap.getOrDefault(schedule.getClassId(), 0)
+                    : directStudentCountMap.getOrDefault(schedule.getId(), 0);
             int attendCount = attendCountMap.getOrDefault(schedule.getId(), 0);
             dto.setStudentCount(studentCount);
             dto.setAttendCount(attendCount);

@@ -82,7 +82,7 @@
 							class="ent-schedule-card"
 							:class="{ 'is-conflict': conflictIdSet.has(s.id), 'is-dragging': draggingSchedule?.id === s.id }"
 							:draggable="hasPerm('/course/schedule/change')"
-							:title="hasPerm('/course/schedule/change') ? '拖拽到其他日期/时段可调课' : ''"
+							:title="hasPerm('/course/schedule/change') ? '点击进入点名，拖拽到其他日期/时段可调课' : '点击进入点名'"
 							@dragstart="onDragStart($event, s)"
 							@dragend="onDragEnd"
 							@click="onCardClick(s)"
@@ -96,8 +96,12 @@
 							</div>
 							<div class="sched-card-sub">{{ s.classroom || '未设教室' }}</div>
 							<div v-if="s.teacherName" class="sched-card-sub2">{{ s.teacherName }}</div>
+							<div class="sched-card-attend">
+								应到 {{ s.studentCount || 0 }} · 已点 {{ s.attendCount || 0 }}
+							</div>
 							<div class="sched-card-actions">
 								<a-button type="link" size="small" class="sched-card-link" @click.stop="goAttend(s)">点名 ›</a-button>
+								<a class="sched-card-link" @click.stop="onOpenChange(s)">调课</a>
 								<a class="sched-card-link sched-card-cancel" @click.stop="onCancelScheduleConfirm(s)">取消</a>
 							</div>
 						</div>
@@ -137,6 +141,9 @@
 					</template>
 					<template v-if="column.dataIndex === 'attendStatus'">
 						<a-tag :color="attendColor(record.attendStatus)">{{ attendText(record.attendStatus) }}</a-tag>
+					</template>
+					<template v-if="column.dataIndex === 'attendance'">
+						<span class="sched-attend-text">应到 {{ record.studentCount || 0 }} · 已点 {{ record.attendCount || 0 }}</span>
 					</template>
 					<template v-if="column.dataIndex === 'conflict'">
 						<a-tag v-if="conflictIdSet.has(record.id)" color="red">冲突</a-tag>
@@ -674,6 +681,7 @@
 		{ title: '教师', dataIndex: 'teacherName' },
 		{ title: '教室', dataIndex: 'classroom' },
 		{ title: '点名', dataIndex: 'attendStatus', width: 100 },
+		{ title: '应到/已点', dataIndex: 'attendance', width: 130 },
 		{ title: '冲突', dataIndex: 'conflict', width: 80 },
 		{ title: '操作', dataIndex: 'action', align: 'center', width: 120 }
 	]
@@ -1240,7 +1248,8 @@
 
 	const onCardClick = (record) => {
 		if (suppressCardClick.value) return
-		onOpenChange(record)
+		// 点卡片进点名，调课走卡片上的「调课」入口
+		goAttend(record)
 	}
 	const onDragStart = (event, record) => {
 		draggingSchedule.value = record
@@ -1379,6 +1388,17 @@
 		outline-offset: -2px;
 		background: var(--primary-1);
 	}
+	.sched-card-attend {
+		margin-top: 2px;
+		font-size: 12px;
+		color: var(--text-color-secondary);
+	}
+
+	.sched-attend-text {
+		font-size: 12px;
+		color: var(--text-color-secondary);
+	}
+
 	.sched-card-actions {
 		display: flex;
 		align-items: center;
