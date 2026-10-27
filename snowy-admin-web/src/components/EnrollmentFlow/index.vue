@@ -471,15 +471,25 @@
 	const selectedPackage = computed(() => packageRaw.value.find((p) => p.id === form.value.coursePackageId) || null)
 	const classLabel = computed(() => classOptions.value.find((c) => c.value === form.value.classId)?.className || '')
 	const classTeacherName = computed(() => classOptions.value.find((c) => c.value === form.value.classId)?.teacherName || '')
-	// 校区改变后只展示本校区的班级；老数据没有校区时保留，避免班级直接消失
+	const currentStudentId = computed(() => props.student?.id || null)
+	// 校区改变后只展示本校区的班级；一对一班只展示绑定当前学员的班级
 	const visibleClassOptions = computed(() => {
 		const campusId = form.value.campusId
-		if (!campusId) return classOptions.value
-		return classOptions.value.filter((item) => !item.campusId || item.campusId === campusId)
+		return classOptions.value.filter((item) => {
+			if (campusId && item.campusId && item.campusId !== campusId) return false
+			if (item.classType === 'ONE2ONE') {
+				return !!currentStudentId.value && item.studentId === currentStudentId.value
+			}
+			return true
+		})
 	})
 	const classPlaceholder = computed(() => {
 		if (classLoading.value) return '班级加载中…'
-		if (!visibleClassOptions.value.length) return '该校区暂无可选班级，可稍后分班'
+		if (!visibleClassOptions.value.length) {
+			return classOptions.value.some((item) => item.classType === 'ONE2ONE')
+				? '一对一班级需先绑定该学员，可先建档后分班'
+				: '该校区暂无可选班级，可稍后分班'
+		}
 		return '选填，报名后老师点名可见'
 	})
 	const discount = computed(() => {
@@ -515,8 +525,16 @@
 		if (form.value.classId && !options.some((item) => item.value === form.value.classId)) {
 			form.value.classId = undefined
 		}
-		if (!form.value.classId && options.length === 1) {
-			form.value.classId = options[0].value
+		if (!form.value.classId) {
+			// 学员已有专属一对一班时优先带出，避免误选普通班
+			const boundOne2One = options.find(
+				(item) => item.classType === 'ONE2ONE' && item.studentId === currentStudentId.value
+			)
+			if (boundOne2One) {
+				form.value.classId = boundOne2One.value
+			} else if (options.length === 1) {
+				form.value.classId = options[0].value
+			}
 		}
 	}
 
@@ -603,12 +621,17 @@
 				classOptions.value = (data.records || []).map((item) => {
 					const className = `${item.name}${item.classroom ? ' · ' + item.classroom : ''}`
 					const teacherName = teacherMap.value[item.teacherId] || ''
+					const typePrefix = item.classType === 'ONE2ONE' ? '【一对一】' : ''
+					const studentSuffix = item.studentName ? ` · ${item.studentName}` : ''
 					return {
 						value: item.id,
 						campusId: item.campusId,
 						className,
 						teacherName,
-						label: `${className}${teacherName ? ' · ' + teacherName : ''}`
+						classType: item.classType,
+						studentId: item.studentId,
+						studentName: item.studentName,
+						label: `${typePrefix}${className}${studentSuffix}${teacherName ? ' · ' + teacherName : ''}`
 					}
 				})
 				applyDefaultClass()

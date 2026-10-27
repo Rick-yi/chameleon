@@ -49,4 +49,12 @@ public class CourseClassPageParam {
     /** 课程id */
     @Schema(description = "课程id")
     private String courseId;
+
+    /** 班型：GROUP一对多 / ONE2ONE一对一 */
+    @Schema(description = "班型：GROUP一对多 / ONE2ONE一对一")
+    private String classType;
+
+    /** 一对一班绑定的学员id */
+    @Schema(description = "一对一班绑定的学员id")
+    private String studentId;
 }

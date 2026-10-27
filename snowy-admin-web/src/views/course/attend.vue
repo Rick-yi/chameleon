@@ -211,7 +211,10 @@
 	const loadClasses = () => {
 		courseApi.classPage({ current: 1, size: 200 }).then((data) => {
 			classRecords.value = data.records || []
-			classOptions.value = classRecords.value.map((item) => ({ value: item.id, label: item.name }))
+			classOptions.value = classRecords.value.map((item) => ({
+				value: item.id,
+				label: item.classType === 'ONE2ONE' && item.studentName ? `${item.name} · ${item.studentName}` : item.name
+			}))
 		})
 	}
 	// 默认日期始终是今天；今天没课时只提示「最近有课」，不自动改日期

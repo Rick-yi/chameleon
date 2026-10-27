@@ -149,7 +149,10 @@
 	const loadClasses = async () => {
 		const res = await courseApi.classPage({ current: 1, size: 200 }).catch(() => ({}))
 		classRecords.value = res?.records || []
-		classOptions.value = classRecords.value.map((item) => ({ value: item.id, label: item.name }))
+		classOptions.value = classRecords.value.map((item) => ({
+			value: item.id,
+			label: item.classType === 'ONE2ONE' && item.studentName ? `${item.name} · ${item.studentName}` : item.name
+		}))
 	}
 
 	const markAll = (status) => {

@@ -37,6 +37,14 @@ public class CourseClassEditParam {
     @NotBlank(message = "课程id不能为空")
     private String courseId;
 
+    /** 班型：GROUP一对多 / ONE2ONE一对一 */
+    @Schema(description = "班型：GROUP一对多 / ONE2ONE一对一")
+    private String classType;
+
+    /** 一对一班绑定的学员id */
+    @Schema(description = "一对一班绑定的学员id")
+    private String studentId;
+
     /** 班级名称 */
     @Schema(description = "班级名称", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "班级名称不能为空")

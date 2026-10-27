@@ -42,6 +42,19 @@ public class CourseClass extends CommonEntity {
     @Schema(description = "课程id")
     private String courseId;
 
+    /** 班型：GROUP一对多 / ONE2ONE一对一 */
+    @Schema(description = "班型：GROUP一对多 / ONE2ONE一对一")
+    private String classType;
+
+    /** 一对一班绑定的学员id */
+    @Schema(description = "一对一班绑定的学员id")
+    private String studentId;
+
+    /** 绑定学员姓名（列表填充，非数据库字段） */
+    @Schema(description = "绑定学员姓名")
+    @TableField(exist = false)
+    private String studentName;
+
     /** 班级名称 */
     @Schema(description = "班级名称")
     private String name;

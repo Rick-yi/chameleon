@@ -55,3 +55,23 @@
 - 复制已有 `/course/schedule/add` 权限角色的接口授权。
 
 主流程无需手工执行权限 SQL。
+
+## 六、班级班型（一对多 / 一对一）
+
+- `COURSE_CLASS` 新增 `CLASS_TYPE`（`GROUP` 一对多 / `ONE2ONE` 一对一）与 `STUDENT_ID`（一对一班绑定学员）。
+- 启动迁移 `CourseClassTypeSchemaMigration` 自动补列、回填历史班级为 `GROUP`，并创建 `(TENANT_ID, STUDENT_ID)` 索引。
+- 一对一班必须绑定一名在读学员，容量固定为 1，保存后自动写入班级名册；换绑时旧学员退班、新学员入班。
+- 同一学员在同一课程下只能有一个启用中的一对一班；已有在读学员的班级不能直接改成一对一班。
+- 课程本身为 `ONE2ONE` 时，班级强制为一对一，忽略前端的“一对多”选择。
+- 班级学员接口限制：一对一班只能加入绑定的学员；报名流程只展示当前学员自己的一个一对一班。
+- 排课、点名、课消继续复用班级名册，无需额外改造。
+
+手工迁移 SQL：
+
+```sql
+ALTER TABLE `COURSE_CLASS`
+  ADD COLUMN `CLASS_TYPE` varchar(20) NOT NULL DEFAULT 'GROUP' COMMENT '班型：GROUP一对多/ONE2ONE一对一' AFTER `COURSE_ID`,
+  ADD COLUMN `STUDENT_ID` varchar(20) NULL COMMENT '一对一班绑定的学员id' AFTER `CLASS_TYPE`,
+  ADD INDEX `IDX_COURSE_CLASS_TENANT_STUDENT` (`TENANT_ID`, `STUDENT_ID`);
+UPDATE `COURSE_CLASS` SET `CLASS_TYPE` = 'GROUP' WHERE `CLASS_TYPE` IS NULL OR `CLASS_TYPE` = '';
+```

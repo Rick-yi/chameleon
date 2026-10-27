@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.course.modular.courseclass.entity.CourseClass;
+import vip.xiaonuo.course.modular.courseclass.enums.CourseClassFormEnum;
 import vip.xiaonuo.course.modular.courseclass.service.CourseClassService;
 import vip.xiaonuo.course.modular.courseclassstudent.entity.CourseClassStudent;
 import vip.xiaonuo.course.modular.courseclassstudent.enums.CourseClassStudentStatusEnum;
@@ -125,6 +126,14 @@ public class CourseClassStudentServiceImpl extends ServiceImpl<CourseClassStuden
         }
         if (ObjectUtil.isEmpty(courseClassStudentAddParam.getStudentIdList())) {
             throw new CommonException("请选择要加入的学员");
+        }
+        // 一对一班只允许绑定学员本人入班，避免把其他学员加进容量为 1 的班
+        if (CourseClassFormEnum.isOne2One(courseClass.getClassType())) {
+            boolean onlyBoundStudent = courseClassStudentAddParam.getStudentIdList().size() == 1
+                    && ObjectUtil.equal(courseClass.getStudentId(), courseClassStudentAddParam.getStudentIdList().get(0));
+            if (!onlyBoundStudent) {
+                throw new CommonException("班级【{}】是一对一班级，只能加入绑定的学员", courseClass.getName());
+            }
         }
         // 学员校验：必须存在且在读（停课/已退费学员不能入班）
         List<StudentBriefDTO> briefList = studentApi.listStudentBrief(courseClassStudentAddParam.getStudentIdList());

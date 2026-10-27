@@ -20,29 +20,36 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vip.xiaonuo.auth.core.util.StpDataScopeUtil;
 import vip.xiaonuo.common.enums.CommonSortOrderEnum;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.page.CommonPageRequest;
-import vip.xiaonuo.course.modular.courseclass.entity.CourseClass;
+import vip.xiaonuo.common.util.CommonSqlUtil;
+import vip.xiaonuo.course.modular.course.entity.Course;
+import vip.xiaonuo.course.modular.course.enums.CourseClassTypeEnum;
 import vip.xiaonuo.course.modular.course.enums.CourseStatusEnum;
+import vip.xiaonuo.course.modular.course.service.CourseService;
+import vip.xiaonuo.course.modular.courseclass.entity.CourseClass;
+import vip.xiaonuo.course.modular.courseclass.enums.CourseClassFormEnum;
 import vip.xiaonuo.course.modular.courseclass.mapper.CourseClassMapper;
 import vip.xiaonuo.course.modular.courseclass.param.CourseClassAddParam;
 import vip.xiaonuo.course.modular.courseclass.param.CourseClassEditParam;
 import vip.xiaonuo.course.modular.courseclass.param.CourseClassIdParam;
 import vip.xiaonuo.course.modular.courseclass.param.CourseClassPageParam;
 import vip.xiaonuo.course.modular.courseclass.service.CourseClassService;
+import vip.xiaonuo.course.modular.courseclassstudent.entity.CourseClassStudent;
+import vip.xiaonuo.course.modular.courseclassstudent.enums.CourseClassStudentStatusEnum;
+import vip.xiaonuo.course.modular.courseclassstudent.mapper.CourseClassStudentMapper;
+import vip.xiaonuo.student.api.StudentApi;
+import vip.xiaonuo.student.api.dto.StudentBriefDTO;
+import vip.xiaonuo.student.api.enums.StudentStatusEnum;
 
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import jakarta.annotation.Resource;
-import vip.xiaonuo.auth.core.util.StpDataScopeUtil;
-import vip.xiaonuo.common.util.CommonSqlUtil;
-import vip.xiaonuo.course.modular.courseclassstudent.entity.CourseClassStudent;
-import vip.xiaonuo.course.modular.courseclassstudent.enums.CourseClassStudentStatusEnum;
-import vip.xiaonuo.course.modular.courseclassstudent.mapper.CourseClassStudentMapper;
 
 /**
  * 班级Service接口实现类
@@ -56,6 +63,12 @@ public class CourseClassServiceImpl extends ServiceImpl<CourseClassMapper, Cours
     @Resource
     private CourseClassStudentMapper courseClassStudentMapper;
 
+    @Resource
+    private CourseService courseService;
+
+    @Resource
+    private StudentApi studentApi;
+
     @Override
     public Page<CourseClass> page(CourseClassPageParam courseClassPageParam) {
         QueryWrapper<CourseClass> queryWrapper = new QueryWrapper<CourseClass>().checkSqlInjection();
@@ -64,6 +77,12 @@ public class CourseClassServiceImpl extends ServiceImpl<CourseClassMapper, Cours
         }
         if (ObjectUtil.isNotEmpty(courseClassPageParam.getCourseId())) {
             queryWrapper.lambda().eq(CourseClass::getCourseId, courseClassPageParam.getCourseId());
+        }
+        if (ObjectUtil.isNotEmpty(courseClassPageParam.getClassType())) {
+            queryWrapper.lambda().eq(CourseClass::getClassType, courseClassPageParam.getClassType());
+        }
+        if (ObjectUtil.isNotEmpty(courseClassPageParam.getStudentId())) {
+            queryWrapper.lambda().eq(CourseClass::getStudentId, courseClassPageParam.getStudentId());
         }
         // 数据范围：仅可见校区的班级
         List<String> visibleCampusIds = StpDataScopeUtil.visibleOrgIds();
@@ -83,6 +102,7 @@ public class CourseClassServiceImpl extends ServiceImpl<CourseClassMapper, Cours
         }
         Page<CourseClass> page = this.page(CommonPageRequest.defaultPage(), queryWrapper);
         fillStudentCount(page.getRecords());
+        fillStudentName(page.getRecords());
         return page;
     }
 
@@ -103,10 +123,28 @@ public class CourseClassServiceImpl extends ServiceImpl<CourseClassMapper, Cours
         }
     }
 
+    /**
+     * 回填一对一班绑定的学员姓名
+     */
+    private void fillStudentName(List<CourseClass> classList) {
+        if (ObjectUtil.isEmpty(classList)) {
+            return;
+        }
+        List<String> studentIdList = classList.stream().map(CourseClass::getStudentId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (studentIdList.isEmpty()) {
+            return;
+        }
+        Map<String, String> nameMap = studentApi.listStudentBrief(studentIdList).stream()
+                .collect(Collectors.toMap(StudentBriefDTO::getId, StudentBriefDTO::getName, (left, right) -> left));
+        classList.forEach(item -> item.setStudentName(nameMap.get(item.getStudentId())));
+    }
+
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void add(CourseClassAddParam courseClassAddParam) {
         CourseClass courseClass = BeanUtil.toBean(courseClassAddParam, CourseClass.class);
+        prepareClassType(courseClass, null);
         boolean repeatName = this.count(new LambdaQueryWrapper<CourseClass>()
                 .eq(CourseClass::getName, courseClass.getName())) > 0;
         if (repeatName) {
@@ -116,13 +154,16 @@ public class CourseClassServiceImpl extends ServiceImpl<CourseClassMapper, Cours
             courseClass.setStatus(CourseStatusEnum.ENABLE.getValue());
         }
         this.save(courseClass);
+        syncOneToOneRoster(courseClass, null);
     }
 
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void edit(CourseClassEditParam courseClassEditParam) {
         CourseClass courseClass = this.queryEntity(courseClassEditParam.getId());
+        CourseClass oldClass = BeanUtil.copyProperties(courseClass, CourseClass.class);
         BeanUtil.copyProperties(courseClassEditParam, courseClass);
+        prepareClassType(courseClass, oldClass);
         boolean repeatName = this.count(new LambdaQueryWrapper<CourseClass>()
                 .eq(CourseClass::getName, courseClass.getName())
                 .ne(CourseClass::getId, courseClass.getId())) > 0;
@@ -130,6 +171,113 @@ public class CourseClassServiceImpl extends ServiceImpl<CourseClassMapper, Cours
             throw new CommonException("存在重复的班级：{}", courseClass.getName());
         }
         this.updateById(courseClass);
+        syncOneToOneRoster(courseClass, oldClass);
+    }
+
+    /**
+     * 归一化班型并校验一对一班绑定学员
+     */
+    private void prepareClassType(CourseClass courseClass, CourseClass oldClass) {
+        Course course = courseService.queryEntity(courseClass.getCourseId());
+        String fallbackType = oldClass == null
+                ? CourseClassFormEnum.GROUP.getValue()
+                : StrUtil.blankToDefault(oldClass.getClassType(), CourseClassFormEnum.GROUP.getValue());
+        String classType = StrUtil.blankToDefault(courseClass.getClassType(), fallbackType);
+        // 课程本身是一对一时，班级不允许建成一对多
+        if (CourseClassTypeEnum.ONE2ONE.getValue().equals(course.getClassType())) {
+            classType = CourseClassFormEnum.ONE2ONE.getValue();
+        }
+        if (!CourseClassFormEnum.isOne2One(classType)) {
+            courseClass.setClassType(CourseClassFormEnum.GROUP.getValue());
+            courseClass.setStudentId(null);
+            if (courseClass.getCapacity() == null || courseClass.getCapacity() < 1) {
+                courseClass.setCapacity(15);
+            }
+            return;
+        }
+
+        if (StrUtil.isBlank(courseClass.getStudentId())) {
+            throw new CommonException("一对一班级必须绑定一名学员");
+        }
+        List<StudentBriefDTO> briefList = studentApi.listStudentBrief(List.of(courseClass.getStudentId()));
+        StudentBriefDTO brief = briefList.stream().findFirst().orElse(null);
+        if (ObjectUtil.isEmpty(brief)) {
+            throw new CommonException("绑定的学员不存在");
+        }
+        if (!StudentStatusEnum.STUDYING.getValue().equals(brief.getStatus())) {
+            throw new CommonException("学员【{}】当前状态【{}】不能绑定一对一班级", brief.getName(), brief.getStatus());
+        }
+        // 原班级已有名册时不允许直接改成一对一，避免把多名学员塞进容量为 1 的班
+        boolean wasOne2One = oldClass != null && CourseClassFormEnum.isOne2One(oldClass.getClassType());
+        if (oldClass != null && !wasOne2One) {
+            long rosterCount = courseClassStudentMapper.selectCount(new LambdaQueryWrapper<CourseClassStudent>()
+                    .eq(CourseClassStudent::getClassId, oldClass.getId())
+                    .eq(CourseClassStudent::getStatus, CourseClassStudentStatusEnum.STUDYING.getValue()));
+            if (rosterCount > 0) {
+                throw new CommonException("班级已有 {} 名在读学员，请新建一对一班级并绑定学员", rosterCount);
+            }
+        }
+        LambdaQueryWrapper<CourseClass> duplicateWrapper = new LambdaQueryWrapper<CourseClass>()
+                .eq(CourseClass::getCourseId, courseClass.getCourseId())
+                .eq(CourseClass::getStudentId, courseClass.getStudentId())
+                .eq(CourseClass::getClassType, CourseClassFormEnum.ONE2ONE.getValue())
+                .eq(CourseClass::getStatus, CourseStatusEnum.ENABLE.getValue());
+        if (StrUtil.isNotBlank(courseClass.getId())) {
+            duplicateWrapper.ne(CourseClass::getId, courseClass.getId());
+        }
+        if (this.count(duplicateWrapper) > 0) {
+            throw new CommonException("学员【{}】在该课程下已有一对一班级", brief.getName());
+        }
+        courseClass.setClassType(CourseClassFormEnum.ONE2ONE.getValue());
+        courseClass.setCapacity(1);
+        if (StrUtil.isBlank(courseClass.getCampusId())) {
+            courseClass.setCampusId(brief.getCampusId());
+        }
+    }
+
+    /**
+     * 一对一班自动维护名册：换学员时退出旧学员，新学员自动入班
+     */
+    private void syncOneToOneRoster(CourseClass courseClass, CourseClass oldClass) {
+        if (!CourseClassFormEnum.isOne2One(courseClass.getClassType())) {
+            return;
+        }
+        String previousStudentId = oldClass == null ? null : oldClass.getStudentId();
+        if (StrUtil.isNotBlank(previousStudentId) && !previousStudentId.equals(courseClass.getStudentId())) {
+            quitRoster(courseClass.getId(), previousStudentId);
+        }
+        if (StrUtil.isBlank(courseClass.getStudentId())) {
+            return;
+        }
+        long existed = courseClassStudentMapper.selectCount(new LambdaQueryWrapper<CourseClassStudent>()
+                .eq(CourseClassStudent::getClassId, courseClass.getId())
+                .eq(CourseClassStudent::getStudentId, courseClass.getStudentId())
+                .eq(CourseClassStudent::getStatus, CourseClassStudentStatusEnum.STUDYING.getValue()));
+        if (existed > 0) {
+            return;
+        }
+        CourseClassStudent relation = new CourseClassStudent();
+        relation.setClassId(courseClass.getId());
+        relation.setStudentId(courseClass.getStudentId());
+        relation.setStatus(CourseClassStudentStatusEnum.STUDYING.getValue());
+        courseClassStudentMapper.insert(relation);
+    }
+
+    /**
+     * 一对一换绑时，旧学员退出班级名册（保留历史点名记录）
+     */
+    private void quitRoster(String classId, String studentId) {
+        CourseClassStudent relation = courseClassStudentMapper.selectOne(new LambdaQueryWrapper<CourseClassStudent>()
+                .eq(CourseClassStudent::getClassId, classId)
+                .eq(CourseClassStudent::getStudentId, studentId)
+                .eq(CourseClassStudent::getStatus, CourseClassStudentStatusEnum.STUDYING.getValue())
+                .last("limit 1"));
+        if (ObjectUtil.isEmpty(relation)) {
+            return;
+        }
+        relation.setStatus(CourseClassStudentStatusEnum.QUIT.getValue());
+        courseClassStudentMapper.updateById(relation);
+        courseClassStudentMapper.deleteById(relation.getId());
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -143,7 +291,9 @@ public class CourseClassServiceImpl extends ServiceImpl<CourseClassMapper, Cours
 
     @Override
     public CourseClass detail(CourseClassIdParam courseClassIdParam) {
-        return this.queryEntity(courseClassIdParam.getId());
+        CourseClass courseClass = this.queryEntity(courseClassIdParam.getId());
+        fillStudentName(List.of(courseClass));
+        return courseClass;
     }
 
     @Override

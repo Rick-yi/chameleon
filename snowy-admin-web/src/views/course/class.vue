@@ -16,6 +16,9 @@
 				<a-form-item label="课程">
 					<a-select v-model:value="searchFormState.courseId" placeholder="全部课程" :options="courseOptions" allow-clear style="width: 200px" />
 				</a-form-item>
+				<a-form-item label="班型">
+					<a-select v-model:value="searchFormState.classType" placeholder="全部班型" :options="classTypeOptions" allow-clear style="width: 140px" />
+				</a-form-item>
 				<a-form-item>
 					<a-space>
 						<a-button type="primary" @click="tableRef.refresh(true)">
@@ -42,6 +45,11 @@
 			<template #bodyCell="{ column, record }">
 				<template v-if="column.dataIndex === 'courseId'">
 					{{ courseName(record.courseId) }}
+				</template>
+				<template v-if="column.dataIndex === 'classType'">
+					<a-tag :color="record.classType === 'ONE2ONE' ? 'purple' : 'blue'">
+						{{ record.classType === 'ONE2ONE' ? `一对一${record.studentName ? ' · ' + record.studentName : ''}` : '一对多' }}
+					</a-tag>
 				</template>
 				<template v-if="column.dataIndex === 'teacherId'">
 					{{ teacherName(record.teacherId) }}
@@ -79,12 +87,34 @@
 			<a-row :gutter="16">
 				<a-col :span="12">
 					<a-form-item label="课程" name="courseId" :rules="[{ required: true, message: '请选择课程' }]">
-						<a-select v-model:value="formData.courseId" placeholder="请选择课程" :options="courseOptions" />
+						<a-select v-model:value="formData.courseId" placeholder="请选择课程" :options="courseOptions" @change="onCourseChange" />
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
 					<a-form-item label="班级名称" name="name" :rules="[{ required: true, message: '请输入班级名称' }]">
-						<a-input v-model:value="formData.name" placeholder="如：少儿美术启蒙 A1" allow-clear />
+						<a-input v-model:value="formData.name" placeholder="如：少儿美术启蒙 A1 / 张三钢琴一对一" allow-clear />
+					</a-form-item>
+				</a-col>
+				<a-col :span="8">
+					<a-form-item label="班型" name="classType">
+						<a-select v-model:value="formData.classType" :options="classTypeOptions" :disabled="selectedCourseIsOne2One" @change="onClassTypeChange" />
+					</a-form-item>
+				</a-col>
+				<a-col v-if="isOne2One" :span="16">
+					<a-form-item
+						label="绑定学员"
+						name="studentId"
+						extra="一对一班容量固定为 1，保存后该学员自动进入班级名册"
+						:rules="[{ required: true, message: '请选择一对一绑定学员' }]"
+					>
+						<a-select
+							v-model:value="formData.studentId"
+							placeholder="搜索并选择学员"
+							:options="studentOptions"
+							show-search
+							option-filter-prop="label"
+							allow-clear
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :span="8">
@@ -102,7 +132,7 @@
 						<a-input v-model:value="formData.classroom" placeholder="如：A101" allow-clear />
 					</a-form-item>
 				</a-col>
-				<a-col :span="12">
+				<a-col v-if="!isOne2One" :span="12">
 					<a-form-item label="容量(人)" name="capacity">
 						<a-input-number v-model:value="formData.capacity" :min="1" style="width: 100%" />
 					</a-form-item>
@@ -122,10 +152,17 @@
 	</a-modal>
 
 	<a-modal v-model:open="studentOpen" :title="`班级学员 · ${currentClass?.name || ''}`" :width="760" :destroy-on-close="true" :footer="null">
-		<div style="margin-bottom: 12px; display: flex; gap: 8px">
+		<div v-if="currentClass.classType !== 'ONE2ONE'" style="margin-bottom: 12px; display: flex; gap: 8px">
 			<a-select v-model:value="addStudentIds" mode="multiple" placeholder="选择学员加入班级" :options="studentOptions" style="flex: 1" allow-clear />
 			<a-button v-if="hasPerm('/course/classStudent/add')" type="primary" :disabled="!addStudentIds || addStudentIds.length === 0" @click="onAddStudents">加入班级</a-button>
 		</div>
+		<a-alert
+			v-else
+			type="info"
+			show-icon
+			style="margin-bottom: 12px"
+			:message="`一对一班级已绑定学员：${currentClass.studentName || '未命名学员'}，如需换绑请编辑班级`"
+		/>
 		<a-alert
 			type="info"
 			show-icon
@@ -159,9 +196,10 @@
 					</a-tag>
 				</template>
 				<template v-if="column.dataIndex === 'action'">
-					<a-popconfirm title="确定退班吗？" @confirm="onQuit(record)">
+					<a-popconfirm v-if="currentClass.classType !== 'ONE2ONE'" title="确定退班吗？" @confirm="onQuit(record)">
 						<a-button type="link" danger size="small">退班</a-button>
 					</a-popconfirm>
+					<span v-else style="color: rgba(0,0,0,.45)">请在编辑班级中换绑</span>
 				</template>
 			</template>
 		</s-table>
@@ -194,9 +232,18 @@
 		{ value: 'ENABLE', label: '启用' },
 		{ value: 'DISABLE', label: '停用' }
 	]
+	const classTypeOptions = [
+		{ value: 'GROUP', label: '一对多' },
+		{ value: 'ONE2ONE', label: '一对一' }
+	]
+	const isOne2One = computed(() => formData.value.classType === 'ONE2ONE')
+	const selectedCourseIsOne2One = computed(
+		() => courseOptions.value.find((item) => item.value === formData.value.courseId)?.classType === 'ONE2ONE'
+	)
 	const columns = [
 		{ title: '班级名称', dataIndex: 'name' },
 		{ title: '课程', dataIndex: 'courseId' },
+		{ title: '班型', dataIndex: 'classType', width: 150 },
 		{ title: '授课教师', dataIndex: 'teacherId', width: 120 },
 		{ title: '教室', dataIndex: 'classroom', width: 110 },
 		{ title: '在学/容量', dataIndex: 'studentCount', width: 120 },
@@ -220,7 +267,11 @@
 	}
 	const loadCourses = () => {
 		courseApi.coursePage({ current: 1, size: 100 }).then((data) => {
-			courseOptions.value = (data.records || []).map((item) => ({ value: item.id, label: item.name }))
+			courseOptions.value = (data.records || []).map((item) => ({
+				value: item.id,
+				label: item.name,
+				classType: item.classType
+			}))
 		})
 		courseApi.classPage({ current: 1, size: 200 }).then((data) => {
 			classRecords.value = data.records || []
@@ -230,9 +281,19 @@
 		})
 	}
 	const loadStudents = () => {
-		studentApi.studentPage({ current: 1, size: 100 }).then((data) => {
-			studentOptions.value = (data.records || []).map((item) => ({ value: item.id, label: `${item.name}(${item.parentPhone})` }))
+		studentApi.studentPage({ current: 1, size: 500 }).then((data) => {
+			studentOptions.value = (data.records || []).map((item) => ({
+				value: item.id,
+				label: `${item.name}${item.parentPhone ? `（${item.parentPhone}）` : ''}`
+			}))
+			rememberStudentOption(formData.value.studentId, formData.value.studentName)
 		})
+	}
+	const rememberStudentOption = (studentId, studentName) => {
+		if (!studentId || !studentName) return
+		if (!studentOptions.value.some((item) => item.value === studentId)) {
+			studentOptions.value.unshift({ value: studentId, label: studentName })
+		}
 	}
 	const courseName = (id) => {
 		const item = courseOptions.value.find((i) => i.value === id)
@@ -273,7 +334,9 @@
 	}
 	const studentName = (id) => {
 		const item = studentOptions.value.find((i) => i.value === id)
-		return item ? item.label : id
+		if (item) return item.label
+		if (id && id === currentClass.value.studentId) return currentClass.value.studentName || id
+		return id
 	}
 	const loadOptions = () => {
 		courseApi
@@ -305,16 +368,40 @@
 			formData.value.campusId = campusOptions.value[0].value
 		}
 	}
+	const onClassTypeChange = (value) => {
+		if (value === 'ONE2ONE') {
+			formData.value.capacity = 1
+			loadStudents()
+			return
+		}
+		formData.value.studentId = undefined
+		if (!formData.value.capacity || formData.value.capacity < 2) {
+			formData.value.capacity = 15
+		}
+	}
+	const onCourseChange = (courseId) => {
+		const course = courseOptions.value.find((item) => item.value === courseId)
+		if (course?.classType === 'ONE2ONE') {
+			formData.value.classType = 'ONE2ONE'
+			formData.value.capacity = 1
+			loadStudents()
+		} else if (!formData.value.classType) {
+			formData.value.classType = 'GROUP'
+		}
+	}
 	const onOpenAdd = () => {
-		formData.value = { status: 'ENABLE', capacity: 15 }
+		formData.value = { status: 'ENABLE', capacity: 15, classType: 'GROUP' }
 		weekTemplate.value = []
 		applyDefaultCampus()
+		loadStudents()
 		open.value = true
 	}
 	const onOpenEdit = (record) => {
-		formData.value = { ...record }
+		formData.value = { ...record, classType: record.classType || 'GROUP' }
+		rememberStudentOption(record.studentId, record.studentName)
 		weekTemplate.value = parseTemplate(record.weekTemplateJson)
 		applyDefaultCampus()
+		loadStudents()
 		open.value = true
 	}
 	const onSubmit = () => {
@@ -322,7 +409,12 @@
 			const edit = !!formData.value.id
 			const api = edit ? courseApi.classEdit : courseApi.classAdd
 			const weekTemplateValue = templateEditorRef.value ? templateEditorRef.value.getValue() : weekTemplate.value
-			const body = { ...formData.value, weekTemplateJson: JSON.stringify(weekTemplateValue || []) }
+			const body = {
+				...formData.value,
+				capacity: formData.value.classType === 'ONE2ONE' ? 1 : formData.value.capacity,
+				studentId: formData.value.classType === 'ONE2ONE' ? formData.value.studentId : undefined,
+				weekTemplateJson: JSON.stringify(weekTemplateValue || [])
+			}
 			api(body).then(() => {
 				open.value = false
 				tableRef.value.refresh()
