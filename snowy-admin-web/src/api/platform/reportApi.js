@@ -34,6 +34,12 @@ export default {
 	tenantRank(data) {
 		return request('tenantRank', data, 'get')
 	},
+	metrics(data) {
+		return request('metrics', data, 'get')
+	},
+	tenantHealth(data) {
+		return request('tenantHealth', data, 'get')
+	},
 	exportReport(data) {
 		return request('export', data, 'get', {
 			responseType: 'blob'

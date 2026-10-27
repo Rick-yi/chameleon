@@ -14,8 +14,10 @@ package vip.xiaonuo.platform.modular.report.service;
 
 import jakarta.servlet.http.HttpServletResponse;
 import vip.xiaonuo.platform.modular.report.dto.PlatformExpiringTenantDTO;
+import vip.xiaonuo.platform.modular.report.dto.PlatformMetricsDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformOverviewDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformPackageDistributionDTO;
+import vip.xiaonuo.platform.modular.report.dto.PlatformTenantHealthDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformTenantRankDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformTenantTrendDTO;
 
@@ -44,6 +46,28 @@ public interface PlatformReportService {
 
     /** 租户活跃度排行 */
     List<PlatformTenantRankDTO> tenantRank(Integer limit);
+
+    /**
+     * 平台经营指标（MRR / 续费率 / 流失率 / 到期分布 / 试用转化）
+     *
+     * @param packageId 套餐id，空表示全部
+     * @param month     统计月份 yyyy-MM，空表示当前月
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 10:00
+     **/
+    PlatformMetricsDTO metrics(String packageId, String month);
+
+    /**
+     * 租户健康度评分与流失预警
+     *
+     * @param packageId 套餐id，空表示全部
+     * @param limit     返回条数（风险优先）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 10:00
+     **/
+    List<PlatformTenantHealthDTO> tenantHealth(String packageId, Integer limit);
 
     /**
      * 导出平台报表

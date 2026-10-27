@@ -23,26 +23,36 @@ import org.springframework.stereotype.Service;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.util.CommonDownloadUtil;
 import vip.xiaonuo.common.util.CommonExcelUtil;
+import vip.xiaonuo.platform.core.service.TenantHealthService;
 import vip.xiaonuo.platform.modular.report.dto.PlatformExpiringTenantDTO;
+import vip.xiaonuo.platform.modular.report.dto.PlatformExpiryBucketDTO;
+import vip.xiaonuo.platform.modular.report.dto.PlatformMetricsDTO;
+import vip.xiaonuo.platform.modular.report.dto.PlatformMetricTrendDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformOverviewDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformPackageDistributionDTO;
+import vip.xiaonuo.platform.modular.report.dto.PlatformTenantHealthDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformTenantRankDTO;
 import vip.xiaonuo.platform.modular.report.dto.PlatformTenantTrendDTO;
 import vip.xiaonuo.platform.modular.report.service.PlatformReportService;
+import vip.xiaonuo.platform.modular.tenantpackage.entity.TenantPackage;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 平台报表Service接口实现类
@@ -63,6 +73,9 @@ public class PlatformReportServiceImpl implements PlatformReportService {
 
     @Resource
     private JdbcTemplate jdbcTemplate;
+
+    @Resource
+    private TenantHealthService tenantHealthService;
 
     @Override
     public PlatformOverviewDTO overview() {
@@ -238,6 +251,367 @@ public class PlatformReportServiceImpl implements PlatformReportService {
         List<PlatformTenantRankDTO> resultList = new ArrayList<>(rankMap.values());
         resultList.sort((a, b) -> b.getPaidAmount().compareTo(a.getPaidAmount()));
         return resultList.stream().limit(size).collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    public PlatformMetricsDTO metrics(String packageId, String month) {
+        YearMonth statMonth = resolveMonth(month);
+        Date start = monthStart(statMonth);
+        Date end = monthStart(statMonth.plusMonths(1));
+        Date trendStart = monthStart(statMonth.minusMonths(11));
+        Date now = new Date();
+        Date in30 = DateUtil.offsetDay(now, 30);
+
+        List<TenantSnapshot> tenantList = loadTenantSnapshots(packageId);
+        Map<String, TenantPackage> packageMap = loadPackageMap();
+        List<RenewalSnapshot> renewalList = loadRenewals(trendStart, packageId);
+        Set<String> allRenewalTenantIds = loadRenewalTenantIds(packageId);
+
+        PlatformMetricsDTO dto = new PlatformMetricsDTO();
+        dto.setMonth(statMonth.toString());
+        dto.setPackageId(StrUtil.emptyToNull(packageId));
+        TenantPackage selectedPackage = StrUtil.isBlank(packageId) ? null : packageMap.get(packageId);
+        if (selectedPackage != null) {
+            dto.setPackageName(selectedPackage.getName());
+        }
+
+        long activeTenantCount = 0L;
+        long payingTenantCount = 0L;
+        long activeAtStart = 0L;
+        long newTenantCount = 0L;
+        long trialConvertedCount = 0L;
+        long trialTenantCount = 0L;
+        long expiring30Count = 0L;
+        long expiredCount = 0L;
+        BigDecimal mrr = BigDecimal.ZERO;
+        for (TenantSnapshot tenant : tenantList) {
+            boolean createdBeforeEnd = tenant.createTime() != null && tenant.createTime().before(end);
+            boolean notExpiredAtStart = tenant.expireTime() == null || !tenant.expireTime().before(start);
+            boolean nonStopped = !"STOP".equals(tenant.status());
+            if (createdBeforeEnd && notExpiredAtStart && nonStopped) {
+                activeTenantCount++;
+            }
+            if ("NORMAL".equals(tenant.status()) && StrUtil.isNotBlank(tenant.packageId())
+                    && createdBeforeEnd && notExpiredAtStart) {
+                payingTenantCount++;
+                mrr = mrr.add(monthlyValue(packageMap.get(tenant.packageId())));
+            }
+            if (tenant.createTime() != null && tenant.createTime().before(start) && notExpiredAtStart) {
+                activeAtStart++;
+            }
+            if (inMonth(tenant.createTime(), start, end)) {
+                newTenantCount++;
+                if (allRenewalTenantIds.contains(tenant.id())) {
+                    trialConvertedCount++;
+                }
+            }
+            if ("TRIAL".equals(tenant.status())) {
+                trialTenantCount++;
+            }
+            if (tenant.expireTime() != null) {
+                if (tenant.expireTime().before(now)) {
+                    expiredCount++;
+                } else if (!tenant.expireTime().after(in30)) {
+                    expiring30Count++;
+                }
+            }
+        }
+
+        BigDecimal renewalAmount = BigDecimal.ZERO;
+        long renewalTenantCount = 0L;
+        Set<String> renewedTenantIds = new HashSet<>();
+        for (RenewalSnapshot renewal : renewalList) {
+            if (inMonth(renewal.createTime(), start, end)) {
+                renewalAmount = renewalAmount.add(renewal.amount());
+                if (renewedTenantIds.add(renewal.tenantId())) {
+                    renewalTenantCount++;
+                }
+            }
+        }
+        long expiredUnrenewedCount = 0L;
+        long churnTenantCount = 0L;
+        for (TenantSnapshot tenant : tenantList) {
+            if (inMonth(tenant.expireTime(), start, end) && !renewedTenantIds.contains(tenant.id())) {
+                expiredUnrenewedCount++;
+                if ("STOP".equals(tenant.status())) {
+                    churnTenantCount++;
+                }
+            }
+        }
+
+        dto.setActiveTenantCount(activeTenantCount);
+        dto.setPayingTenantCount(payingTenantCount);
+        dto.setMrr(moneyValue(mrr));
+        dto.setArr(moneyValue(mrr.multiply(BigDecimal.valueOf(12))));
+        dto.setRenewalAmount(moneyValue(renewalAmount));
+        dto.setRenewalTenantCount(renewalTenantCount);
+        dto.setExpiredUnrenewedCount(expiredUnrenewedCount);
+        dto.setRenewalRate(percent(renewalTenantCount, renewalTenantCount + expiredUnrenewedCount));
+        dto.setChurnTenantCount(churnTenantCount);
+        dto.setChurnRate(percent(churnTenantCount, activeAtStart));
+        dto.setNewTenantCount(newTenantCount);
+        dto.setTrialTenantCount(trialTenantCount);
+        dto.setTrialConvertedCount(trialConvertedCount);
+        dto.setTrialConversionRate(percent(trialConvertedCount, newTenantCount));
+        dto.setExpiring30Count(expiring30Count);
+        dto.setExpiredCount(expiredCount);
+        dto.setTrend(buildMetricTrend(statMonth, tenantList, packageMap, renewalList));
+        dto.setExpiryDistribution(buildExpiryDistribution(tenantList, packageMap));
+        return dto;
+    }
+
+    @Override
+    public List<PlatformTenantHealthDTO> tenantHealth(String packageId, Integer limit) {
+        return tenantHealthService.rank(packageId, limit);
+    }
+
+    /**
+     * 近 12 个月经营趋势（以筛选月份为最后一个月）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 10:00
+     **/
+    private List<PlatformMetricTrendDTO> buildMetricTrend(YearMonth statMonth, List<TenantSnapshot> tenantList,
+                                                          Map<String, TenantPackage> packageMap,
+                                                          List<RenewalSnapshot> renewalList) {
+        List<PlatformMetricTrendDTO> trendList = new ArrayList<>();
+        for (int i = 11; i >= 0; i--) {
+            YearMonth current = statMonth.minusMonths(i);
+            Date start = monthStart(current);
+            Date end = monthStart(current.plusMonths(1));
+            BigDecimal mrr = BigDecimal.ZERO;
+            long newTenantCount = 0L;
+            long activeAtStart = 0L;
+            for (TenantSnapshot tenant : tenantList) {
+                boolean createdBeforeEnd = tenant.createTime() != null && tenant.createTime().before(end);
+                boolean notExpiredAtStart = tenant.expireTime() == null || !tenant.expireTime().before(start);
+                if ("NORMAL".equals(tenant.status()) && createdBeforeEnd && notExpiredAtStart) {
+                    mrr = mrr.add(monthlyValue(packageMap.get(tenant.packageId())));
+                }
+                if (inMonth(tenant.createTime(), start, end)) {
+                    newTenantCount++;
+                }
+                if (tenant.createTime() != null && tenant.createTime().before(start) && notExpiredAtStart) {
+                    activeAtStart++;
+                }
+            }
+            BigDecimal renewalAmount = BigDecimal.ZERO;
+            Set<String> renewedIds = new HashSet<>();
+            for (RenewalSnapshot renewal : renewalList) {
+                if (inMonth(renewal.createTime(), start, end)) {
+                    renewalAmount = renewalAmount.add(renewal.amount());
+                    renewedIds.add(renewal.tenantId());
+                }
+            }
+            long expiredUnrenewed = 0L;
+            long churn = 0L;
+            for (TenantSnapshot tenant : tenantList) {
+                if (inMonth(tenant.expireTime(), start, end) && !renewedIds.contains(tenant.id())) {
+                    expiredUnrenewed++;
+                    if ("STOP".equals(tenant.status())) {
+                        churn++;
+                    }
+                }
+            }
+            PlatformMetricTrendDTO trend = new PlatformMetricTrendDTO();
+            trend.setMonth(current.toString());
+            trend.setMrr(moneyValue(mrr));
+            trend.setRenewalAmount(moneyValue(renewalAmount));
+            trend.setRenewalTenantCount((long) renewedIds.size());
+            trend.setNewTenantCount(newTenantCount);
+            trend.setChurnTenantCount(churn);
+            trend.setRenewalRate(percent(renewedIds.size(), renewedIds.size() + expiredUnrenewed));
+            trendList.add(trend);
+        }
+        return trendList;
+    }
+
+    /**
+     * 当前租户到期分布（含已过期档）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 10:00
+     **/
+    private List<PlatformExpiryBucketDTO> buildExpiryDistribution(List<TenantSnapshot> tenantList,
+                                                                  Map<String, TenantPackage> packageMap) {
+        Map<String, PlatformExpiryBucketDTO> bucketMap = new LinkedHashMap<>();
+        addBucket(bucketMap, "EXPIRED", "已过期", -999999, -1);
+        addBucket(bucketMap, "D0_7", "0-7天", 0, 7);
+        addBucket(bucketMap, "D8_15", "8-15天", 8, 15);
+        addBucket(bucketMap, "D16_30", "16-30天", 16, 30);
+        addBucket(bucketMap, "D31_60", "31-60天", 31, 60);
+        addBucket(bucketMap, "D61_90", "61-90天", 61, 90);
+        addBucket(bucketMap, "D90_PLUS", "90天以上", 91, null);
+        LocalDate today = LocalDate.now();
+        for (TenantSnapshot tenant : tenantList) {
+            if (tenant.expireTime() == null) {
+                continue;
+            }
+            LocalDate expireDate = tenant.expireTime().toInstant()
+                    .atZone(ZoneId.systemDefault()).toLocalDate();
+            long daysLeft = ChronoUnit.DAYS.between(today, expireDate);
+            String bucketKey;
+            if (daysLeft < 0) {
+                bucketKey = "EXPIRED";
+            } else if (daysLeft <= 7) {
+                bucketKey = "D0_7";
+            } else if (daysLeft <= 15) {
+                bucketKey = "D8_15";
+            } else if (daysLeft <= 30) {
+                bucketKey = "D16_30";
+            } else if (daysLeft <= 60) {
+                bucketKey = "D31_60";
+            } else if (daysLeft <= 90) {
+                bucketKey = "D61_90";
+            } else {
+                bucketKey = "D90_PLUS";
+            }
+            PlatformExpiryBucketDTO bucket = bucketMap.get(bucketKey);
+            bucket.setTenantCount(bucket.getTenantCount() + 1);
+            if (!"STOP".equals(tenant.status())) {
+                bucket.setMrr(moneyValue(bucket.getMrr().add(monthlyValue(packageMap.get(tenant.packageId())))));
+            }
+        }
+        return new ArrayList<>(bucketMap.values());
+    }
+
+    private void addBucket(Map<String, PlatformExpiryBucketDTO> bucketMap, String bucket, String label,
+                           Integer minDays, Integer maxDays) {
+        PlatformExpiryBucketDTO dto = new PlatformExpiryBucketDTO();
+        dto.setBucket(bucket);
+        dto.setLabel(label);
+        dto.setMinDays(minDays);
+        dto.setMaxDays(maxDays);
+        bucketMap.put(bucket, dto);
+    }
+
+    private List<TenantSnapshot> loadTenantSnapshots(String packageId) {
+        StringBuilder sql = new StringBuilder("SELECT t.ID, t.PACKAGE_ID, t.STATUS, t.CREATE_TIME, t.EXPIRE_TIME "
+                + "FROM T_TENANT t WHERE t.ID <> ? AND t.DELETE_FLAG = ?");
+        List<Object> args = new ArrayList<>();
+        args.add(PLATFORM_TENANT_ID);
+        args.add(NOT_DELETE);
+        if (StrUtil.isNotBlank(packageId)) {
+            sql.append(" AND t.PACKAGE_ID = ?");
+            args.add(packageId);
+        }
+        List<TenantSnapshot> resultList = new ArrayList<>();
+        for (Map<String, Object> row : jdbcTemplate.queryForList(sql.toString(), args.toArray())) {
+            resultList.add(new TenantSnapshot(
+                    String.valueOf(row.get("ID")),
+                    row.get("PACKAGE_ID") == null ? null : row.get("PACKAGE_ID").toString(),
+                    row.get("STATUS") == null ? null : row.get("STATUS").toString(),
+                    toDate(row.get("CREATE_TIME")),
+                    toDate(row.get("EXPIRE_TIME"))));
+        }
+        return resultList;
+    }
+
+    private Map<String, TenantPackage> loadPackageMap() {
+        Map<String, TenantPackage> packageMap = new HashMap<>();
+        for (Map<String, Object> row : jdbcTemplate.queryForList(
+                "SELECT ID, NAME, PRICE, VALIDITY_DAYS FROM T_TENANT_PACKAGE WHERE DELETE_FLAG = ?",
+                NOT_DELETE)) {
+            TenantPackage tenantPackage = new TenantPackage();
+            tenantPackage.setId(String.valueOf(row.get("ID")));
+            tenantPackage.setName(row.get("NAME") == null ? null : row.get("NAME").toString());
+            tenantPackage.setPrice(toBigDecimal(row.get("PRICE")));
+            Object validityDays = row.get("VALIDITY_DAYS");
+            tenantPackage.setValidityDays(validityDays instanceof Number number ? number.intValue() : null);
+            packageMap.put(tenantPackage.getId(), tenantPackage);
+        }
+        return packageMap;
+    }
+
+    private List<RenewalSnapshot> loadRenewals(Date since, String packageId) {
+        StringBuilder sql = new StringBuilder("SELECT r.TENANT_ID, r.AMOUNT, r.CREATE_TIME FROM T_TENANT_RENEW r "
+                + "JOIN T_TENANT t ON t.ID = r.TENANT_ID AND t.DELETE_FLAG = ? "
+                + "WHERE r.DELETE_FLAG = ?");
+        List<Object> args = new ArrayList<>();
+        args.add(NOT_DELETE);
+        args.add(NOT_DELETE);
+        if (since != null) {
+            sql.append(" AND r.CREATE_TIME >= ?");
+            args.add(since);
+        }
+        if (StrUtil.isNotBlank(packageId)) {
+            sql.append(" AND t.PACKAGE_ID = ?");
+            args.add(packageId);
+        }
+        List<RenewalSnapshot> resultList = new ArrayList<>();
+        for (Map<String, Object> row : jdbcTemplate.queryForList(sql.toString(), args.toArray())) {
+            resultList.add(new RenewalSnapshot(
+                    String.valueOf(row.get("TENANT_ID")),
+                    toBigDecimal(row.get("AMOUNT")),
+                    toDate(row.get("CREATE_TIME"))));
+        }
+        return resultList;
+    }
+
+    private Set<String> loadRenewalTenantIds(String packageId) {
+        StringBuilder sql = new StringBuilder("SELECT DISTINCT r.TENANT_ID FROM T_TENANT_RENEW r "
+                + "JOIN T_TENANT t ON t.ID = r.TENANT_ID AND t.DELETE_FLAG = ? WHERE r.DELETE_FLAG = ?");
+        List<Object> args = new ArrayList<>();
+        args.add(NOT_DELETE);
+        args.add(NOT_DELETE);
+        if (StrUtil.isNotBlank(packageId)) {
+            sql.append(" AND t.PACKAGE_ID = ?");
+            args.add(packageId);
+        }
+        Set<String> tenantIds = new HashSet<>();
+        for (Map<String, Object> row : jdbcTemplate.queryForList(sql.toString(), args.toArray())) {
+            tenantIds.add(String.valueOf(row.get("TENANT_ID")));
+        }
+        return tenantIds;
+    }
+
+    private BigDecimal monthlyValue(TenantPackage tenantPackage) {
+        if (tenantPackage == null || tenantPackage.getPrice() == null) {
+            return BigDecimal.ZERO;
+        }
+        int validityDays = ObjectUtil.defaultIfNull(tenantPackage.getValidityDays(), 0);
+        if (validityDays <= 0) {
+            return tenantPackage.getPrice();
+        }
+        return tenantPackage.getPrice().multiply(BigDecimal.valueOf(30))
+                .divide(BigDecimal.valueOf(validityDays), 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal percent(long numerator, long denominator) {
+        if (denominator <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return BigDecimal.valueOf(numerator).multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(denominator), 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal moneyValue(BigDecimal value) {
+        return (value == null ? BigDecimal.ZERO : value).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private boolean inMonth(Date date, Date start, Date end) {
+        return date != null && !date.before(start) && date.before(end);
+    }
+
+    private YearMonth resolveMonth(String month) {
+        if (StrUtil.isBlank(month)) {
+            return YearMonth.now();
+        }
+        try {
+            return YearMonth.parse(month);
+        } catch (DateTimeParseException e) {
+            throw new CommonException("月份格式应为 yyyy-MM：{}", month);
+        }
+    }
+
+    private Date monthStart(YearMonth yearMonth) {
+        return Date.from(yearMonth.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant());
+    }
+
+    private record TenantSnapshot(String id, String packageId, String status, Date createTime, Date expireTime) {
+    }
+
+    private record RenewalSnapshot(String tenantId, BigDecimal amount, Date createTime) {
     }
 
     @Override

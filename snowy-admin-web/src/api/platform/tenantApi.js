@@ -62,7 +62,38 @@ export default {
 	packageEdit(data) {
 		return request('package/edit', data)
 	},
+	packageStatus(data) {
+		return request('package/status', data)
+	},
+	packageCopy(data) {
+		return request('package/copy', data)
+	},
 	packageDelete(data) {
 		return request('package/delete', data)
+	},
+	// 平台账单（内部对账）
+	billPage(data) {
+		return request('bill/page', data, 'get')
+	},
+	billSummary(data) {
+		return request('bill/summary', data, 'get')
+	},
+	billAdd(data) {
+		return request('bill/add', data)
+	},
+	billEdit(data) {
+		return request('bill/edit', data)
+	},
+	billDelete(data) {
+		return request('bill/delete', data)
+	},
+	billPay(data) {
+		return request('bill/pay', data)
+	},
+	billVoid(data) {
+		return request('bill/void', data)
+	},
+	billExport(data) {
+		return request('bill/export', data, 'get', { responseType: 'blob' })
 	}
 }

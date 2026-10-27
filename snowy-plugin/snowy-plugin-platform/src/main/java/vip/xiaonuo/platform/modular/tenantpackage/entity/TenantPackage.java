@@ -51,6 +51,10 @@ public class TenantPackage extends CommonEntity {
     @Schema(description = "功能开关配置(JSON)")
     private String funcConfig;
 
+    /** 上下架状态(ON/OFF) */
+    @Schema(description = "上下架状态(ON/OFF)")
+    private String status;
+
     /** 学员数上限 */
     @Schema(description = "学员数上限")
     private Integer studentLimit;
@@ -58,6 +62,10 @@ public class TenantPackage extends CommonEntity {
     /** 校区数上限 */
     @Schema(description = "校区数上限")
     private Integer campusLimit;
+
+    /** 账号数上限 */
+    @Schema(description = "账号数上限")
+    private Integer accountLimit;
 
     /** 备注 */
     @Schema(description = "备注")
