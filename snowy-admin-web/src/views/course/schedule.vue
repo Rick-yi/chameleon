@@ -1,35 +1,49 @@
-<template>
+﻿<template>
 	<div>
 		<page-header title="排课课表" desc="周视图 / 日视图 / 教师视角，可批量生成、导出课表">
 			<template #extra>
-				<a-button v-if="hasPerm('/course/schedule/export')" @click="onExport">
-					<template #icon><file-text-outlined /></template>
-					导出课表
-				</a-button>
-				<a-button @click="onOpenTemplate">
-					<template #icon><profile-outlined /></template>
-					课表模板
-				</a-button>
-				<a-button @click="openChangeDrawer">
-					<template #icon><history-outlined /></template>
-					调课记录
-				</a-button>
-				<a-button @click="openConfig">
-					<template #icon><setting-outlined /></template>
-					排课配置
-				</a-button>
-				<a-button v-if="hasPerm('/course/schedule/generate')" @click="onOpenGenerate">
-					<template #icon><thunderbolt-outlined /></template>
-					批量生成
-				</a-button>
-				<a-button v-if="hasPerm('/course/schedule/generateAdhoc')" @click="onOpenAdhoc">
-					<template #icon><team-outlined /></template>
-					直接排课
-				</a-button>
-				<a-button v-if="hasPerm('/course/schedule/add')" type="primary" @click="onOpenAdd">
-					<template #icon><plus-outlined /></template>
-					手动排课
-				</a-button>
+				<a-dropdown v-if="canSchedule">
+					<a-button type="primary">
+						<template #icon><plus-outlined /></template>
+						排课
+						<down-outlined />
+					</a-button>
+					<template #overlay>
+						<a-menu @click="onScheduleMenuClick">
+							<a-menu-item v-if="hasPerm('/course/schedule/generate')" key="generate">
+								<thunderbolt-outlined /> 批量生成
+							</a-menu-item>
+							<a-menu-item v-if="hasPerm('/course/schedule/generateAdhoc')" key="adhoc">
+								<team-outlined /> 直接排课
+							</a-menu-item>
+							<a-menu-item v-if="hasPerm('/course/schedule/add')" key="add">
+								<plus-outlined /> 手动排课
+							</a-menu-item>
+						</a-menu>
+					</template>
+				</a-dropdown>
+				<a-dropdown>
+					<a-button>
+						<template #icon><more-outlined /></template>
+						更多
+					</a-button>
+					<template #overlay>
+						<a-menu @click="onMoreMenuClick">
+							<a-menu-item v-if="hasPerm('/course/schedule/export')" key="export">
+								<file-text-outlined /> 导出课表
+							</a-menu-item>
+							<a-menu-item key="template">
+								<profile-outlined /> 课表模板
+							</a-menu-item>
+							<a-menu-item key="history">
+								<history-outlined /> 调课记录
+							</a-menu-item>
+							<a-menu-item key="config">
+								<setting-outlined /> 排课配置
+							</a-menu-item>
+						</a-menu>
+					</template>
+				</a-dropdown>
 			</template>
 		</page-header>
 		<!-- 工具栏 -->
@@ -532,7 +546,7 @@
 <script setup name="courseSchedule">
 	import { useRoute, useRouter } from 'vue-router'
 	import { message, Modal } from 'ant-design-vue'
-	import { FileTextOutlined, HistoryOutlined, PlusOutlined, ProfileOutlined, TeamOutlined, ThunderboltOutlined, SettingOutlined } from '@ant-design/icons-vue'
+	import { DownOutlined, FileTextOutlined, HistoryOutlined, MoreOutlined, PlusOutlined, ProfileOutlined, SettingOutlined, TeamOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
 	import courseApi from '@/api/course/courseApi'
 	import { runAsyncExport } from '@/utils/asyncExport'
 	import studentApi from '@/api/student/studentApi'
@@ -542,6 +556,24 @@
 	const attendColor = (status) => ({ NONE: 'orange', PARTIAL: 'gold', DONE: 'green' }[status] || 'default')
 	const goAttend = (record) => {
 		router.push({ path: '/course/attend', query: { classId: record.classId, scheduleId: record.id } })
+	}
+
+	const canSchedule = computed(
+		() =>
+			hasPerm('/course/schedule/generate') ||
+			hasPerm('/course/schedule/generateAdhoc') ||
+			hasPerm('/course/schedule/add')
+	)
+	const onScheduleMenuClick = ({ key }) => {
+		if (key === 'generate') onOpenGenerate()
+		else if (key === 'adhoc') onOpenAdhoc()
+		else if (key === 'add') onOpenAdd()
+	}
+	const onMoreMenuClick = ({ key }) => {
+		if (key === 'export') onExport()
+		else if (key === 'template') onOpenTemplate()
+		else if (key === 'history') openChangeDrawer()
+		else if (key === 'config') openConfig()
 	}
 
 	const searchFormState = ref({})
