@@ -98,12 +98,12 @@
 					</a-col>
 					<a-col :span="12">
 						<a-form-item label="周期开始">
-							<a-date-picker v-model:value="form.periodStart" value-format="YYYY-MM-DD" style="width: 100%" />
+							<a-date-picker v-model:value="form.periodStart" show-time value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" />
 						</a-form-item>
 					</a-col>
 					<a-col :span="12">
 						<a-form-item label="周期结束">
-							<a-date-picker v-model:value="form.periodEnd" value-format="YYYY-MM-DD" style="width: 100%" />
+							<a-date-picker v-model:value="form.periodEnd" show-time value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" />
 						</a-form-item>
 					</a-col>
 					<a-col :span="12">
