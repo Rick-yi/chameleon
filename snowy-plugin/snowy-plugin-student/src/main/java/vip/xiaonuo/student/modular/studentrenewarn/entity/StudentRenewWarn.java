@@ -74,4 +74,74 @@ public class StudentRenewWarn extends CommonEntity {
     /** 最近通知时间 */
     @Schema(description = "最近通知时间")
     private Date lastNotifyTime;
+
+    /** 预警快照时间（生成预警的时刻） */
+    @Schema(description = "预警快照时间")
+    private Date snapshotTime;
+
+    /** 跟进人id（转顾问） */
+    @Schema(description = "跟进人id")
+    private String followUserId;
+
+    /** 转顾问时间 */
+    @Schema(description = "转顾问时间")
+    private Date followTime;
+
+    /** 处理说明 */
+    @Schema(description = "处理说明")
+    private String processRemark;
+
+    /** 处理时间 */
+    @Schema(description = "处理时间")
+    private Date processTime;
+
+    /** 当前剩余课时（列表查询时实时填充，非数据库字段） */
+    @Schema(description = "当前剩余课时")
+    @TableField(exist = false)
+    private BigDecimal currentRemainLessons;
+
+    /** 当前课包到期时间（列表查询时实时填充，非数据库字段） */
+    @Schema(description = "当前课包到期时间")
+    @TableField(exist = false)
+    private Date currentExpireTime;
+
+    /** 当前课时账户状态（列表查询时实时填充，非数据库字段） */
+    @Schema(description = "当前课时账户状态")
+    @TableField(exist = false)
+    private String currentAccountStatus;
+
+    /** 是否已在预警后补充课时（列表查询时实时判断，非数据库字段） */
+    @Schema(description = "是否已在预警后补充课时")
+    @TableField(exist = false)
+    private Boolean currentRenewed;
+
+    /** 跟进人姓名（列表查询时填充，非数据库字段） */
+    @Schema(description = "跟进人姓名")
+    @TableField(exist = false)
+    private String followUserName;
+
+    /** 处理人姓名（列表查询时填充，非数据库字段） */
+    @Schema(description = "处理人姓名")
+    @TableField(exist = false)
+    private String processUserName;
+
+    /** 所在班级名称（列表查询时填充，非数据库字段） */
+    @Schema(description = "所在班级")
+    @TableField(exist = false)
+    private String classNames;
+
+    /** 家长手机（列表查询时填充，非数据库字段） */
+    @Schema(description = "家长手机")
+    @TableField(exist = false)
+    private String parentPhone;
+
+    /** 最近一次跟进内容（列表查询时填充，非数据库字段） */
+    @Schema(description = "最近一次跟进内容")
+    @TableField(exist = false)
+    private String lastFollowContent;
+
+    /** 最近一次跟进时间（列表查询时填充，非数据库字段） */
+    @Schema(description = "最近一次跟进时间")
+    @TableField(exist = false)
+    private Date lastFollowTime;
 }
