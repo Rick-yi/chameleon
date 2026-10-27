@@ -29,6 +29,9 @@ public class StudentRenewWarnStatusEnum {
     /** 已续费 */
     public static final String RENEWED = "RENEWED";
 
+    /** 已处理 */
+    public static final String PROCESSED = "PROCESSED";
+
     /** 已忽略 */
     public static final String IGNORED = "IGNORED";
 
@@ -37,4 +40,28 @@ public class StudentRenewWarnStatusEnum {
 
     /** 即将到期 */
     public static final String REASON_EXPIRE_SOON = "EXPIRE_SOON";
+
+    /** 长期未消课 */
+    public static final String REASON_NO_ATTEND = "NO_ATTEND";
+
+    /** 停课/流失风险 */
+    public static final String REASON_LOSS_RISK = "LOSS_RISK";
+
+    /** 配置范围：机构默认 */
+    public static final String SCOPE_DEFAULT = "DEFAULT";
+
+    /** 配置范围：课程 */
+    public static final String SCOPE_COURSE = "COURSE";
+
+    /** 配置范围：班级 */
+    public static final String SCOPE_CLASS = "CLASS";
+
+    /** 跟进业务类型：续费预警 */
+    public static final String FOLLOW_BIZ_RENEW_WARN = "RENEW_WARN";
+
+    /** 跟进业务类型：风险学员 */
+    public static final String FOLLOW_BIZ_RISK = "RISK";
+
+    /** 跟进业务类型：退学/结课流失 */
+    public static final String FOLLOW_BIZ_LOSS = "LOSS";
 }

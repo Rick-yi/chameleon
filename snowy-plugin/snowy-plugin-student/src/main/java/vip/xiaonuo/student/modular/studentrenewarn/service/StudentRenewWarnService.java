@@ -12,10 +12,27 @@
  */
 package vip.xiaonuo.student.modular.studentrenewarn.service;
 
+import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import vip.xiaonuo.student.modular.studentrenewarn.dto.StudentRenewWarnRiskVO;
+import vip.xiaonuo.student.modular.studentrenewarn.dto.StudentRenewWarnStatsVO;
+import vip.xiaonuo.student.modular.studentrenewarn.entity.StudentFollowRecord;
 import vip.xiaonuo.student.modular.studentrenewarn.entity.StudentRenewWarn;
+import vip.xiaonuo.student.modular.studentrenewarn.entity.StudentRenewWarnConfig;
+import vip.xiaonuo.student.modular.studentrenewarn.param.StudentFollowAddParam;
+import vip.xiaonuo.student.modular.studentrenewarn.param.StudentFollowPageParam;
+import vip.xiaonuo.student.modular.studentrenewarn.param.StudentRenewWarnAssignParam;
+import vip.xiaonuo.student.modular.studentrenewarn.param.StudentRenewWarnConfigIdParam;
+import vip.xiaonuo.student.modular.studentrenewarn.param.StudentRenewWarnConfigParam;
 import vip.xiaonuo.student.modular.studentrenewarn.param.StudentRenewWarnIdParam;
+import vip.xiaonuo.student.modular.studentrenewarn.param.StudentRenewWarnNotifyParam;
 import vip.xiaonuo.student.modular.studentrenewarn.param.StudentRenewWarnPageParam;
+import vip.xiaonuo.student.modular.studentrenewarn.param.StudentRenewWarnProcessParam;
+import vip.xiaonuo.student.modular.studentrenewarn.param.StudentRenewWarnRiskPageParam;
+import vip.xiaonuo.student.modular.studentrenewarn.param.StudentRenewWarnRiskTodoParam;
+import vip.xiaonuo.student.modular.studentrenewarn.param.StudentRenewWarnStatsParam;
+
+import java.util.List;
 
 /**
  * 续费预警Service接口
@@ -28,7 +45,7 @@ public interface StudentRenewWarnService {
     /** 获取预警分页 */
     Page<StudentRenewWarn> page(StudentRenewWarnPageParam studentRenewWarnPageParam);
 
-    /** 预警扫描（剩余≤阈值 或 7天内到期；7天去重） */
+    /** 预警扫描（按生效阈值判断剩余课时/到期时间，重复间隔内去重） */
     void scan();
 
     /** 忽略预警 */
@@ -36,4 +53,40 @@ public interface StudentRenewWarnService {
 
     /** 标记已续费（支付入账后调用） */
     void markRenewed(String studentId, String courseId);
+
+    /** 预警阈值配置列表 */
+    List<StudentRenewWarnConfig> configList();
+
+    /** 保存预警阈值配置 */
+    void saveConfig(StudentRenewWarnConfigParam param);
+
+    /** 删除预警阈值配置 */
+    void deleteConfig(StudentRenewWarnConfigIdParam param);
+
+    /** 发送续费提醒（仅落库通知记录，不接真实短信/微信） */
+    void notifyWarn(StudentRenewWarnNotifyParam param);
+
+    /** 转顾问（指派跟进人） */
+    String assign(StudentRenewWarnAssignParam param);
+
+    /** 标记已处理 */
+    void process(StudentRenewWarnProcessParam param);
+
+    /** 风险学员分页 */
+    Page<StudentRenewWarnRiskVO> riskPage(StudentRenewWarnRiskPageParam param);
+
+    /** 风险学员生成续费待办，返回待办（预警）id */
+    String createRiskTodo(StudentRenewWarnRiskTodoParam param);
+
+    /** 新增回访/跟进记录（含退学/结课流失原因） */
+    String addFollow(StudentFollowAddParam param);
+
+    /** 回访/跟进记录分页 */
+    Page<StudentFollowRecord> followPage(StudentFollowPageParam param);
+
+    /** 可指派顾问选项 */
+    List<JSONObject> assigneeOptions(String searchKey);
+
+    /** 续费率/流失率统计（轻量口径） */
+    StudentRenewWarnStatsVO stats(StudentRenewWarnStatsParam param);
 }
