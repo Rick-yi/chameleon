@@ -13,6 +13,8 @@
 package vip.xiaonuo.finance.modular.controller;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
+import cn.dev33.satoken.annotation.SaCheckRole;
+import cn.dev33.satoken.annotation.SaMode;
 import cn.hutool.core.io.FileUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +29,8 @@ import org.springframework.web.bind.annotation.RestController;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.pojo.CommonResult;
 import vip.xiaonuo.common.util.CommonDownloadUtil;
+import vip.xiaonuo.finance.modular.dto.FinanceCompareDTO;
+import vip.xiaonuo.finance.modular.dto.FinanceReportMetaDTO;
 import vip.xiaonuo.finance.modular.export.FinExportTask;
 import vip.xiaonuo.finance.modular.export.FinExportTaskService;
 import vip.xiaonuo.finance.modular.service.FinanceService;
@@ -121,6 +125,39 @@ public class FinanceController {
     @GetMapping("/finance/report/summary")
     public CommonResult<FinanceSummaryDTO> summary(FinanceQueryParam financeQueryParam) {
         return CommonResult.data(financeService.summary(financeQueryParam));
+    }
+
+    /**
+     * 财务对比（环比/同比/自定义对比期）
+     * <p>
+     * 复用「财务汇总」权限，不新增权限资源；固定周期汇总接口保持不变。
+     * </p>
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26
+     */
+    @Operation(summary = "财务对比")
+    @SaCheckPermission("/finance/report/summary")
+    @GetMapping("/finance/report/compare")
+    public CommonResult<FinanceCompareDTO> compare(FinanceQueryParam financeQueryParam,
+                                                    @RequestParam(required = false, defaultValue = "MOM") String compareMode,
+                                                    @RequestParam(required = false) String compareStartTime,
+                                                    @RequestParam(required = false) String compareEndTime) {
+        return CommonResult.data(financeService.compare(financeQueryParam, compareMode,
+                compareStartTime, compareEndTime));
+    }
+
+    /**
+     * 报表元信息（数据更新时间与日汇总状态）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26
+     */
+    @Operation(summary = "报表元信息")
+    @SaCheckPermission("/finance/report/summary")
+    @GetMapping("/finance/report/meta")
+    public CommonResult<FinanceReportMetaDTO> meta() {
+        return CommonResult.data(financeService.meta());
     }
 
     /**
@@ -251,6 +288,7 @@ public class FinanceController {
      */
     @Operation(summary = "重算日汇总")
     @SaCheckPermission("/finance/report/dailyStat/rebuild")
+    @SaCheckRole(value = {"superAdmin", "platformAdmin"}, mode = SaMode.OR)
     @PostMapping("/finance/report/dailyStat/rebuild")
     public CommonResult<String> rebuildDailyStat(@RequestParam(required = false) String date) {
         financeService.rebuildDailyStat(date);
@@ -311,6 +349,24 @@ public class FinanceController {
     }
 
     /**
+     * 我的导出记录
+     * <p>
+     * 复用「异步导出状态」权限，按租户隔离，前端据此展示导出进度与历史记录。
+     * </p>
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26
+     */
+    @Operation(summary = "我的导出记录")
+    @SaCheckPermission("/finance/report/export/async/status")
+    @GetMapping("/finance/report/export/async/page")
+    public CommonResult<Page<FinExportTask>> exportAsyncPage(@RequestParam(required = false) String exportType,
+                                                              @RequestParam(required = false) Integer current,
+                                                              @RequestParam(required = false) Integer size) {
+        return CommonResult.data(finExportTaskService.pageTask(exportType, current, size));
+    }
+
+    /**
      * 下载异步导出文件
      *
      * @author 会飞的猪
@@ -339,6 +395,7 @@ public class FinanceController {
      */
     @Operation(summary = "清理报表缓存")
     @SaCheckPermission("/finance/report/cache/clear")
+    @SaCheckRole(value = {"superAdmin", "platformAdmin"}, mode = SaMode.OR)
     @PostMapping("/finance/report/cache/clear")
     public CommonResult<String> clearCache() {
         financeService.clearCache();

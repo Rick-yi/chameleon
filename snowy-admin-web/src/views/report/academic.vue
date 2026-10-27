@@ -39,6 +39,16 @@
 					</a-space>
 				</a-form-item>
 			</a-form>
+			<div class="data-updated">
+				数据更新时间：{{ refreshedAt || '—' }}（点名提交后即时生效；导出记录可查历史任务）
+				<a-tooltip>
+					<template #title>
+						<div>到课率分母为已点名人次，出勤率分母为应到人次，两者口径不同。</div>
+						<div>未点名 = 应到 − 已点名；未点名大于 0 时出勤率会低于到课率。</div>
+					</template>
+					<question-circle-outlined class="metric-help" />
+				</a-tooltip>
+			</div>
 		</a-card>
 
 		<export-records-drawer v-model:open="recordsOpen" export-type="COURSE_ACADEMIC" />
@@ -58,12 +68,68 @@
 					<a-card :bordered="false" class="kpi-link" @click="router.push('/course/class')"><a-statistic title="应到人次" :value="attendance.expectedCount" suffix="人次" /><kpi-delta :current="attendance.expectedCount" :previous="prevAttendance.expectedCount" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="到课率" :value="attendance.attendRate" :precision="2" suffix="%" /><kpi-delta :current="attendance.attendRate" :previous="prevAttendance.attendRate" /></a-card>
+					<a-card :bordered="false">
+						<a-statistic title="到课率" :value="attendance.attendRate" :precision="2" suffix="%">
+							<template #title>
+								到课率
+								<a-tooltip>
+									<template #title>
+										<div>公式：到课率 = 到课人次 ÷ 已点名人次 × 100%。</div>
+										<div>已点名 = 到课 + 请假 + 缺勤，只统计筛选范围内已提交点名的记录。</div>
+										<div>数据更新：点名提交后即时生效；页面顶部显示本次加载时间。</div>
+									</template>
+									<question-circle-outlined class="metric-help" />
+								</a-tooltip>
+							</template>
+						</a-statistic>
+						<kpi-delta :current="attendance.attendRate" :previous="prevAttendance.attendRate" />
+					</a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="出勤率" :value="attendance.attendanceRate" :precision="2" suffix="%" /></a-card>
+					<a-card :bordered="false">
+						<a-statistic title="出勤率" :value="attendance.attendanceRate" :precision="2" suffix="%">
+							<template #title>
+								出勤率
+								<a-tooltip>
+									<template #title>
+										<div>公式：出勤率 = 到课人次 ÷ 应到人次 × 100%。</div>
+										<div>应到人次 = 筛选范围内排课次数 × 班级在学学员数，含尚未点名的课节。</div>
+										<div>数据更新：点名提交后即时生效；页面顶部显示本次加载时间。</div>
+									</template>
+									<question-circle-outlined class="metric-help" />
+								</a-tooltip>
+							</template>
+						</a-statistic>
+					</a-card>
+				</a-col>
+				<a-col :xs="24" :sm="12" :md="8" :xl="4">
+					<a-card :bordered="false">
+						<a-statistic title="未点名人次" :value="unmarkedCount" suffix="人次" :value-style="{ color: unmarkedCount > 0 ? '#faad14' : undefined }">
+							<template #title>
+								未点名人次
+								<a-tooltip>
+									<template #title>
+										<div>公式：未点名人次 = 应到人次 − 已点名人次。</div>
+										<div>已点名 = 到课 + 请假 + 缺勤；大于 0 表示仍有课节/学员未提交点名。</div>
+										<div>到课率分母是已点名，出勤率分母是应到，因此两个百分比不同属于正常口径差异。</div>
+										<div>数据更新：点名提交后即时生效。</div>
+									</template>
+									<question-circle-outlined class="metric-help" />
+								</a-tooltip>
+							</template>
+						</a-statistic>
+					</a-card>
 				</a-col>
 			</a-row>
+
+			<a-alert
+				v-if="attendanceMismatch"
+				type="warning"
+				show-icon
+				style="margin-top: 12px"
+				message="点名明细与应到人次不一致"
+				:description="`已点名 ${markedCount} 人次，大于应到 ${attendance.expectedCount} 人次，请检查班级在学人数或补点/撤销记录。`"
+			/>
 
 			<a-card :bordered="false" style="margin-top: 16px">
 				<a-tabs v-model:activeKey="activeTab">
@@ -136,7 +202,7 @@
 </template>
 
 <script setup name="reportAcademic">
-	import { onMounted, reactive, ref } from 'vue'
+	import { computed, onMounted, reactive, ref } from 'vue'
 	import { useRouter } from 'vue-router'
 	import dayjs from 'dayjs'
 	import reportApi from '@/api/report/reportApi'
@@ -149,6 +215,7 @@
 	const router = useRouter()
 
 	const loading = ref(false)
+	const refreshedAt = ref('')
 	const activeTab = ref('classFill')
 	const dateRange = ref([dayjs().startOf('month').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')])
 	const query = reactive({ campusId: undefined, courseId: undefined, classId: undefined })
@@ -166,6 +233,12 @@
 		attendanceRate: 0
 	})
 	const prevAttendance = ref({ attendCount: 0, leaveCount: 0, absentCount: 0, expectedCount: 0, attendRate: 0 })
+	// 已点名 = 到课 + 请假 + 缺勤；未点名 = 应到 - 已点名（小于 0 说明数据异常，单独提示）
+	const markedCount = computed(
+		() => Number(attendance.value.attendCount || 0) + Number(attendance.value.leaveCount || 0) + Number(attendance.value.absentCount || 0)
+	)
+	const unmarkedCount = computed(() => Math.max(0, Number(attendance.value.expectedCount || 0) - markedCount.value))
+	const attendanceMismatch = computed(() => markedCount.value > Number(attendance.value.expectedCount || 0))
 	const classFillList = ref([])
 	const teacherList = ref([])
 	const progressList = ref([])
@@ -225,6 +298,7 @@
 			})
 			.finally(() => {
 				loading.value = false
+				refreshedAt.value = dayjs().format('YYYY-MM-DD HH:mm:ss')
 			})
 	}
 
@@ -326,5 +400,16 @@
 <style scoped>
 	.report-filter {
 		margin-bottom: 8px;
+	}
+	.metric-help {
+		margin-left: 4px;
+		font-size: 12px;
+		color: var(--text-color-tertiary);
+		cursor: help;
+	}
+	.data-updated {
+		margin-top: 4px;
+		font-size: 12px;
+		color: var(--text-color-tertiary);
 	}
 </style>

@@ -18,6 +18,8 @@ import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -101,6 +103,24 @@ public class FinExportTaskService {
             throw new CommonException("导出任务不存在，id值为：{}", id);
         }
         return task;
+    }
+
+    /**
+     * 我的导出记录（按租户隔离，可按导出类型过滤）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26
+     **/
+    public Page<FinExportTask> pageTask(String exportType, Integer current, Integer size) {
+        long pageNo = current == null || current < 1 ? 1L : current;
+        long pageSize = size == null || size < 1 ? 20L : Math.min(size, 100);
+        LambdaQueryWrapper<FinExportTask> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(FinExportTask::getTenantId, StrUtil.blankToDefault(TenantContext.getTenantId(), "0"));
+        if (StrUtil.isNotBlank(exportType)) {
+            queryWrapper.eq(FinExportTask::getExportType, exportType.toUpperCase());
+        }
+        queryWrapper.orderByDesc(FinExportTask::getCreateTime);
+        return finExportTaskMapper.selectPage(new Page<>(pageNo, pageSize), queryWrapper);
     }
 
     /**
