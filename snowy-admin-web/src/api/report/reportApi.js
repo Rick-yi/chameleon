@@ -28,6 +28,12 @@ export default {
 	summary(data) {
 		return financeRequest('summary', data, 'get')
 	},
+	compare(data) {
+		return financeRequest('compare', data, 'get')
+	},
+	meta() {
+		return financeRequest('meta', null, 'get')
+	},
 	trend(data) {
 		return financeRequest('trend', data, 'get')
 	},
@@ -56,6 +62,9 @@ export default {
 	},
 	exportAsyncStatus(data) {
 		return financeRequest('export/async/status', data, 'get')
+	},
+	exportAsyncPage(data) {
+		return financeRequest('export/async/page', data, 'get')
 	},
 	exportAsyncDownload(data) {
 		return financeRequest('export/async/download', data, 'get', {

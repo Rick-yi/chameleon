@@ -14,6 +14,8 @@ package vip.xiaonuo.finance.modular.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.servlet.http.HttpServletResponse;
+import vip.xiaonuo.finance.modular.dto.FinanceCompareDTO;
+import vip.xiaonuo.finance.modular.dto.FinanceReportMetaDTO;
 import vip.xiaonuo.finance.modular.stat.entity.FinDailyStat;
 import vip.xiaonuo.student.api.dto.DashboardOverviewDTO;
 import vip.xiaonuo.student.api.dto.FinanceAttendTrendDTO;
@@ -52,6 +54,13 @@ public interface FinanceService {
 
     /** 财务汇总 */
     FinanceSummaryDTO summary(FinanceQueryParam financeQueryParam);
+
+    /** 财务对比（环比/同比/自定义对比期） */
+    FinanceCompareDTO compare(FinanceQueryParam financeQueryParam, String compareMode,
+                             String compareStartTime, String compareEndTime);
+
+    /** 报表元信息（数据更新时间、日汇总状态） */
+    FinanceReportMetaDTO meta();
 
     /** 财务趋势 */
     List<FinanceTrendDTO> trend(FinanceQueryParam financeQueryParam);

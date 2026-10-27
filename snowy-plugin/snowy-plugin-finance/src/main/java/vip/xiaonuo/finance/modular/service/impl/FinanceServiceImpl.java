@@ -31,8 +31,11 @@ import vip.xiaonuo.common.context.TenantContext;
 import vip.xiaonuo.common.exception.CommonException;
 import vip.xiaonuo.common.util.CommonDownloadUtil;
 import vip.xiaonuo.common.util.CommonExcelUtil;
+import vip.xiaonuo.finance.modular.dto.FinanceCompareDTO;
+import vip.xiaonuo.finance.modular.dto.FinanceReportMetaDTO;
 import vip.xiaonuo.finance.modular.export.FinanceExportRowBuilder;
 import vip.xiaonuo.finance.modular.service.FinanceService;
+import vip.xiaonuo.finance.modular.util.FinanceCompareSupport;
 import vip.xiaonuo.finance.modular.stat.entity.FinDailyStat;
 import vip.xiaonuo.finance.modular.stat.service.FinDailyStatService;
 import vip.xiaonuo.student.api.StudentFinanceApi;
@@ -151,6 +154,99 @@ public class FinanceServiceImpl implements FinanceService {
                     FinanceSummaryDTO fastSummary = fastSummary(financeQueryParam);
                     return fastSummary != null ? fastSummary : studentFinanceApi.summary(financeQueryParam);
                 });
+    }
+
+    @Override
+    public FinanceCompareDTO compare(FinanceQueryParam financeQueryParam, String compareMode,
+                                     String compareStartTime, String compareEndTime) {
+        String mode = FinanceCompareSupport.normalizeMode(compareMode);
+        FinanceCompareSupport.Range currentRange = FinanceCompareSupport.currentRange(
+                financeQueryParam.getStartTime(), financeQueryParam.getEndTime());
+        FinanceCompareSupport.Range previousRange = FinanceCompareSupport.previousRange(currentRange);
+        FinanceCompareSupport.Range yoyRange = FinanceCompareSupport.yoyRange(currentRange);
+
+        FinanceCompareDTO result = new FinanceCompareDTO();
+        result.setMode(mode);
+        result.setStartTime(currentRange.startTime());
+        result.setEndTime(currentRange.endTime());
+
+        // 当前区间沿用原有汇总口径，固定周期接口行为不变
+        result.setPreviousSummary(ObjectUtil.defaultIfNull(
+                summary(withRange(financeQueryParam, previousRange)), new FinanceSummaryDTO()));
+        result.setYoySummary(ObjectUtil.defaultIfNull(
+                summary(withRange(financeQueryParam, yoyRange)), new FinanceSummaryDTO()));
+
+        if (FinanceCompareSupport.MODE_CUSTOM.equals(mode)) {
+            FinanceCompareSupport.Range customRange = FinanceCompareSupport.customRange(compareStartTime, compareEndTime);
+            if (customRange == null) {
+                throw new CommonException("自定义对比期需要同时提供正确的开始日期与结束日期");
+            }
+            result.setCompareStartTime(customRange.startTime());
+            result.setCompareEndTime(customRange.endTime());
+            result.setCompareSummary(ObjectUtil.defaultIfNull(
+                    summary(withRange(financeQueryParam, customRange)), new FinanceSummaryDTO()));
+        } else if (FinanceCompareSupport.MODE_YOY.equals(mode)) {
+            result.setCompareStartTime(yoyRange.startTime());
+            result.setCompareEndTime(yoyRange.endTime());
+            result.setCompareSummary(result.getYoySummary());
+        } else {
+            result.setCompareStartTime(previousRange.startTime());
+            result.setCompareEndTime(previousRange.endTime());
+            result.setCompareSummary(result.getPreviousSummary());
+        }
+        result.setGeneratedAt(DateUtil.formatDateTime(new Date()));
+        return result;
+    }
+
+    @Override
+    public FinanceReportMetaDTO meta() {
+        FinanceReportMetaDTO meta = new FinanceReportMetaDTO();
+        meta.setGeneratedAt(DateUtil.formatDateTime(new Date()));
+        meta.setNote("实时聚合即时生效；已完整覆盖日汇总的区间每日 00:30 更新，未覆盖时自动回落实时聚合。");
+        try {
+            Map<String, Object> row = jdbcTemplate.queryForMap(
+                    "SELECT MAX(`STAT_DATE`) AS `LATEST_DATE`, MAX(`UPDATE_TIME`) AS `LATEST_UPDATE` "
+                            + "FROM `FIN_DAILY_STAT` WHERE `TENANT_ID` = ? AND `DELETE_FLAG` = 'NOT_DELETE'",
+                    currentTenantId());
+            Object latestDate = row.get("LATEST_DATE");
+            Object latestUpdate = row.get("LATEST_UPDATE");
+            if (latestDate instanceof Date date) {
+                meta.setDailyStatLatestDate(DateUtil.formatDate(date));
+            } else if (latestDate != null) {
+                meta.setDailyStatLatestDate(StrUtil.subPre(latestDate.toString(), 10));
+            }
+            if (latestUpdate instanceof Date date) {
+                meta.setDailyStatUpdatedAt(DateUtil.formatDateTime(date));
+            } else if (latestUpdate != null) {
+                meta.setDailyStatUpdatedAt(latestUpdate.toString());
+            }
+        } catch (Exception e) {
+            log.warn(">>> 查询报表日汇总更新时间失败：{}", e.getMessage());
+        }
+        return meta;
+    }
+
+    /**
+     * 复制查询参数并替换时间区间，避免修改调用方参数
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26
+     **/
+    private FinanceQueryParam withRange(FinanceQueryParam source, FinanceCompareSupport.Range range) {
+        FinanceQueryParam target = new FinanceQueryParam();
+        target.setCurrent(source.getCurrent());
+        target.setSize(source.getSize());
+        target.setSearchKey(source.getSearchKey());
+        target.setChannel(source.getChannel());
+        target.setCampusId(source.getCampusId());
+        target.setCourseId(source.getCourseId());
+        target.setDimension(source.getDimension());
+        target.setLimit(source.getLimit());
+        target.setStatus(source.getStatus());
+        target.setSource(source.getSource());
+        target.setStartTime(range.startTime());
+        target.setEndTime(range.endTime());
+        return target;
     }
 
     @Override
