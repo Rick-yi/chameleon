@@ -1,35 +1,52 @@
-<template>
+﻿<template>
 	<div>
 		<page-header title="排课课表" desc="周视图 / 日视图 / 教师视角，可批量生成、导出课表">
 			<template #extra>
-				<a-button v-if="hasPerm('/course/schedule/export')" @click="onExport">
-					<template #icon><file-text-outlined /></template>
-					导出课表
-				</a-button>
-				<a-button @click="onOpenTemplate">
-					<template #icon><profile-outlined /></template>
-					课表模板
-				</a-button>
-				<a-button @click="openChangeDrawer">
-					<template #icon><history-outlined /></template>
-					调课记录
-				</a-button>
-				<a-button @click="openConfig">
-					<template #icon><setting-outlined /></template>
-					排课配置
-				</a-button>
-				<a-button v-if="hasPerm('/course/schedule/generate')" @click="onOpenGenerate">
-					<template #icon><thunderbolt-outlined /></template>
-					批量生成
-				</a-button>
-				<a-button v-if="hasPerm('/course/schedule/generateAdhoc')" @click="onOpenAdhoc">
-					<template #icon><team-outlined /></template>
-					直接排课
-				</a-button>
-				<a-button v-if="hasPerm('/course/schedule/add')" type="primary" @click="onOpenAdd">
-					<template #icon><plus-outlined /></template>
-					手动排课
-				</a-button>
+				<a-dropdown v-if="canSchedule">
+					<a-button type="primary">
+						<template #icon><plus-outlined /></template>
+						排课
+						<down-outlined />
+					</a-button>
+					<template #overlay>
+						<a-menu @click="onScheduleMenuClick">
+							<a-menu-item v-if="hasPerm('/course/schedule/generate')" key="generate">
+								<thunderbolt-outlined /> 批量生成
+							</a-menu-item>
+							<a-menu-item v-if="hasPerm('/course/schedule/generateAdhoc')" key="adhoc">
+								<team-outlined /> 直接排课
+							</a-menu-item>
+							<a-menu-item v-if="hasPerm('/course/schedule/add')" key="add">
+								<plus-outlined /> 手动排课
+							</a-menu-item>
+						</a-menu>
+					</template>
+				</a-dropdown>
+				<a-dropdown>
+					<a-button>
+						<template #icon><more-outlined /></template>
+						更多
+					</a-button>
+					<template #overlay>
+						<a-menu @click="onMoreMenuClick">
+							<a-menu-item v-if="hasPerm('/course/schedule/export')" key="export">
+								<file-text-outlined /> 导出课表
+							</a-menu-item>
+							<a-menu-item v-if="hasPerm('/course/schedule/add')" key="copy">
+								<copy-outlined /> 复制上周
+							</a-menu-item>
+							<a-menu-item key="template">
+								<profile-outlined /> 课表模板
+							</a-menu-item>
+							<a-menu-item key="history">
+								<history-outlined /> 调课记录
+							</a-menu-item>
+							<a-menu-item key="config">
+								<setting-outlined /> 排课配置
+							</a-menu-item>
+						</a-menu>
+					</template>
+				</a-dropdown>
 			</template>
 		</page-header>
 		<!-- 工具栏 -->
@@ -82,7 +99,7 @@
 							class="ent-schedule-card"
 							:class="{ 'is-conflict': conflictIdSet.has(s.id), 'is-dragging': draggingSchedule?.id === s.id }"
 							:draggable="hasPerm('/course/schedule/change')"
-							:title="hasPerm('/course/schedule/change') ? '拖拽到其他日期/时段可调课' : ''"
+							:title="hasPerm('/course/schedule/change') ? '点击进入点名，拖拽到其他日期/时段可调课' : '点击进入点名'"
 							@dragstart="onDragStart($event, s)"
 							@dragend="onDragEnd"
 							@click="onCardClick(s)"
@@ -96,8 +113,12 @@
 							</div>
 							<div class="sched-card-sub">{{ s.classroom || '未设教室' }}</div>
 							<div v-if="s.teacherName" class="sched-card-sub2">{{ s.teacherName }}</div>
+							<div class="sched-card-attend">
+								应到 {{ s.studentCount || 0 }} · 已点 {{ s.attendCount || 0 }}
+							</div>
 							<div class="sched-card-actions">
 								<a-button type="link" size="small" class="sched-card-link" @click.stop="goAttend(s)">点名 ›</a-button>
+								<a class="sched-card-link" @click.stop="onOpenChange(s)">调课</a>
 								<a class="sched-card-link sched-card-cancel" @click.stop="onCancelScheduleConfirm(s)">取消</a>
 							</div>
 						</div>
@@ -137,6 +158,9 @@
 					</template>
 					<template v-if="column.dataIndex === 'attendStatus'">
 						<a-tag :color="attendColor(record.attendStatus)">{{ attendText(record.attendStatus) }}</a-tag>
+					</template>
+					<template v-if="column.dataIndex === 'attendance'">
+						<span class="sched-attend-text">应到 {{ record.studentCount || 0 }} · 已点 {{ record.attendCount || 0 }}</span>
 					</template>
 					<template v-if="column.dataIndex === 'conflict'">
 						<a-tag v-if="conflictIdSet.has(record.id)" color="red">冲突</a-tag>
@@ -244,6 +268,25 @@
 		</a-tabs>
 	</a-modal>
 
+	<!-- 复制上周课表 -->
+	<a-modal v-model:open="copyOpen" title="复制上周课表" :width="520" :destroy-on-close="true" @ok="onSubmitCopy">
+		<a-form layout="vertical">
+			<a-form-item label="班级" required>
+				<a-select v-model:value="copyForm.classId" placeholder="请选择要复制的班级" :options="classOptions" show-search option-filter-prop="label" />
+			</a-form-item>
+			<a-form-item label="复制到">
+				<span>{{ weekLabel }}（上一周 → 本周）</span>
+			</a-form-item>
+			<a-alert type="info" show-icon message="停课日、已有相同课节、教室/教师冲突的课节会跳过，并在结果中说明原因。" style="margin-bottom: 12px" />
+			<div v-if="copyResult" class="copy-result">
+				<div>计划 {{ copyResult.plannedCount || 0 }} 节 · 新增 {{ copyResult.createdCount || 0 }} 节 · 跳过 {{ copyResult.skippedCount || 0 }} 节</div>
+				<div v-if="copyResult.skipReasons?.length" class="copy-result-reasons">
+					<div v-for="(item, index) in copyResult.skipReasons" :key="index">· {{ item }}</div>
+				</div>
+			</div>
+		</a-form>
+	</a-modal>
+
 	<!-- 手动排课 -->
 	<a-modal v-model:open="addOpen" title="手动排课" :width="560" :destroy-on-close="true" @ok="onSubmitAdd">
 		<a-form ref="addFormRef" :model="addFormData" layout="vertical">
@@ -287,6 +330,27 @@
 					</a-form-item>
 				</a-col>
 			</a-row>
+			<a-alert v-if="addConflicts.length" type="warning" show-icon style="margin-bottom: 12px">
+				<template #message>
+					<div v-for="(item, index) in addConflicts" :key="index">· {{ item }}</div>
+				</template>
+			</a-alert>
+			<div v-if="addAlternatives.length" class="suggest-box">
+				<div class="suggest-title">
+					<span>可替代时段</span>
+				</div>
+				<div class="suggest-list">
+					<a-tag
+						v-for="item in addAlternatives"
+						:key="item.scheduleDate + item.startTime"
+						class="suggest-item"
+						color="green"
+						@click="applySuggest(item)"
+					>
+						{{ item.label }}
+					</a-tag>
+				</div>
+			</div>
 			<!-- 排课助手：按班级/教师/教室占用推荐可用时段 -->
 			<div class="suggest-box">
 				<div class="suggest-title">
@@ -525,7 +589,7 @@
 <script setup name="courseSchedule">
 	import { useRoute, useRouter } from 'vue-router'
 	import { message, Modal } from 'ant-design-vue'
-	import { FileTextOutlined, HistoryOutlined, PlusOutlined, ProfileOutlined, TeamOutlined, ThunderboltOutlined, SettingOutlined } from '@ant-design/icons-vue'
+	import { CopyOutlined, DownOutlined, FileTextOutlined, HistoryOutlined, MoreOutlined, PlusOutlined, ProfileOutlined, SettingOutlined, TeamOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
 	import courseApi from '@/api/course/courseApi'
 	import { runAsyncExport } from '@/utils/asyncExport'
 	import studentApi from '@/api/student/studentApi'
@@ -535,6 +599,47 @@
 	const attendColor = (status) => ({ NONE: 'orange', PARTIAL: 'gold', DONE: 'green' }[status] || 'default')
 	const goAttend = (record) => {
 		router.push({ path: '/course/attend', query: { classId: record.classId, scheduleId: record.id } })
+	}
+
+	const canSchedule = computed(
+		() =>
+			hasPerm('/course/schedule/generate') ||
+			hasPerm('/course/schedule/generateAdhoc') ||
+			hasPerm('/course/schedule/add')
+	)
+	const onScheduleMenuClick = ({ key }) => {
+		if (key === 'generate') onOpenGenerate()
+		else if (key === 'adhoc') onOpenAdhoc()
+		else if (key === 'add') onOpenAdd()
+	}
+	const onMoreMenuClick = ({ key }) => {
+		if (key === 'export') onExport()
+		else if (key === 'copy') onOpenCopy()
+		else if (key === 'template') onOpenTemplate()
+		else if (key === 'history') openChangeDrawer()
+		else if (key === 'config') openConfig()
+	}
+	const onOpenCopy = () => {
+		copyForm.value = { classId: searchFormState.value.classId || undefined }
+		copyResult.value = null
+		copyOpen.value = true
+	}
+	const onSubmitCopy = () => {
+		if (!copyForm.value.classId) {
+			message.warning('请选择要复制的班级')
+			return
+		}
+		courseApi
+			.scheduleCopyLastWeek({
+				classId: copyForm.value.classId,
+				weekStartDate: fmtDate(monday.value)
+			})
+			.then((result) => {
+				copyResult.value = result || null
+				if (Number(result?.createdCount || 0) > 0) loadWeek()
+				message.success(`复制完成：新增 ${result?.createdCount || 0} 节，跳过 ${result?.skippedCount || 0} 节`)
+			})
+			.catch(() => {})
 	}
 
 	const searchFormState = ref({})
@@ -557,6 +662,13 @@
 	const addOpen = ref(false)
 	const addFormRef = ref()
 	const addFormData = ref({})
+	const addConflicts = ref([])
+	const addAlternatives = ref([])
+	let addConflictTimer = null
+	// 复制上周
+	const copyOpen = ref(false)
+	const copyForm = ref({})
+	const copyResult = ref(null)
 	// 排课助手：推荐时段
 	const suggestList = ref([])
 	const suggestLoading = ref(false)
@@ -674,6 +786,7 @@
 		{ title: '教师', dataIndex: 'teacherName' },
 		{ title: '教室', dataIndex: 'classroom' },
 		{ title: '点名', dataIndex: 'attendStatus', width: 100 },
+		{ title: '应到/已点', dataIndex: 'attendance', width: 130 },
 		{ title: '冲突', dataIndex: 'conflict', width: 80 },
 		{ title: '操作', dataIndex: 'action', align: 'center', width: 120 }
 	]
@@ -1090,9 +1203,58 @@
 
 	const onOpenAdd = () => {
 		addFormData.value = { classId: searchFormState.value.classId, startTime: '09:00', endTime: '10:30' }
+		addConflicts.value = []
+		addAlternatives.value = []
 		addOpen.value = true
 		loadSuggest()
+		checkAddConflicts()
 	}
+
+	/** 手动排课实时预检：冲突对象 + 可替代时段 */
+	const checkAddConflicts = () => {
+		if (addConflictTimer) clearTimeout(addConflictTimer)
+		const form = addFormData.value
+		if (!addOpen.value || !form.scheduleDate || !form.startTime || !form.endTime) {
+			addConflicts.value = []
+			addAlternatives.value = []
+			return
+		}
+		addConflictTimer = setTimeout(() => {
+			courseApi
+				.scheduleConflictCheckBatch({
+					classId: form.classId,
+					teacherId: form.teacherId,
+					classroom: form.classroom,
+					slots: [
+						{
+							scheduleDate: form.scheduleDate,
+							startTime: form.startTime,
+							endTime: form.endTime
+						}
+					]
+				})
+				.then((list) => {
+					const first = (list || [])[0]
+					addConflicts.value = first?.conflicts || []
+					addAlternatives.value = (first?.alternatives || []).slice(0, 6)
+				})
+				.catch(() => {
+					addConflicts.value = []
+					addAlternatives.value = []
+				})
+		}, 250)
+	}
+	watch(
+		() => [
+			addFormData.value.classId,
+			addFormData.value.scheduleDate,
+			addFormData.value.startTime,
+			addFormData.value.endTime,
+			addFormData.value.teacherId,
+			addFormData.value.classroom
+		],
+		() => checkAddConflicts()
+	)
 
 	// 排课助手：按班级/教师/教室的占用推荐可用时段（默认看未来 7 天）
 	const loadSuggest = () => {
@@ -1127,15 +1289,22 @@
 		addFormData.value.scheduleDate = item.scheduleDate
 		addFormData.value.startTime = item.startTime.slice(0, 5)
 		addFormData.value.endTime = item.endTime.slice(0, 5)
+		checkAddConflicts()
 		message.success(`已填入 ${item.label}`)
 	}
 	const onSubmitAdd = () => {
 		addFormRef.value.validate().then(() => {
+			if (addConflicts.value.length) {
+				message.warning('当前时段存在冲突，请先调整时间或点选可替代时段')
+				return
+			}
 			const body = { ...addFormData.value, scheduleDate: `${addFormData.value.scheduleDate} 00:00:00` }
 			courseApi
 				.scheduleAdd(body)
 				.then(() => {
 					addOpen.value = false
+					addConflicts.value = []
+					addAlternatives.value = []
 					conflictTip.value = ''
 					loadWeek()
 				})
@@ -1145,6 +1314,7 @@
 					if (msg.includes('冲突')) {
 						message.warning('该时段冲突，已为你重新计算可用时段')
 						loadSuggest()
+						checkAddConflicts()
 					}
 				})
 		})
@@ -1240,7 +1410,8 @@
 
 	const onCardClick = (record) => {
 		if (suppressCardClick.value) return
-		onOpenChange(record)
+		// 点卡片进点名，调课走卡片上的「调课」入口
+		goAttend(record)
 	}
 	const onDragStart = (event, record) => {
 		draggingSchedule.value = record
@@ -1379,6 +1550,17 @@
 		outline-offset: -2px;
 		background: var(--primary-1);
 	}
+	.sched-card-attend {
+		margin-top: 2px;
+		font-size: 12px;
+		color: var(--text-color-secondary);
+	}
+
+	.sched-attend-text {
+		font-size: 12px;
+		color: var(--text-color-secondary);
+	}
+
 	.sched-card-actions {
 		display: flex;
 		align-items: center;
@@ -1425,5 +1607,18 @@
 		margin-top: 8px;
 		font-size: 12px;
 		color: var(--text-color-tertiary);
+	}
+	.copy-result {
+		padding: 10px 12px;
+		background: var(--background-color-light);
+		border-radius: var(--radius-control);
+		font-size: 13px;
+	}
+	.copy-result-reasons {
+		margin-top: 6px;
+		max-height: 160px;
+		overflow-y: auto;
+		font-size: 12px;
+		color: var(--text-color-secondary);
 	}
 </style>

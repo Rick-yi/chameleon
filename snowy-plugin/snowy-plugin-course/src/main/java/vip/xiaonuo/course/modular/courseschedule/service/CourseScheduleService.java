@@ -19,11 +19,14 @@ import vip.xiaonuo.course.api.dto.CourseScheduleViewDTO;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleAddParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleAdhocParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleChangeParam;
+import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleConflictBatchParam;
+import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleCopyParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleGenerateParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleIdParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseSchedulePageParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleSuggestParam;
 import vip.xiaonuo.course.modular.courseschedule.param.CourseScheduleWeekParam;
+import vip.xiaonuo.course.modular.courseschedule.dto.CourseScheduleConflictResultDTO;
 
 import cn.hutool.json.JSONObject;
 import java.util.List;
@@ -115,4 +118,20 @@ public interface CourseScheduleService {
     List<String> conflictCheck(String classId, java.util.Date scheduleDate,
                                java.time.LocalTime startTime, java.time.LocalTime endTime,
                                String classroom, String teacherId, String excludeScheduleId);
+
+    /**
+     * 批量冲突预检（直接排课多个每周时段一次校验）
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 10:00
+     **/
+    List<CourseScheduleConflictResultDTO> conflictCheckBatch(CourseScheduleConflictBatchParam param);
+
+    /**
+     * 复制上周课表到目标周：停课日、已存在、冲突课节跳过并在结果里说明
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 10:00
+     **/
+    CourseScheduleGenerateResultDTO copyLastWeek(CourseScheduleCopyParam param);
 }
