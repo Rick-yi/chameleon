@@ -45,3 +45,13 @@
 - 拖拽调整课时长度、拖到空白格新建排课未做（当前拖拽只换日期/开始时间）。
 - 直接排课的批量冲突预检后端已具备，但前端弹窗未接入实时提示；仍由提交时后端校验。
 - 教师请假/真实家长微信短信通知未做，依赖外部通道和审批流。
+
+## 五、权限
+
+批量冲突预检和复制上周课表由 `CourseSchedulePermissionMigration` 幂等补齐：
+
+- 新增 `btn_sched_conflict`、`btn_sched_copy_week` 资源，挂到 `menu_schedule_001`；
+- 追加到已有排课菜单的 `buttonInfo`；
+- 复制已有 `/course/schedule/add` 权限角色的接口授权。
+
+主流程无需手工执行权限 SQL。
