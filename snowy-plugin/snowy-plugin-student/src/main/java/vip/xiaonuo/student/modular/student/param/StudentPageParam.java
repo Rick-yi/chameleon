@@ -57,4 +57,8 @@ public class StudentPageParam {
     /** 状态 */
     @Schema(description = "状态")
     private String status;
+
+    /** 标签id（按标签筛选） */
+    @Schema(description = "标签id")
+    private String tagId;
 }

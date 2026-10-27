@@ -38,6 +38,46 @@ export default {
 	studentDetail(data) {
 		return request('detail', data, 'get')
 	},
+	// 批量导入 / 导出
+	studentImportTemplate() {
+		return request('importTemplate', null, 'get', { responseType: 'blob' })
+	},
+	studentImport(data) {
+		return request('import', data)
+	},
+	studentExport(data) {
+		return request('export', data, 'get', { responseType: 'blob' })
+	},
+	// 状态机
+	studentStatusChange(data) {
+		return request('status/change', data)
+	},
+	studentStatusLogs(data) {
+		return request('status/logs', data, 'get')
+	},
+	// 全部动态时间线
+	studentTimeline(data) {
+		return request('timeline', data, 'get')
+	},
+	// 标签体系
+	tagList() {
+		return request('tag/list', null, 'get')
+	},
+	tagStudentTags(data) {
+		return request('tag/studentTags', data, 'get')
+	},
+	tagAdd(data) {
+		return request('tag/add', data)
+	},
+	tagEdit(data) {
+		return request('tag/edit', data)
+	},
+	tagDelete(data) {
+		return request('tag/delete', data)
+	},
+	tagBind(data) {
+		return request('tag/bind', data)
+	},
 	// 订单
 	orderPage(data) {
 		return request('order/page', data, 'get')

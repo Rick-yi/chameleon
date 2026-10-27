@@ -18,6 +18,8 @@ import vip.xiaonuo.student.modular.student.param.StudentAddParam;
 import vip.xiaonuo.student.modular.student.param.StudentEditParam;
 import vip.xiaonuo.student.modular.student.param.StudentIdParam;
 import vip.xiaonuo.student.modular.student.param.StudentPageParam;
+import vip.xiaonuo.student.modular.studentstatus.entity.StudentStatusLog;
+import vip.xiaonuo.student.modular.studentstatus.param.StudentStatusChangeParam;
 
 import java.util.List;
 
@@ -50,4 +52,16 @@ public interface StudentService {
 
     /** 解析默认校区（当前账号可见校区优先，机构无校区时返回 null） */
     String resolveDefaultCampusId();
+
+    /** 按筛选条件导出学员（不分页，含经营摘要与标签） */
+    List<Student> listForExport(StudentPageParam studentPageParam);
+
+    /** 导入学员（跳过套餐限额校验的批量场景仍走同一套校区兜底） */
+    String addForImport(StudentAddParam studentAddParam, String status);
+
+    /** 学员状态变更（留痕 + 复课） */
+    void changeStatus(StudentStatusChangeParam param);
+
+    /** 学员状态变更记录 */
+    List<StudentStatusLog> listStatusLogs(String studentId);
 }
