@@ -27,6 +27,7 @@ import vip.xiaonuo.crm.modular.trial.entity.CrmTrialAppointment;
 import vip.xiaonuo.crm.modular.trial.param.CrmTrialAppointmentAddParam;
 import vip.xiaonuo.crm.modular.trial.param.CrmTrialAppointmentIdParam;
 import vip.xiaonuo.crm.modular.trial.param.CrmTrialAppointmentPageParam;
+import vip.xiaonuo.crm.modular.trial.param.CrmTrialAppointmentUpdateParam;
 import vip.xiaonuo.crm.modular.trial.service.CrmTrialAppointmentService;
 
 import javax.validation.Valid;
@@ -82,6 +83,20 @@ public class CrmTrialAppointmentController {
     @PostMapping("/crm/trial/cancel")
     public CommonResult<String> cancel(@RequestBody @Valid CrmTrialAppointmentIdParam crmTrialAppointmentIdParam) {
         crmTrialAppointmentService.cancel(crmTrialAppointmentIdParam);
+        return CommonResult.ok();
+    }
+
+    /**
+     * 更新试听状态/结果
+     *
+     * @author 会飞的猪
+     * @date 2026/10/26 10:00
+     */
+    @Operation(summary = "更新试听状态/结果")
+    @CommonLog("更新试听结果")
+    @PostMapping("/crm/trial/update")
+    public CommonResult<String> update(@RequestBody @Valid CrmTrialAppointmentUpdateParam crmTrialAppointmentUpdateParam) {
+        crmTrialAppointmentService.updateResult(crmTrialAppointmentUpdateParam);
         return CommonResult.ok();
     }
 }

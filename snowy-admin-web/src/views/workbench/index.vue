@@ -322,6 +322,24 @@
 			</a-form>
 		</a-modal>
 
+		<!-- 工作台内直接写跟进，保存后刷新待办 -->
+		<a-modal v-model:open="followOpen" :title="`跟进 · ${followForm.name || ''}`" :width="520" :destroy-on-close="true" @ok="onSubmitFollow">
+			<a-form ref="followFormRef" :model="followForm" layout="vertical">
+				<a-form-item label="跟进方式">
+					<a-select v-model:value="followForm.followType" :options="followTypeOptions" />
+				</a-form-item>
+				<a-form-item label="跟进内容" name="content" :rules="[{ required: true, message: '请输入跟进内容' }]">
+					<a-textarea v-model:value="followForm.content" :auto-size="{ minRows: 3, maxRows: 5 }" placeholder="沟通内容、家长反馈、下一步计划" />
+				</a-form-item>
+				<a-form-item label="下次跟进时间">
+					<a-date-picker v-model:value="followForm.nextFollowTime" show-time value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" />
+				</a-form-item>
+				<a-form-item label="更新线索状态">
+					<a-select v-model:value="followForm.status" placeholder="默认置为已跟进" :options="leadStatusOptions" allow-clear />
+				</a-form-item>
+			</a-form>
+		</a-modal>
+
 		<enrollment-flow v-model:open="enrollOpen" @success="onEnrollSuccess" />
 	</div>
 </template>
@@ -368,6 +386,21 @@
 	]
 	const approveOpen = ref(false)
 	const approveForm = ref({})
+	const followOpen = ref(false)
+	const followFormRef = ref()
+	const followForm = ref({})
+	const followTypeOptions = [
+		{ value: 'PHONE', label: '电话' },
+		{ value: 'WECHAT', label: '微信' },
+		{ value: 'VISIT', label: '到店' }
+	]
+	const leadStatusOptions = [
+		{ value: 'NEW', label: '新线索' },
+		{ value: 'FOLLOWED', label: '已跟进' },
+		{ value: 'TRIALED', label: '已试听' },
+		{ value: 'ENROLLED', label: '已报名' },
+		{ value: 'LOST', label: '已流失' }
+	]
 	const shortcuts = [
 		{ key: 'quickEnroll', text: '录入学员', icon: UserAddOutlined, color: '#fff1e6', action: 'quickEnroll', perm: '/student/add' },
 		{ key: 'order', text: '报名购课', icon: ShoppingCartOutlined, path: '/student', color: '#eaf2fd' },
@@ -459,10 +492,6 @@
 	}
 	const followOverdueDays = overdueDays
 
-	// 把待办记录带到目标页面，由目标页面打开对应弹窗
-	const stashAction = (type, record) => {
-		sessionStorage.setItem('workbench:action', JSON.stringify({ type, record }))
-	}
 	const openPay = (item) => {
 		payForm.value = {
 			orderId: item.id,
@@ -515,9 +544,34 @@
 				loadAll()
 			})
 	}
+	// 线索跟进直接在工作台完成，保存后刷新待办，不再跳转 CRM
 	const openFollow = (item) => {
-		stashAction('follow', item)
-		go({ path: '/crm', query: { todo: '1' } })
+		followForm.value = {
+			leadId: item.id,
+			name: item.name,
+			followType: 'PHONE',
+			content: '',
+			nextFollowTime: undefined,
+			status: undefined
+		}
+		followOpen.value = true
+	}
+	const onSubmitFollow = () => {
+		followFormRef.value.validate().then(() => {
+			crmApi
+				.followAdd({
+					leadId: followForm.value.leadId,
+					followType: followForm.value.followType,
+					content: followForm.value.content,
+					nextFollowTime: followForm.value.nextFollowTime,
+					status: followForm.value.status
+				})
+				.then(() => {
+					message.success('跟进已保存')
+					followOpen.value = false
+					loadAll()
+				})
+		})
 	}
 
 	// 单个板块取数失败不影响其它板块（无权限时降级为空）

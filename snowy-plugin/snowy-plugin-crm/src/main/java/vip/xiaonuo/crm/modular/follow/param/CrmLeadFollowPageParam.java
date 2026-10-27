@@ -39,4 +39,8 @@ public class CrmLeadFollowPageParam {
     @Schema(description = "线索id", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "线索id不能为空")
     private String leadId;
+
+    /** 跟进方式（PHONE/WECHAT/VISIT，为空表示全部） */
+    @Schema(description = "跟进方式")
+    private String followType;
 }
