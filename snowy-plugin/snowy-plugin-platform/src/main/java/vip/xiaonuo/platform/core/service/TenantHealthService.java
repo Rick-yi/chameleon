@@ -280,6 +280,19 @@ public class TenantHealthService {
         if (value instanceof java.sql.Timestamp timestamp) {
             return new Date(timestamp.getTime());
         }
+        if (value instanceof java.time.LocalDateTime localDateTime) {
+            return Date.from(localDateTime.atZone(java.time.ZoneId.systemDefault()).toInstant());
+        }
+        if (value instanceof java.time.LocalDate localDate) {
+            return Date.from(localDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant());
+        }
+        if (value instanceof String text && cn.hutool.core.util.StrUtil.isNotBlank(text)) {
+            try {
+                return cn.hutool.core.date.DateUtil.parse(text);
+            } catch (Exception ignored) {
+                return null;
+            }
+        }
         return null;
     }
 

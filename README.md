@@ -218,6 +218,12 @@ npm run dev
 - [docs/50-退费原因与试算.md](docs/50-退费原因与试算.md) —— 退费原因独立落库，申请前展示可退课时/赠课/预计退款
 - [docs/51-线索跟进快捷视图.md](docs/51-线索跟进快捷视图.md) —— 线索列表新增全部/待跟进/今日/已逾期快捷筛选
 - [docs/52-课表拖拽调课.md](docs/52-课表拖拽调课.md) —— 周视图课节可拖拽换日期/时段，带停课日、冲突与时间校验
+- [docs/_streams/crm.md](docs/_streams/crm.md) —— CRM 查重、跟进分页、试听视图与工作台内联跟进
+- [docs/_streams/sched.md](docs/_streams/sched.md) —— 课表到课进度、按钮收敛、冲突预检与复制上周
+- [docs/_streams/renew.md](docs/_streams/renew.md) —— 续费阈值、提醒/转顾问、风险学员、快照与流失记录
+- [docs/_streams/student.md](docs/_streams/student.md) —— 学员标签、状态机、导入导出与动态时间线
+- [docs/_streams/finance.md](docs/_streams/finance.md) —— 财务指标口径、同比环比、导出记录与危险操作收口
+- [docs/_streams/platform.md](docs/_streams/platform.md) —— 平台套餐开关、经营指标、租户健康度与内部账单
 
 ## 十、版权与出处
 

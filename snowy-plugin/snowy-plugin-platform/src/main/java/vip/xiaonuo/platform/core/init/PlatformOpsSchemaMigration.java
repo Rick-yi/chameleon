@@ -99,6 +99,21 @@ public class PlatformOpsSchemaMigration implements ApplicationListener<Applicati
             if (menuAdded > 0) {
                 log.info(">>> 平台结构升级：账单管理菜单已创建");
             }
+            // 平台租户缺少 B 端密码有效期配置时，登录会抛“请联系管理员配置密码有效期天数”
+            int configAdded = jdbcTemplate.update("""
+                    INSERT INTO `DEV_CONFIG`
+                        (`ID`, `TENANT_ID`, `CONFIG_KEY`, `CONFIG_VALUE`, `CATEGORY`, `REMARK`, `SORT_CODE`,
+                         `DELETE_FLAG`, `CREATE_TIME`, `CREATE_USER`)
+                    SELECT 'dev_pwd_expire_0', '0', 'SNOWY_SYS_DEFAULT_PASSWORD_EXPIRED_DAYS_FOR_B', '30',
+                           'PASSWORD_STRATEGY_FOR_B', 'B端密码有效期天数', 160, 'NOT_DELETE', NOW(), '1'
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM `DEV_CONFIG`
+                        WHERE `TENANT_ID` = '0' AND `CONFIG_KEY` = 'SNOWY_SYS_DEFAULT_PASSWORD_EXPIRED_DAYS_FOR_B'
+                    )
+                    """);
+            if (configAdded > 0) {
+                log.info(">>> 平台结构升级：平台租户密码有效期默认配置已补充");
+            }
         } catch (Exception e) {
             log.error(">>> 平台运营结构升级失败，请手工执行 docs/_streams/platform.md 中的迁移 SQL", e);
         }

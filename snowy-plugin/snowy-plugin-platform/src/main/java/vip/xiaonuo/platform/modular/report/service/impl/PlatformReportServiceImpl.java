@@ -736,6 +736,20 @@ public class PlatformReportServiceImpl implements PlatformReportService {
         if (value instanceof java.sql.Timestamp timestamp) {
             return new Date(timestamp.getTime());
         }
+        // MySQL Connector/J 8 在部分配置下 getObject 返回 LocalDateTime/LocalDate，不能直接丢掉
+        if (value instanceof java.time.LocalDateTime localDateTime) {
+            return Date.from(localDateTime.atZone(java.time.ZoneId.systemDefault()).toInstant());
+        }
+        if (value instanceof java.time.LocalDate localDate) {
+            return Date.from(localDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant());
+        }
+        if (value instanceof String text && cn.hutool.core.util.StrUtil.isNotBlank(text)) {
+            try {
+                return DateUtil.parse(text);
+            } catch (Exception ignored) {
+                return null;
+            }
+        }
         return null;
     }
 }
