@@ -21,6 +21,7 @@ import vip.xiaonuo.common.pojo.CommonEntity;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
 
 /**
  * 学员实体
@@ -66,8 +67,16 @@ public class Student extends CommonEntity {
     private String campusId;
 
     /** 状态 */
-    @Schema(description = "状态(在读/停课/已退费)")
+    @Schema(description = "状态(在读/停课/休学/退学/结课/已退费)")
     private String status;
+
+    /** 状态变更原因 */
+    @Schema(description = "状态变更原因")
+    private String statusReason;
+
+    /** 状态变更时间 */
+    @Schema(description = "状态变更时间")
+    private Date statusChangeTime;
 
     /** 来源线索id */
     @Schema(description = "来源线索id")
@@ -105,4 +114,9 @@ public class Student extends CommonEntity {
     @Schema(description = "是否已有课时账户")
     @TableField(exist = false)
     private Boolean hasLessonAccount;
+
+    /** 学员标签（非数据库字段，列表/详情回填） */
+    @Schema(description = "学员标签")
+    @TableField(exist = false)
+    private List<vip.xiaonuo.student.modular.studenttag.entity.StudentTag> tagList;
 }

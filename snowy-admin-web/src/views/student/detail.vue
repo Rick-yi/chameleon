@@ -6,9 +6,17 @@
 				<div>
 					<div style="font-size: 16px; font-weight: 600">{{ student.name }} <a-tag :color="statusColor" style="margin-left: 8px">{{ statusText }}</a-tag></div>
 					<div style="color: rgba(0,0,0,.45); font-size: 13px; margin-top: 4px">家长：{{ student.parentName }} {{ student.parentPhone }} · 生日：{{ student.birthday ? String(student.birthday).slice(0, 10) : '-' }}</div>
+					<div class="detail-tags">
+						<a-tag v-for="tag in student.tagList || []" :key="tag.id" :color="tag.color || 'blue'">{{ tag.name }}</a-tag>
+						<span v-if="student.statusReason" class="detail-reason">状态原因：{{ student.statusReason }}</span>
+					</div>
 				</div>
 				<div style="margin-left: auto">
-					<a-button type="primary" @click="enrollOpen = true">报名购课</a-button>
+					<a-space wrap>
+						<a-button @click="openStatus">状态变更</a-button>
+						<a-button @click="openTagBind">标签</a-button>
+						<a-button type="primary" @click="enrollOpen = true">报名购课</a-button>
+					</a-space>
 				</div>
 			</div>
 			<div class="detail-kpis">
@@ -40,6 +48,30 @@
 
 		<a-card>
 			<a-tabs v-model:activeKey="activeTab">
+				<a-tab-pane key="timeline" tab="全部动态">
+					<a-spin :spinning="timelineLoading">
+						<a-timeline v-if="timeline.length" class="timeline-list">
+							<a-timeline-item
+								v-for="(item, index) in timeline"
+								:key="`${item.type}-${item.refId}-${index}`"
+								:color="timelineColor(item.type)"
+							>
+								<div class="timeline-head">
+									<b>{{ item.typeName }}</b>
+									<span>{{ formatDateTime(item.time) }}</span>
+								</div>
+								<div class="timeline-title">{{ item.title }}</div>
+								<div v-if="item.content" class="timeline-content">{{ item.content }}</div>
+								<div class="timeline-meta">
+									<span v-if="item.amount !== null && item.amount !== undefined">金额 ¥{{ Number(item.amount).toFixed(2) }}</span>
+									<span v-if="item.lessons !== null && item.lessons !== undefined">课时 {{ item.lessons }}</span>
+									<span v-if="item.operator">操作人 {{ item.operator }}</span>
+								</div>
+							</a-timeline-item>
+						</a-timeline>
+						<a-empty v-else description="暂时没有动态记录" />
+					</a-spin>
+				</a-tab-pane>
 				<a-tab-pane key="account" tab="课时账户">
 					<a-alert
 						type="info"
@@ -197,9 +229,45 @@
 					<a-input v-model:value="adjustFormData.reason" placeholder="如：赠送 2 课时活动 / 扣错补正" allow-clear />
 				</a-form-item>
 			</a-form>
-		</a-modal>
-	</div>
-</template>
+			</a-modal>
+
+			<a-modal v-model:open="statusOpen" title="学员状态变更" :width="480" :destroy-on-close="true" @ok="onSubmitStatus">
+				<a-form :model="statusForm" layout="vertical">
+					<a-alert
+						type="info"
+						show-icon
+						style="margin-bottom: 12px"
+						message="停课/休学后恢复上课请选择「在读」完成复课；每次变更都会写入动态时间线。"
+					/>
+					<a-form-item label="目标状态" required>
+						<a-select v-model:value="statusForm.status" :options="statusChangeOptions" />
+					</a-form-item>
+					<a-form-item label="变更原因" :required="statusForm.status !== 'STUDYING'">
+						<a-textarea
+							v-model:value="statusForm.reason"
+							:auto-size="{ minRows: 3, maxRows: 5 }"
+							:placeholder="statusForm.status === 'STUDYING' ? '复课备注（选填）' : '请填写原因，如：家长申请、搬迁、课程结束'"
+						/>
+					</a-form-item>
+				</a-form>
+			</a-modal>
+
+			<a-modal v-model:open="tagBindOpen" title="设置学员标签" :width="480" :destroy-on-close="true" @ok="onSubmitTags">
+				<a-form layout="vertical">
+					<a-form-item label="标签（可多选）">
+						<a-select
+							v-model:value="tagBindForm.tagIdList"
+							mode="multiple"
+							:options="tagOptions"
+							placeholder="请选择标签，可多选"
+							allow-clear
+							option-filter-prop="label"
+						/>
+					</a-form-item>
+				</a-form>
+			</a-modal>
+		</div>
+	</template>
 
 <script setup name="studentDetail">
 	import { useRoute } from 'vue-router'
@@ -220,7 +288,9 @@
 	const orders = ref([])
 	const attends = ref([])
 	const refunds = ref([])
-	const activeTab = ref('account')
+	const timeline = ref([])
+	const timelineLoading = ref(false)
+	const activeTab = ref('timeline')
 	const courseMap = ref({})
 	const enrollOpen = ref(false)
 
@@ -236,12 +306,35 @@
 	const adjustOpen = ref(false)
 	const adjustFormRef = ref()
 	const adjustFormData = ref({})
+	// 状态变更
+	const statusOpen = ref(false)
+	const statusForm = ref({ studentId: '', status: 'STOP', reason: '' })
+	const statusOptions = [
+		{ value: 'STUDYING', label: '在读' },
+		{ value: 'STOP', label: '停课' },
+		{ value: 'SUSPEND', label: '休学' },
+		{ value: 'WITHDRAWN', label: '退学' },
+		{ value: 'GRADUATED', label: '结课' },
+		{ value: 'REFUNDED', label: '已退费' }
+	]
+	const statusChangeOptions = statusOptions.filter((item) => item.value !== 'REFUNDED')
+	// 标签
+	const tagList = ref([])
+	const tagOptions = computed(() => tagList.value.map((item) => ({ value: item.id, label: item.name })))
+	const tagBindOpen = ref(false)
+	const tagBindForm = ref({ studentId: '', tagIdList: [] })
 
 	const statusText = computed(() => {
-		return student.value.status === 'STUDYING' ? '在读' : student.value.status === 'STOP' ? '停课' : '已退费'
+		const item = statusOptions.find((option) => option.value === student.value.status)
+		return item ? item.label : student.value.status || '-'
 	})
 	const statusColor = computed(() => {
-		return student.value.status === 'STUDYING' ? 'green' : student.value.status === 'STOP' ? 'orange' : 'red'
+		const status = student.value.status
+		if (status === 'STUDYING') return 'green'
+		if (status === 'STOP') return 'orange'
+		if (status === 'SUSPEND') return 'gold'
+		if (status === 'GRADUATED') return 'blue'
+		return 'red'
 	})
 	const hasLessonAccount = computed(() => student.value.hasLessonAccount !== false)
 	const remainNumber = computed(() => Number(student.value.remainLessons || 0))
@@ -347,6 +440,7 @@
 
 	const loadAll = () => {
 		loading.value = true
+		timelineLoading.value = true
 		Promise.all([
 			studentApi.studentDetail({ id: currentStudentId.value }),
 			studentApi.lessonAccountPage({ current: 1, size: 50, studentId: currentStudentId.value }),
@@ -354,20 +448,27 @@
 			studentApi.orderPage({ current: 1, size: 50, studentId: currentStudentId.value }),
 			studentApi.refundPage({ current: 1, size: 50, studentId: currentStudentId.value }),
 			courseApi.coursePage({ current: 1, size: 100 }),
-			courseApi.studentAttendPage({ current: 1, size: 50, studentId: currentStudentId.value })
-		]).then(([stu, acc, flow, order, refund, course, attend]) => {
+			courseApi.studentAttendPage({ current: 1, size: 50, studentId: currentStudentId.value }),
+			studentApi.studentTimeline({ studentId: currentStudentId.value }),
+			studentApi.tagList()
+		]).then(([stu, acc, flow, order, refund, course, attend, timelineData, tags]) => {
 			student.value = stu
 			accounts.value = acc.records || []
 			flows.value = (flow.records || []).map((f) => ({ ...f, flowType: flowTypeText(f.flowType) }))
 			orders.value = order.records || []
 			attends.value = (attend?.records || []).map((a) => ({ ...a }))
 			refunds.value = refund.records || []
+			timeline.value = timelineData || []
+			tagList.value = tags || []
 			const cmap = {}
 			for (const c of course.records || []) cmap[c.id] = c.name
 			courseMap.value = cmap
 		}).catch((err) => {
 			message.error(err?.msg || '学员详情加载失败，请重试')
-		}).finally(() => (loading.value = false))
+		}).finally(() => {
+			loading.value = false
+			timelineLoading.value = false
+		})
 	}
 
 	const onOpenPay = (record) => {
@@ -446,6 +547,53 @@
 	const onCancelRefund = (record) => {
 		studentApi.refundCancel({ id: record.id }).then(() => loadAll())
 	}
+	const formatDateTime = (value) => {
+		if (!value) return '-'
+		const date = new Date(String(value).replace(/-/g, '/'))
+		if (Number.isNaN(date.getTime())) return String(value).slice(0, 16)
+		const pad = (n) => String(n).padStart(2, '0')
+		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+	}
+	const timelineColor = (type) => {
+		if (type === 'PAY') return 'green'
+		if (type === 'REFUND' || type === 'REFUND_APPLY' || type === 'REFUND_APPROVE') return 'red'
+		if (type === 'ATTEND') return 'blue'
+		if (type === 'STATUS') return 'orange'
+		if (type === 'FOLLOW') return 'gray'
+		return 'blue'
+	}
+	const openStatus = () => {
+		statusForm.value = {
+			studentId: currentStudentId.value,
+			status: student.value.status === 'STUDYING' ? 'STOP' : 'STUDYING',
+			reason: ''
+		}
+		statusOpen.value = true
+	}
+	const onSubmitStatus = () => {
+		const form = statusForm.value
+		if (form.status !== 'STUDYING' && !String(form.reason || '').trim()) {
+			message.warning('请填写状态变更原因')
+			return
+		}
+		studentApi.studentStatusChange(form).then(() => {
+			statusOpen.value = false
+			loadAll()
+		})
+	}
+	const openTagBind = () => {
+		tagBindForm.value = {
+			studentId: currentStudentId.value,
+			tagIdList: (student.value.tagList || []).map((tag) => tag.id)
+		}
+		tagBindOpen.value = true
+	}
+	const onSubmitTags = () => {
+		studentApi.tagBind(tagBindForm.value).then(() => {
+			tagBindOpen.value = false
+			loadAll()
+		})
+	}
 	watch(currentStudentId, () => loadAll(), { immediate: true })
 </script>
 
@@ -491,6 +639,52 @@
 		flex-wrap: wrap;
 		gap: 6px;
 		margin-top: 12px;
+	}
+	.detail-tags {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 4px;
+		margin-top: 6px;
+	}
+	.detail-reason {
+		font-size: 12px;
+		color: var(--text-color-secondary);
+	}
+	.timeline-list {
+		padding-top: 8px;
+	}
+	.timeline-head {
+		display: flex;
+		align-items: baseline;
+		gap: 8px;
+		justify-content: space-between;
+		b {
+			color: var(--text-color);
+		}
+		span {
+			font-size: 12px;
+			color: var(--text-color-secondary);
+		}
+	}
+	.timeline-title {
+		margin-top: 2px;
+		font-size: 13px;
+		font-weight: 500;
+	}
+	.timeline-content {
+		margin-top: 2px;
+		font-size: 12px;
+		color: var(--text-color-secondary);
+		word-break: break-all;
+	}
+	.timeline-meta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 12px;
+		margin-top: 4px;
+		font-size: 12px;
+		color: var(--text-color-tertiary);
 	}
 	@media (max-width: 576px) {
 		.detail-kpis {

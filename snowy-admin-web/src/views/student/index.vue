@@ -2,10 +2,20 @@
 	<div class="student-page">
 		<page-header title="学员管理" desc="学员档案、课时账户与报名入口">
 			<template #extra>
-				<a-button v-if="hasPerm('/student/add')" type="primary" @click="onOpenAdd">
-					<template #icon><plus-outlined /></template>
-					新增学员
-				</a-button>
+				<a-space>
+					<a-button v-if="hasPerm('/student/import')" @click="openImport">
+						<template #icon><import-outlined /></template>
+						批量导入
+					</a-button>
+					<a-button v-if="hasPerm('/student/export')" @click="onExport">
+						<template #icon><export-outlined /></template>
+						导出
+					</a-button>
+					<a-button v-if="hasPerm('/student/add')" type="primary" @click="onOpenAdd">
+						<template #icon><plus-outlined /></template>
+						新增学员
+					</a-button>
+				</a-space>
 			</template>
 		</page-header>
 		<div class="ent-toolbar">
@@ -26,6 +36,17 @@
 				</a-form-item>
 				<a-form-item label="状态">
 					<a-select v-model:value="searchFormState.status" placeholder="全部状态" :options="statusOptions" allow-clear style="width: 140px" />
+				</a-form-item>
+				<a-form-item label="标签">
+					<a-select
+						v-model:value="searchFormState.tagId"
+						placeholder="全部标签"
+						:options="tagOptions"
+						allow-clear
+						show-search
+						option-filter-prop="label"
+						style="width: 150px"
+					/>
 				</a-form-item>
 				<a-form-item>
 					<a-space>
@@ -65,8 +86,15 @@
 					<span :class="{ 'text-warning': Number(record.unpaidAmount) > 0 }">{{ formatMoney(record.unpaidAmount) }}</span>
 				</template>
 				<template v-if="column.dataIndex === 'status'">
-					<a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
-				</template>
+						<a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
+						<span v-if="record.statusReason" class="status-reason" :title="record.statusReason">{{ record.statusReason }}</span>
+					</template>
+					<template v-if="column.dataIndex === 'tags'">
+						<a-space :size="4" wrap>
+							<a-tag v-for="tag in record.tagList || []" :key="tag.id" :color="tag.color || 'blue'">{{ tag.name }}</a-tag>
+							<span v-if="!(record.tagList || []).length" class="text-muted">-</span>
+						</a-space>
+					</template>
 				<template v-if="column.dataIndex === 'action'">
 					<a-space>
 						<a @click="openDetail(record)">详情</a>
@@ -100,6 +128,10 @@
 								<span v-if="item.campusId" class="student-card-campus"> · {{ campusNameMap[item.campusId] || '校区' }}</span>
 							</span>
 							<a v-if="item.parentPhone" :href="'tel:' + item.parentPhone">拨号</a>
+						</div>
+						<div v-if="(item.tagList || []).length || item.statusReason" class="student-card-tags">
+							<a-tag v-for="tag in item.tagList || []" :key="tag.id" :color="tag.color || 'blue'">{{ tag.name }}</a-tag>
+							<span v-if="item.statusReason" class="student-card-reason">{{ item.statusReason }}</span>
 						</div>
 						<div class="student-card-grid">
 							<div>
@@ -139,7 +171,7 @@
 
 	<!-- 学员详情：抽屉内展示，保留列表上下文，避免独立页面来回切换 -->
 	<a-drawer v-model:open="detailOpen" :width="880" :title="detailStudentName || '学员详情'" destroy-on-close>
-		<student-detail v-if="detailOpen" :student-id="detailStudentId" />
+		<student-detail v-if="detailOpen" :key="detailKey" :student-id="detailStudentId" />
 	</a-drawer>
 
 	<a-modal v-model:open="open" :title="formData.id ? '编辑学员' : '新增学员'" :width="600" :destroy-on-close="true" @ok="onSubmit">
@@ -192,16 +224,121 @@
 					</a-form-item>
 				</a-col>
 			</a-row>
-		</a-form>
-	</a-modal>
-</template>
+			</a-form>
+		</a-modal>
+
+		<!-- 批量导入：模板下载 + 错误行回显 + 可重试 -->
+		<a-modal v-model:open="importOpen" title="批量导入学员" :width="720" :footer="null" :destroy-on-close="true">
+			<div class="import-tip">
+				请先下载模板按格式填写。导入按行校验，失败行会显示行号与原因；修正后可只保留失败行再次上传重试。
+			</div>
+			<a-space style="margin-bottom: 12px">
+				<a-button @click="downloadTemplate">
+					<template #icon><download-outlined /></template>
+					下载模板
+				</a-button>
+				<a-button v-if="importResult" @click="resetImport">重新上传</a-button>
+			</a-space>
+			<a-spin :spinning="importLoading">
+				<a-upload-dragger v-if="!importResult" :show-upload-list="false" :custom-request="customImport" accept=".xls,.xlsx">
+					<p class="ant-upload-drag-icon"><inbox-outlined /></p>
+					<p class="ant-upload-text">单击或拖动 Excel 文件到此区域</p>
+					<p class="ant-upload-hint">仅支持 xls / xlsx，单次最多 2000 行</p>
+				</a-upload-dragger>
+			</a-spin>
+			<a-alert v-if="importResult" type="info" show-icon style="margin-top: 12px">
+				<template #message>
+					<div>导入总数：{{ importResult.totalCount }} 条 · 成功 {{ importResult.successCount }} 条 · 失败 {{ importResult.errorCount }} 条</div>
+					<div v-if="importResult.errorCount > 0" style="margin-top: 8px">
+						<a-table
+							:data-source="importResult.errorDetail || []"
+							:columns="importErrorColumns"
+							:row-key="(r) => r.rowNum"
+							size="small"
+							:pagination="false"
+							bordered
+						/>
+					</div>
+				</template>
+			</a-alert>
+		</a-modal>
+
+		<!-- 状态变更：停课/休学/退学/结课/复课 -->
+		<a-modal v-model:open="statusOpen" title="学员状态变更" :width="480" :destroy-on-close="true" @ok="onSubmitStatus">
+			<a-form :model="statusForm" layout="vertical">
+				<a-alert
+					type="info"
+					show-icon
+					style="margin-bottom: 12px"
+					message="状态变更会写入变更记录；停课/休学后如需恢复上课，请选择「在读」完成复课。"
+				/>
+				<a-form-item label="目标状态" required>
+					<a-select v-model:value="statusForm.status" :options="statusChangeOptions" />
+				</a-form-item>
+				<a-form-item label="变更原因" :required="statusForm.status !== 'STUDYING'">
+					<a-textarea
+						v-model:value="statusForm.reason"
+						:auto-size="{ minRows: 3, maxRows: 5 }"
+						:placeholder="statusForm.status === 'STUDYING' ? '复课备注（选填）' : '请填写原因，如：家长申请、搬迁、课程结束'"
+					/>
+				</a-form-item>
+			</a-form>
+		</a-modal>
+
+		<!-- 学员标签绑定 -->
+		<a-modal v-model:open="tagBindOpen" title="设置学员标签" :width="480" :destroy-on-close="true" @ok="onSubmitTags">
+			<a-form layout="vertical">
+				<a-form-item label="标签（可多选）">
+					<a-select
+						v-model:value="tagBindForm.tagIdList"
+						mode="multiple"
+						:options="tagOptions"
+						placeholder="请选择标签，可多选"
+						allow-clear
+						option-filter-prop="label"
+					/>
+				</a-form-item>
+				<a class="tag-manage-link" @click="openTagManage">管理标签字典</a>
+			</a-form>
+		</a-modal>
+
+		<!-- 标签字典管理 -->
+		<a-modal v-model:open="tagManageOpen" title="标签字典" :width="560" :footer="null" :destroy-on-close="true">
+			<a-space style="margin-bottom: 12px" wrap>
+				<a-input v-model:value="newTag.name" placeholder="新标签名称" style="width: 180px" allow-clear />
+				<a-select v-model:value="newTag.color" style="width: 120px" :options="tagColorOptions" />
+				<a-input-number v-model:value="newTag.sortCode" :min="0" placeholder="排序" style="width: 100px" />
+				<a-button type="primary" @click="onAddTag">新增</a-button>
+			</a-space>
+			<a-table :data-source="tagList" :columns="tagColumns" :row-key="(r) => r.id" size="small" :pagination="false" bordered>
+				<template #bodyCell="{ column, record }">
+					<template v-if="column.dataIndex === 'name'">
+						<a-tag :color="record.color || 'blue'">{{ record.name }}</a-tag>
+						<a-input v-if="record.editing" v-model:value="record.editName" size="small" style="width: 140px; margin-left: 8px" />
+					</template>
+					<template v-if="column.dataIndex === 'action'">
+						<a-space>
+							<a v-if="!record.editing" @click="record.editing = true; record.editName = record.name">重命名</a>
+							<a v-else @click="onEditTag(record)">保存</a>
+							<a-divider type="vertical" />
+							<a-popconfirm title="删除后学员身上的该标签也会移除，确定吗？" @confirm="onDeleteTag(record)">
+								<a class="text-danger">删除</a>
+							</a-popconfirm>
+						</a-space>
+					</template>
+				</template>
+			</a-table>
+		</a-modal>
+	</template>
 
 <script setup name="studentIndex">
 	import { useRoute, useRouter } from 'vue-router'
+	import { message } from 'ant-design-vue'
 	import StudentDetail from './detail.vue'
 	import EnrollmentFlow from '@/components/EnrollmentFlow/index.vue'
 	import studentApi from '@/api/student/studentApi'
 	import courseApi from '@/api/course/courseApi'
+	import downloadUtil from '@/utils/downloadUtil'
 	import { globalStore } from '@/store'
 	const router = useRouter()
 	const route = useRoute()
@@ -221,8 +358,12 @@
 	const statusOptions = [
 		{ value: 'STUDYING', label: '在读' },
 		{ value: 'STOP', label: '停课' },
+		{ value: 'SUSPEND', label: '休学' },
+		{ value: 'WITHDRAWN', label: '退学' },
+		{ value: 'GRADUATED', label: '结课' },
 		{ value: 'REFUNDED', label: '已退费' }
 	]
+	const statusChangeOptions = statusOptions.filter((item) => item.value !== 'REFUNDED')
 	const columns = [
 		{ title: '学员姓名', dataIndex: 'name' },
 		{ title: '性别', dataIndex: 'gender' },
@@ -232,6 +373,7 @@
 		{ title: '课包到期', dataIndex: 'accountExpireTime', width: 120 },
 		{ title: '所在班级', dataIndex: 'classNames', width: 160 },
 		{ title: '待收款', dataIndex: 'unpaidAmount', width: 110, align: 'right' },
+		{ title: '标签', dataIndex: 'tags', width: 160 },
 		{ title: '状态', dataIndex: 'status' },
 		{ title: '创建时间', dataIndex: 'createTime' },
 		{ title: '操作', dataIndex: 'action', align: 'center', fixed: 'right' }
@@ -314,7 +456,18 @@
 		return item ? item.label : status
 	}
 	const statusColor = (status) => {
-		return status === 'STUDYING' ? 'green' : status === 'STOP' ? 'orange' : 'red'
+		if (status === 'STUDYING') return 'green'
+		if (status === 'STOP') return 'orange'
+		if (status === 'SUSPEND') return 'gold'
+		if (status === 'GRADUATED') return 'blue'
+		if (status === 'WITHDRAWN') return 'red'
+		return 'red'
+	}
+	const onExport = () => {
+		studentApi
+			.studentExport({ ...searchFormState.value })
+			.then((res) => downloadUtil.resultDownload(res))
+			.catch(() => message.error('导出失败，请稍后重试'))
 	}
 	const openEnrollment = (record) => {
 		enrollStudent.value = record
@@ -350,15 +503,168 @@
 	// 操作列：次要操作收进「更多」下拉
 	const studentMoreActions = [
 		{ key: 'edit', label: '编辑' },
+		{ key: 'status', label: '状态变更' },
+		{ key: 'tags', label: '设置标签' },
 		{ key: 'delete', label: '删除', danger: true, confirmTitle: '确定删除该学员吗？', confirmContent: '删除后该学员不再出现在列表中。' }
 	]
 	const onStudentMore = (action, record) => {
 		if (action.key === 'edit') {
 			onOpenEdit(record)
+		} else if (action.key === 'status') {
+			openStatus(record)
+		} else if (action.key === 'tags') {
+			openTagBind(record)
 		} else if (action.key === 'delete') {
 			onDelete(record)
 		}
 	}
+	// 详情抽屉：状态/标签变更后通过 key 强制刷新
+	const detailKey = ref(0)
+	const bumpDetail = () => {
+		detailKey.value += 1
+	}
+	// 批量导入
+	const importOpen = ref(false)
+	const importLoading = ref(false)
+	const importResult = ref(null)
+	const importErrorColumns = [
+		{ title: '行号', dataIndex: 'rowNum', width: 70 },
+		{ title: '学员', dataIndex: 'name', width: 110 },
+		{ title: '家长手机', dataIndex: 'parentPhone', width: 130 },
+		{ title: '失败原因', dataIndex: 'msg' }
+	]
+	const openImport = () => {
+		importResult.value = null
+		importOpen.value = true
+	}
+	const resetImport = () => {
+		importResult.value = null
+	}
+	const downloadTemplate = () => {
+		studentApi
+			.studentImportTemplate()
+			.then((res) => downloadUtil.resultDownload(res))
+			.catch(() => message.error('模板下载失败，请稍后重试'))
+	}
+	const customImport = (data) => {
+		const extension = '.'.concat(data.file.name.split('.').slice(-1).toString().toLowerCase())
+		if (!['.xls', '.xlsx'].includes(extension)) {
+			message.warning('仅支持 xls / xlsx 格式文件')
+			return false
+		}
+		importLoading.value = true
+		const fileData = new FormData()
+		fileData.append('file', data.file)
+		return studentApi
+			.studentImport(fileData)
+			.then((res) => {
+				importResult.value = res
+				if (Number(res?.successCount) > 0) {
+					refreshList()
+					if (Number(res?.errorCount) === 0) {
+						message.success(`导入完成，成功 ${res.successCount} 条`)
+					}
+				}
+			})
+			.catch(() => message.error('导入失败，请检查文件后重试'))
+			.finally(() => {
+				importLoading.value = false
+			})
+	}
+	// 状态变更
+	const statusOpen = ref(false)
+	const statusForm = ref({ studentId: '', status: 'STOP', reason: '' })
+	const openStatus = (record) => {
+		statusForm.value = {
+			studentId: record.id,
+			status: record.status === 'STUDYING' ? 'STOP' : 'STUDYING',
+			reason: ''
+		}
+		statusOpen.value = true
+	}
+	const onSubmitStatus = () => {
+		const form = statusForm.value
+		if (form.status !== 'STUDYING' && !String(form.reason || '').trim()) {
+			message.warning('请填写状态变更原因')
+			return
+		}
+		studentApi.studentStatusChange(form).then(() => {
+			statusOpen.value = false
+			refreshList()
+			bumpDetail()
+		})
+	}
+	// 标签绑定与字典
+	const tagList = ref([])
+	const tagOptions = computed(() => tagList.value.map((item) => ({ value: item.id, label: item.name })))
+	const tagBindOpen = ref(false)
+	const tagBindForm = ref({ studentId: '', tagIdList: [] })
+	const openTagBind = (record) => {
+		tagBindForm.value = { studentId: record.id, tagIdList: (record.tagList || []).map((tag) => tag.id) }
+		tagBindOpen.value = true
+	}
+	const onSubmitTags = () => {
+		studentApi.tagBind(tagBindForm.value).then(() => {
+			tagBindOpen.value = false
+			refreshList()
+			bumpDetail()
+		})
+	}
+	const loadTags = () => {
+		return studentApi.tagList().then((list) => {
+			tagList.value = (list || []).map((item) => ({ ...item, editing: false, editName: item.name }))
+		})
+	}
+	const tagManageOpen = ref(false)
+	watch(tagManageOpen, (value) => {
+		if (value) loadTags()
+	})
+	const openTagManage = () => {
+		tagManageOpen.value = true
+	}
+	const newTag = ref({ name: '', color: 'blue', sortCode: 0 })
+	const tagColorOptions = [
+		{ value: 'blue', label: '蓝色' },
+		{ value: 'green', label: '绿色' },
+		{ value: 'orange', label: '橙色' },
+		{ value: 'red', label: '红色' },
+		{ value: 'purple', label: '紫色' },
+		{ value: 'cyan', label: '青色' }
+	]
+	const tagColumns = [
+		{ title: '标签', dataIndex: 'name' },
+		{ title: '排序', dataIndex: 'sortCode', width: 80 },
+		{ title: '操作', dataIndex: 'action', width: 150, align: 'center' }
+	]
+	const onAddTag = () => {
+		const name = String(newTag.value.name || '').trim()
+		if (!name) {
+			message.warning('请输入标签名称')
+			return
+		}
+		studentApi.tagAdd({ ...newTag.value, name }).then(() => {
+			newTag.value = { name: '', color: 'blue', sortCode: 0 }
+			loadTags()
+		})
+	}
+	const onEditTag = (record) => {
+		const name = String(record.editName || '').trim()
+		if (!name) {
+			message.warning('标签名称不能为空')
+			return
+		}
+		studentApi.tagEdit({ id: record.id, name, color: record.color, sortCode: record.sortCode }).then(() => {
+			record.editing = false
+			loadTags()
+		})
+	}
+	const onDeleteTag = (record) => {
+		studentApi.tagDelete({ id: record.id }).then(() => {
+			loadTags()
+			refreshList()
+		})
+	}
+	loadTags()
 	// 详情抽屉
 	const detailOpen = ref(false)
 	const detailStudentId = ref('')
@@ -393,6 +699,36 @@
 		font-weight: 600;
 	}
 	.text-muted {
+		color: var(--text-color-secondary);
+	}
+	.status-reason {
+		margin-left: 6px;
+		font-size: 12px;
+		color: var(--text-color-secondary);
+		display: inline-block;
+		max-width: 130px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		vertical-align: middle;
+	}
+	.import-tip {
+		margin-bottom: 12px;
+		font-size: 13px;
+		color: var(--text-color-secondary);
+	}
+	.tag-manage-link {
+		font-size: 12px;
+	}
+	.student-card-tags {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		flex-wrap: wrap;
+		margin-top: 6px;
+	}
+	.student-card-reason {
+		font-size: 12px;
 		color: var(--text-color-secondary);
 	}
 	.student-mobile {

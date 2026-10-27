@@ -56,6 +56,7 @@
 					{{ (currentSchedule.scheduleDate || '').slice(0, 10) }}
 					{{ currentSchedule.startTime }}-{{ currentSchedule.endTime }}
 					{{ currentSchedule.classroom ? '· ' + currentSchedule.classroom : '' }}
+					<span class="attend-course-tag">课程：{{ currentCourseName }}</span>
 				</span>
 				<a-button type="link" size="small" class="attend-switch" @click="scheduleId = undefined">换一节</a-button>
 			</template>
@@ -108,6 +109,13 @@
 					:message="`本节已有 ${savedCount} 人完成点名；已点名学员为只读，如需修改请先点击方块上的「撤销」。`"
 				/>
 				<a-alert
+					v-if="scheduleId"
+					type="info"
+					show-icon
+					style="margin-bottom: 12px"
+					:message="accountHint"
+				/>
+				<a-alert
 					v-if="lastResult && lastResult.skipped.length"
 					type="warning"
 					show-icon
@@ -146,11 +154,14 @@
 						</div>
 						<div class="attend-tile-sub">
 							<span>{{ studentPhone(record.studentId) }}</span>
-							<span v-if="!balanceMap[record.studentId]" class="attend-balance is-danger">未购课</span>
+							<span v-if="!balanceMap[record.studentId]" class="attend-balance is-danger">未购{{ currentCourseName }}课包</span>
 							<span v-else-if="Number(balanceMap[record.studentId].remainLessons) < 1.5" class="attend-balance is-warn">
 								剩 {{ balanceMap[record.studentId].remainLessons }}
 							</span>
 							<span v-else class="attend-balance">剩 {{ balanceMap[record.studentId].remainLessons }}</span>
+						</div>
+						<div v-if="balanceMap[record.studentId]" class="attend-account-line">
+							扣 {{ currentCourseName }} 课时账户{{ sharedCourseBalance ? '（与同课程其他班级共用）' : '' }}
 						</div>
 						<div class="attend-tile-status">
 							<span class="dot" />
@@ -317,6 +328,18 @@
 		const item = scheduleList.value.find((s) => s.id === scheduleId.value)
 		return item || null
 	})
+	// 消课账户：优先排课上的课程（支持不挂班级的直接排课），其次班级默认课程
+	const currentCourseId = computed(() => currentSchedule.value?.courseId || classRecords.value.find((item) => item.id === classId.value)?.courseId)
+	const currentCourseName = computed(() => currentSchedule.value?.courseName || '当前课程')
+	// 同一课程下多个班级共用「学员 + 课程」维度的课时账户
+	const sharedCourseBalance = computed(() => {
+		if (!currentCourseId.value) return false
+		return classRecords.value.filter((item) => item.courseId === currentCourseId.value).length > 1
+	})
+	const accountHint = computed(() => {
+		const sharedText = sharedCourseBalance.value ? '同一课程下的多个班级共用同一课时余额，本节扣减的是该课程账户。' : ''
+		return `本节课程：${currentCourseName.value}。点名成功将从「学员 + ${currentCourseName.value}」课时账户扣减；${sharedText}余额不足或未购课包时，按现有规则保留出勤但不扣课，不影响其他学员。`
+	})
 	const loadAttendPage = () => {
 		if (!scheduleId.value) return
 		lastResult.value = null
@@ -342,7 +365,7 @@
 				current.attendStatus = saved === 0 ? 'NONE' : saved >= list.length ? 'DONE' : 'PARTIAL'
 			}
 			const cls = classRecords.value.find((item) => item.id === classId.value)
-			return loadBalance(list.map((item) => item.studentId), cls?.courseId)
+			return loadBalance(list.map((item) => item.studentId), currentCourseId.value || cls?.courseId)
 		}).catch(() => {
 			students.value = []
 			attendError.value = '学员名单加载失败，请检查网络后重试'
@@ -431,6 +454,14 @@
 	.attend-current-meta {
 		font-size: 13px;
 		color: var(--text-color-secondary);
+	}
+	.attend-course-tag {
+		margin-left: 8px;
+		padding: 1px 8px;
+		font-size: 12px;
+		color: var(--primary-7);
+		background: var(--primary-1);
+		border-radius: 10px;
 	}
 	.attend-slot {
 		border: 1px solid var(--border-color-base);
@@ -574,6 +605,14 @@
 		&.is-danger {
 			color: var(--danger-text);
 		}
+	}
+	.attend-account-line {
+		margin-top: 4px;
+		font-size: 11px;
+		color: var(--text-color-tertiary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 	.attend-tile-status {
 		display: flex;

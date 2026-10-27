@@ -1,18 +1,20 @@
 <template>
 	<div class="m-attend">
 		<!-- 课节信息 -->
-		<div class="m-attend-head">
-			<div class="m-attend-title">{{ scheduleInfo?.className || '未命名班级' }}</div>
-			<div class="m-attend-sub">
-				{{ (scheduleInfo?.scheduleDate || '').slice(0, 10) }}
-				{{ String(scheduleInfo?.startTime || '').slice(0, 5) }}-{{ String(scheduleInfo?.endTime || '').slice(0, 5) }}
-				{{ scheduleInfo?.classroom ? '· ' + scheduleInfo.classroom : '' }}
+			<div class="m-attend-head">
+				<div class="m-attend-title">{{ scheduleInfo?.className || '未命名班级' }}</div>
+				<div class="m-attend-sub">
+					{{ (scheduleInfo?.scheduleDate || '').slice(0, 10) }}
+					{{ String(scheduleInfo?.startTime || '').slice(0, 5) }}-{{ String(scheduleInfo?.endTime || '').slice(0, 5) }}
+					{{ scheduleInfo?.classroom ? '· ' + scheduleInfo.classroom : '' }}
+				</div>
+				<div class="m-attend-course">课程：{{ courseName }} · 扣该课程课时账户</div>
+				<div v-if="sharedCourseBalance" class="m-attend-shared">同一课程多个班级共用余额，点名成功扣减同一账户</div>
+				<div class="m-attend-count">
+					应到 <b>{{ studentList.length }}</b> 人 · 到课 <b class="ok">{{ countBy('ATTEND') }}</b> ·
+					请假 <b>{{ countBy('LEAVE') }}</b> · 缺勤 <b class="warn">{{ countBy('ABSENT') }}</b>
+				</div>
 			</div>
-			<div class="m-attend-count">
-				应到 <b>{{ studentList.length }}</b> 人 · 到课 <b class="ok">{{ countBy('ATTEND') }}</b> ·
-				请假 <b>{{ countBy('LEAVE') }}</b> · 缺勤 <b class="warn">{{ countBy('ABSENT') }}</b>
-			</div>
-		</div>
 
 		<div v-if="loading" class="m-empty">加载中…</div>
 		<div v-else-if="!studentList.length" class="m-empty">该课节没有学员名单</div>
@@ -23,9 +25,9 @@
 				<div class="m-attend-name">{{ item.studentName || item.studentId }}</div>
 				<div class="m-attend-remain">
 					<template v-if="item.balance">
-						剩 {{ item.balance.remainLessons }} 课时
+						剩 {{ item.balance.remainLessons }} 课时 · 扣{{ courseName }}账户
 					</template>
-					<template v-else>未购课</template>
+					<template v-else>未购{{ courseName }}课包（保留出勤不扣课）</template>
 				</div>
 			</div>
 			<div class="m-attend-acts">
@@ -75,6 +77,14 @@
 	]
 
 	const countBy = (status) => studentList.value.filter((item) => item.attendStatus === status).length
+	// 消课账户：优先排课课程（支持不挂班级的直接排课），其次班级默认课程
+	const courseId = computed(() => scheduleInfo.value?.courseId
+		|| classRecords.value.find((item) => item.id === classId.value)?.courseId)
+	const courseName = computed(() => scheduleInfo.value?.courseName || '当前课程')
+	const sharedCourseBalance = computed(() => {
+		if (!courseId.value) return false
+		return classRecords.value.filter((item) => item.courseId === courseId.value).length > 1
+	})
 
 	const load = async () => {
 		loading.value = true
@@ -125,9 +135,10 @@
 	const loadBalance = async (list) => {
 		if (!list.length) return
 		const classRecord = classRecords.value.find((item) => item.id === classId.value)
-		if (!classRecord?.courseId) return
+		const targetCourseId = courseId.value || classRecord?.courseId
+		if (!targetCourseId) return
 		const balanceList = await studentApi
-			.lessonBalance({ studentIds: list.map((item) => item.studentId).join(','), courseId: classRecord.courseId })
+			.lessonBalance({ studentIds: list.map((item) => item.studentId).join(','), courseId: targetCourseId })
 			.catch(() => [])
 		const map = {}
 		for (const item of balanceList || []) map[item.studentId] = item
@@ -197,6 +208,16 @@
 		margin-top: 2px;
 		font-size: 12px;
 		color: var(--text-color-secondary);
+	}
+	.m-attend-course {
+		margin-top: 4px;
+		font-size: 12px;
+		color: var(--primary-7);
+	}
+	.m-attend-shared {
+		margin-top: 2px;
+		font-size: 11px;
+		color: var(--text-color-tertiary);
 	}
 	.m-attend-count {
 		margin-top: 8px;
