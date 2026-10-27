@@ -93,3 +93,13 @@
 - 前端：`cd snowy-admin-web && npm run build`（见提交说明/最终报告）。
 - 后端：`JAVA_HOME=D:\IdeaProject\chameleon\.jdk\jdk-17 mvn -s D:\IdeaProject\chameleon\.jdk\maven-settings-local.xml clean package -DskipTests`。
 - 未执行：数据库联调、接口回归、定时任务实跑。
+
+## 8. 权限迁移（2026-10-27 补充）
+
+新增接口同样受全局 URL 权限拦截，单靠方法上的 `@SaCheckPermission` 不够。已新增 `FinancePermissionMigration`：
+
+- `/finance/report/compare`、`/finance/report/meta` 新增资源并复制 `/finance/report/summary` 的角色授权；
+- `/finance/report/export/async/page` 新增资源并复制 `/finance/report/export/async/status` 的角色授权；
+- 所有租户超管额外授权。
+
+主流程无需手工执行权限 SQL。
