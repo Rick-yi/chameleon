@@ -138,12 +138,14 @@
             <artifactId>oapi-sdk</artifactId>
         </dependency>
 
-        <!-- WeLink -->
-        <dependency>
-            <groupId>com.huawei.welink.sdk</groupId>
-            <artifactId>welink-sdk-java</artifactId>
-            <scope>system</scope>
-            <systemPath>${pom.basedir}/src/main/resources/lib/welink-sdk-java-${welink-sdk.version}.jar</systemPath>
-        </dependency>
+        <!--
+            WeLink 走 HTTP 直连（见 AuthOidcWeLinkRequest），不依赖华为 SDK。
+            原先此处声明了 system scope 依赖：
+                <systemPath>${pom.basedir}/src/main/resources/lib/welink-sdk-java-${...}.jar</systemPath>
+            该写法在从本地仓库解析本模块时会因 systemPath 非绝对路径而报错，
+            导致整个 POM 被判定 invalid、所有传递依赖（含 sa-token starter）失效，
+            表现为集成测试与打包时安全地找不到 SaServletFilter。
+            代码未引用该 SDK，故移除；jar 文件保留在 resources/lib 以备接入完整 SDK。
+        -->
     </dependencies>
 </project>
