@@ -51,6 +51,7 @@ import vip.xiaonuo.student.modular.studentrefund.param.StudentRefundApproveParam
 import vip.xiaonuo.student.modular.studentrefund.param.StudentRefundIdParam;
 import vip.xiaonuo.student.modular.studentrefund.param.StudentRefundPageParam;
 import vip.xiaonuo.student.modular.studentrefund.service.StudentRefundService;
+import vip.xiaonuo.student.modular.studentlessonaccount.util.LessonAccountInvariant;
 import vip.xiaonuo.student.modular.studentrefund.util.RefundAccountStatusResolver;
 import vip.xiaonuo.student.modular.studentrefund.util.RefundAmountCalculator;
 
@@ -348,6 +349,15 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
             throw new CommonException("课时账户数据异常，退费失败");
         }
         StudentLessonAccount updatedAccount = studentLessonAccountService.getAccount(order.getStudentId(), order.getCourseId());
+        // 退费改动了总课时，校验账务不变量（剩余 = 总课时 - 已用）；漂移只告警不阻断，避免影响资金操作
+        LessonAccountInvariant.Result invariant = LessonAccountInvariant.check(
+                updatedAccount.getTotalLessons(), updatedAccount.getUsedLessons(), updatedAccount.getRemainLessons());
+        if (!invariant.consistent()) {
+            // 该类注入的 log 是 MyBatis Log 接口（仅支持单参），故用字符串拼接
+            log.warn(">>> 退费后课时账户不自洽：学员" + order.getStudentId() + " 课程" + order.getCourseId()
+                    + " 账户" + updatedAccount.getId() + " 推算剩余" + invariant.expected()
+                    + " 实际剩余" + invariant.actual() + " 偏差" + invariant.drift());
+        }
         // 状态判定统一走 RefundAccountStatusResolver，避免两处各写一份
         String accountStatus = RefundAccountStatusResolver.resolve(updatedAccount.getRemainLessons());
         studentLessonAccountMapper.update(null, new LambdaUpdateWrapper<StudentLessonAccount>()
