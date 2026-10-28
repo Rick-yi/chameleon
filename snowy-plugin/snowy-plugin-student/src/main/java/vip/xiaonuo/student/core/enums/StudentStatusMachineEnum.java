@@ -89,4 +89,55 @@ public enum StudentStatusMachineEnum {
     public boolean canBeTarget() {
         return this != REFUNDED;
     }
+
+    /**
+     * 校验并返回合法的流转目标
+     * <p>
+     * 规则集中在此处，避免服务层与前端各自判断导致口径不一致：
+     * 目标状态必须存在、不能是历史状态 REFUNDED、不能与当前状态相同。
+     * </p>
+     *
+     * @param targetStatus 目标状态值
+     * @param fromStatus   当前状态值
+     * @return 目标状态枚举
+     * @throws IllegalArgumentException 目标非法时抛出
+     **/
+    public static StudentStatusMachineEnum resolveTarget(String targetStatus, String fromStatus) {
+        StudentStatusMachineEnum target = getByValue(targetStatus);
+        if (target == null || !target.canBeTarget()) {
+            throw new IllegalArgumentException("不支持的目标状态：" + targetStatus);
+        }
+        if (target.getValue().equals(fromStatus)) {
+            throw new IllegalArgumentException("学员当前已是【" + target.getMessage() + "】，无需变更");
+        }
+        return target;
+    }
+
+    /**
+     * 是否需要填写变更原因
+     * <p>
+     * 复课（流转回在读）可省略原因并默认记为「复课」；其余流转必须填原因。
+     * </p>
+     *
+     * @param target 目标状态
+     * @return true 表示必须填写原因
+     **/
+    public static boolean reasonRequired(StudentStatusMachineEnum target) {
+        return target != null && target != STUDYING;
+    }
+
+    /**
+     * 规范化变更原因：复课且未填原因时返回默认值「复课」
+     *
+     * @param target 目标状态
+     * @param reason 用户填写的原因（可能为空）
+     * @return 规范化后的原因
+     **/
+    public static String normalizeReason(StudentStatusMachineEnum target, String reason) {
+        String trimmed = reason == null ? null : reason.trim();
+        if (trimmed != null && !trimmed.isEmpty()) {
+            return trimmed;
+        }
+        return target == STUDYING ? "复课" : null;
+    }
 }

@@ -33,8 +33,11 @@ import vip.xiaonuo.sys.modular.user.param.SysUserIdParam;
 import vip.xiaonuo.sys.modular.user.param.SysUserSelectorUserParam;
 import vip.xiaonuo.sys.modular.user.service.SysUserService;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -52,6 +55,9 @@ public class SysUserApiProvider implements SysUserApi {
 
     @Resource
     private vip.xiaonuo.sys.modular.role.service.SysRoleService sysRoleService;
+
+    @Resource
+    private vip.xiaonuo.sys.modular.relation.service.SysRelationService sysRelationService;
 
     @Override
     public JSONObject getUserByIdWithoutException(String userId) {
@@ -100,6 +106,45 @@ public class SysUserApiProvider implements SysUserApi {
                 .filter(cn.hutool.core.util.StrUtil::isNotBlank)
                 .distinct()
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Map<String, List<String>> ownRoleCodeMap(List<String> userIdList) {
+        Map<String, List<String>> resultMap = new HashMap<>();
+        if (ObjectUtil.isEmpty(userIdList)) {
+            return resultMap;
+        }
+        List<String> idList = userIdList.stream()
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (idList.isEmpty()) {
+            return resultMap;
+        }
+        // 一次查出所有用户的「用户-角色」关系
+        List<vip.xiaonuo.sys.modular.relation.entity.SysRelation> relationList =
+                sysRelationService.getRelationListByObjectIdListAndCategory(idList,
+                        vip.xiaonuo.sys.modular.relation.enums.SysRelationCategoryEnum.SYS_USER_HAS_ROLE.getValue());
+        if (ObjectUtil.isEmpty(relationList)) {
+            return resultMap;
+        }
+        // 一次查出涉及的全部角色，避免按用户逐个查角色
+        List<String> roleIdList = relationList.stream().map(
+                        vip.xiaonuo.sys.modular.relation.entity.SysRelation::getTargetId)
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        Map<String, String> roleCodeMap = new HashMap<>();
+        if (ObjectUtil.isNotEmpty(roleIdList)) {
+            sysRoleService.listByIds(roleIdList).forEach(role ->
+                    roleCodeMap.put(role.getId(), role.getCode()));
+        }
+        Map<String, java.util.LinkedHashSet<String>> codeSetMap = new HashMap<>();
+        for (vip.xiaonuo.sys.modular.relation.entity.SysRelation relation : relationList) {
+            String roleCode = roleCodeMap.get(relation.getTargetId());
+            if (StrUtil.isBlank(roleCode)) {
+                continue;
+            }
+            codeSetMap.computeIfAbsent(relation.getObjectId(), key -> new java.util.LinkedHashSet<>()).add(roleCode);
+        }
+        codeSetMap.forEach((userId, codeSet) -> resultMap.put(userId, new ArrayList<>(codeSet)));
+        return resultMap;
     }
 
     @Override

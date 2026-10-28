@@ -59,6 +59,12 @@ jobs:
       - name: 安装依赖
         run: npm ci
 
+      # 存量代码有大量历史格式差异（CRLF/Prettier 排版），暂不阻断构建。
+      # 新增代码应保持 lint 干净；待存量格式化统一后再去掉 continue-on-error。
+      - name: 代码规范检查
+        continue-on-error: true
+        run: npm run lint
+
       - name: 生产构建
         run: npm run build
 

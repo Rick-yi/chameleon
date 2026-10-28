@@ -19,6 +19,7 @@ import vip.xiaonuo.course.modular.courseclassstudent.param.CourseClassStudentIdP
 import vip.xiaonuo.course.modular.courseclassstudent.param.CourseClassStudentPageParam;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 班级学员Service接口
@@ -33,6 +34,9 @@ public interface CourseClassStudentService {
 
     /** 获取班级在学学员列表 */
     List<CourseClassStudent> listByClassId(String classId);
+
+    /** 批量统计多个班级的在读学员数（classId -> 人数），班级无在读学员时不返回该键 */
+    Map<String, Integer> countStudyingByClassIds(List<String> classIdList);
 
     /** 批量入班 */
     void add(CourseClassStudentAddParam courseClassStudentAddParam);

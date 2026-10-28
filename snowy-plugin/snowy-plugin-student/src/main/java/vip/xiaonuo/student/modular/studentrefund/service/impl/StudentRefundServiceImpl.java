@@ -51,9 +51,9 @@ import vip.xiaonuo.student.modular.studentrefund.param.StudentRefundApproveParam
 import vip.xiaonuo.student.modular.studentrefund.param.StudentRefundIdParam;
 import vip.xiaonuo.student.modular.studentrefund.param.StudentRefundPageParam;
 import vip.xiaonuo.student.modular.studentrefund.service.StudentRefundService;
+import vip.xiaonuo.student.modular.studentrefund.util.RefundAmountCalculator;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -190,15 +190,16 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
                 || order.getPackageLessons().compareTo(BigDecimal.ZERO) <= 0) {
             throw new CommonException("订单课时数异常，无法计算退费金额");
         }
-        // 折算单价 = 实付 / 课包购买课时；退费金额 = 可退购买课时 × 单价
-        BigDecimal unitPrice = nvl(order.getPaidAmount()).divide(order.getPackageLessons(), 4, RoundingMode.HALF_UP);
+        // 折算单价与退费金额统一由 RefundAmountCalculator 计算
+        RefundAmountCalculator.RefundAmount amount =
+                RefundAmountCalculator.calc(calc.refundLessons(), order.getPaidAmount(), order.getPackageLessons());
         StudentRefund refund = new StudentRefund();
         refund.setOrderId(order.getId());
         refund.setStudentId(order.getStudentId());
         refund.setCourseId(order.getCourseId());
         refund.setRefundLessons(calc.refundLessons());
         refund.setGiftLessons(calc.giftLessons());
-        refund.setRefundAmount(calc.refundLessons().multiply(unitPrice).setScale(2, RoundingMode.HALF_UP));
+        refund.setRefundAmount(amount.refundAmount());
         refund.setApplyRemark(studentRefundAddParam.getRemark());
         refund.setStatus(StudentRefundStatusEnum.PENDING.getValue());
         this.save(refund);
@@ -216,8 +217,8 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
         }
         Student student = studentService.queryEntity(order.getStudentId());
         StudentLessonAllocationService.RefundCalc calc = studentLessonAllocationService.calcRefund(order);
-        BigDecimal unitPrice = nvl(order.getPaidAmount()).divide(order.getPackageLessons(), 4, RoundingMode.HALF_UP);
-        BigDecimal refundAmount = calc.refundLessons().multiply(unitPrice).setScale(2, RoundingMode.HALF_UP);
+        RefundAmountCalculator.RefundAmount amount =
+                RefundAmountCalculator.calc(calc.refundLessons(), order.getPaidAmount(), order.getPackageLessons());
         boolean inflight = this.count(new LambdaQueryWrapper<StudentRefund>()
                 .eq(StudentRefund::getOrderId, order.getId())
                 .in(StudentRefund::getStatus, StudentRefundStatusEnum.PENDING.getValue(),
@@ -231,10 +232,10 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
         result.put("packageGiftLessons", nvl(order.getPackageGiftLessons()));
         result.put("consumedLessons", nvl(order.getConsumedLessons()));
         result.put("paidAmount", nvl(order.getPaidAmount()));
-        result.put("unitPrice", unitPrice);
+        result.put("unitPrice", amount.unitPrice());
         result.put("refundLessons", calc.refundLessons());
         result.put("giftLessons", calc.giftLessons());
-        result.put("refundAmount", refundAmount);
+        result.put("refundAmount", amount.refundAmount());
         result.put("refundable", calc.refundLessons().compareTo(BigDecimal.ZERO) > 0);
         result.put("inflight", inflight);
         return result;
@@ -267,10 +268,11 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
             if (calc.refundLessons().compareTo(BigDecimal.ZERO) <= 0) {
                 throw new CommonException("该订单课时已消耗完毕，无可退课时");
             }
-            BigDecimal unitPrice = nvl(order.getPaidAmount()).divide(order.getPackageLessons(), 4, RoundingMode.HALF_UP);
+            RefundAmountCalculator.RefundAmount amount =
+                    RefundAmountCalculator.calc(calc.refundLessons(), order.getPaidAmount(), order.getPackageLessons());
             refund.setRefundLessons(calc.refundLessons());
             refund.setGiftLessons(calc.giftLessons());
-            refund.setRefundAmount(calc.refundLessons().multiply(unitPrice).setScale(2, RoundingMode.HALF_UP));
+            refund.setRefundAmount(amount.refundAmount());
             refund.setStatus(StudentRefundStatusEnum.TO_REFUND.getValue());
             // 冻结账户，防止退款完成前继续点名扣课
             int frozen = studentLessonAccountMapper.update(null, new LambdaUpdateWrapper<StudentLessonAccount>()

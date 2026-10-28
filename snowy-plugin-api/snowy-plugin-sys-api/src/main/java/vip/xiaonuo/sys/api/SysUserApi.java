@@ -16,6 +16,7 @@ import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 用户Api
@@ -69,6 +70,11 @@ public interface SysUserApi {
      * 用户拥有的角色编码（如 superAdmin/sales/teacher）
      */
     List<String> ownRoleCode(String userId);
+
+    /**
+     * 批量获取多个用户的角色编码（userId -> 角色码集合），避免逐个用户查询角色
+     */
+    Map<String, List<String>> ownRoleCodeMap(List<String> userIdList);
 
     /**
      * 给用户授权角色

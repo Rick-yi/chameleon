@@ -1406,13 +1406,7 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
         }
         List<CourseScheduleViewDTO> resultList = new ArrayList<>();
         // 批量统计：在读学员数（按班级）与已点名人数（按排课），供课表标注点名状态
-        Map<String, Integer> studentCountMap = new HashMap<>();
-        for (String classId : classIdList) {
-            long studyingCount = courseClassStudentService.listByClassId(classId).stream()
-                    .filter(item -> CourseClassStudentStatusEnum.STUDYING.getValue().equals(item.getStatus()))
-                    .count();
-            studentCountMap.put(classId, (int) studyingCount);
-        }
+        Map<String, Integer> studentCountMap = courseClassStudentService.countStudyingByClassIds(classIdList);
         Map<String, Integer> attendCountMap = new HashMap<>();
         List<String> scheduleIdList = scheduleList.stream().map(CourseSchedule::getId).collect(Collectors.toList());
         courseClassAttendMapper.selectList(new LambdaQueryWrapper<CourseClassAttend>()
@@ -1481,10 +1475,17 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
     @Override
     public List<JSONObject> teacherOptions(String searchKey) {
         List<JSONObject> userList = sysUserApi.listUserOptions(searchKey);
+        if (ObjectUtil.isEmpty(userList)) {
+            return new ArrayList<>();
+        }
+        // 一次批量取回所有用户的角色码，避免对每个用户各查两次角色
+        List<String> userIdList = userList.stream().map(user -> user.getStr("id"))
+                .filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        Map<String, List<String>> roleCodeMap = sysUserApi.ownRoleCodeMap(userIdList);
         List<JSONObject> teacherList = new ArrayList<>();
         for (JSONObject user : userList) {
             String userId = user.getStr("id");
-            List<String> roleCodeList = sysUserApi.ownRoleCode(userId);
+            List<String> roleCodeList = roleCodeMap.get(userId);
             if (roleCodeList != null
                     && (roleCodeList.contains("teacher") || roleCodeList.contains("superAdmin"))) {
                 JSONObject option = new JSONObject();

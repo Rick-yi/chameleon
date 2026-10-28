@@ -15,6 +15,10 @@ spring:
           username: ${MYSQL_USER:root}
           password: ${MYSQL_PWD:}
       strict: true
+    # 生产强制关闭 Druid 监控台，不接受环境变量覆盖
+    druid:
+      stat-view-servlet:
+        enabled: false
   data:
     redis:
       database: ${REDIS_DB:1}

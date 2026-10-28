@@ -251,21 +251,17 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
     @Override
     public void changeStatus(StudentStatusChangeParam param) {
         Student student = this.queryEntity(param.getStudentId());
-        StudentStatusMachineEnum target = StudentStatusMachineEnum.getByValue(param.getStatus());
-        if (target == null || !target.canBeTarget()) {
-            throw new CommonException("不支持的目标状态：{}", param.getStatus());
-        }
         String fromStatus = student.getStatus();
-        if (target.getValue().equals(fromStatus)) {
-            throw new CommonException("学员当前已是【{}】，无需变更", target.getMessage());
+        // 流转规则集中在 StudentStatusMachineEnum，服务层只负责取数与落库
+        StudentStatusMachineEnum target;
+        try {
+            target = StudentStatusMachineEnum.resolveTarget(param.getStatus(), fromStatus);
+        } catch (IllegalArgumentException e) {
+            throw new CommonException(e.getMessage());
         }
-        String reason = StrUtil.trim(param.getReason());
-        boolean resume = StudentStatusMachineEnum.STUDYING == target;
-        if (!resume && StrUtil.isBlank(reason)) {
+        String reason = StudentStatusMachineEnum.normalizeReason(target, param.getReason());
+        if (StudentStatusMachineEnum.reasonRequired(target) && StrUtil.isBlank(reason)) {
             throw new CommonException("变更为【{}】时必须填写原因", target.getMessage());
-        }
-        if (resume && StrUtil.isBlank(reason)) {
-            reason = "复课";
         }
         student.setStatus(target.getValue());
         student.setStatusReason(reason);

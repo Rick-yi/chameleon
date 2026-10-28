@@ -125,12 +125,25 @@ public class GlobalConfigure implements WebMvcConfigurer {
             "COURSE_SCHEDULE_CLOSURE", "COURSE_TEACHER_UNAVAILABLE", "COURSE_SCHEDULE_STUDENT",
             "STUDENT", "STUDENT_PARENT_BIND", "STUDENT_ORDER", "STUDENT_LESSON_ACCOUNT",
             "STUDENT_LESSON_FLOW", "STUDENT_REFUND", "STUDENT_RENEW_WARN", "NOTIFY_LOG",
+            "STUDENT_TAG", "STUDENT_TAG_REL", "STUDENT_STATUS_LOG",
+            "STUDENT_RENEW_WARN_CONFIG", "STUDENT_FOLLOW_RECORD",
             "FIN_DAILY_STAT", "FIN_EXPORT_TASK",
             "SYS_AUTH_AUDIT",
             "CRM_LEAD", "CRM_LEAD_FOLLOW", "CRM_TRIAL_APPOINTMENT",
             "BIZ_AUTOMATION_CONFIG", "BIZ_AUTOMATION_LOG", "BIZ_AUTOMATION_TARGET",
             "BIZ_AUTOMATION_SETTING", "BIZ_AUTOMATION_CONFIG_HISTORY",
             "BIZ_EVENT", "BIZ_EXPORT_TASK");
+
+    /**
+     * 租户行级隔离表清单（只读副本，供启动期自检核对）
+     * <p>
+     * 自检会比对数据库中真正含 TENANT_ID 列的表，发现「有租户列但未登记」的表，
+     * 提醒该类表的隔离依赖服务层手写条件。
+     * </p>
+     **/
+    public static java.util.Set<String> tenantTableNames() {
+        return java.util.Collections.unmodifiableSet(TENANT_TABLES);
+    }
 
     /**
      * 业务域接口地址集合
@@ -175,7 +188,7 @@ public class GlobalConfigure implements WebMvcConfigurer {
             "/doc.html",
             "/webjars/**",
             "/v3/api-docs/**",
-            "/druid/**",
+            /* /druid/** 不在此处：监控台即使开启也必须先通过平台登录校验 */
             /* 移动端静态资源 */
             "/mobile/**",
 

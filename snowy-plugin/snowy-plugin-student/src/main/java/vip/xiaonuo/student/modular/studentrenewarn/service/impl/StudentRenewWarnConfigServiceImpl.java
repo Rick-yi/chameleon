@@ -112,8 +112,9 @@ public class StudentRenewWarnConfigServiceImpl
         StudentRenewWarnConfig config = null;
         if (StrUtil.isNotBlank(param.getId())) {
             config = this.getById(param.getId());
-            if (ObjectUtil.isNotEmpty(config) && !StrUtil.equals(tenantId, config.getTenantId())) {
-                throw new CommonException("无权修改其他机构的预警配置");
+            // 表已纳入租户拦截器，跨租户 id 查不到（返回空），此处显式报错避免静默新建
+            if (ObjectUtil.isEmpty(config)) {
+                throw new CommonException("预警配置不存在或无权修改，id值为：{}", param.getId());
             }
         }
         if (ObjectUtil.isEmpty(config)) {

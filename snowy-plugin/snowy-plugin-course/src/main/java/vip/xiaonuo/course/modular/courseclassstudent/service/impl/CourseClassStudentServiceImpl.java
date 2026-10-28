@@ -13,6 +13,7 @@
 package vip.xiaonuo.course.modular.courseclassstudent.service.impl;
 
 import cn.hutool.core.collection.CollStreamUtil;
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import vip.xiaonuo.auth.core.util.StpRoleUtil;
@@ -114,6 +115,24 @@ public class CourseClassStudentServiceImpl extends ServiceImpl<CourseClassStuden
                 .eq(CourseClassStudent::getClassId, classId)
                 .eq(CourseClassStudent::getStatus, CourseClassStudentStatusEnum.STUDYING.getValue())
                 .orderByAsc(CourseClassStudent::getCreateTime));
+    }
+
+    @Override
+    public Map<String, Integer> countStudyingByClassIds(List<String> classIdList) {
+        Map<String, Integer> countMap = new HashMap<>();
+        if (CollUtil.isEmpty(classIdList)) {
+            return countMap;
+        }
+        List<String> idList = classIdList.stream().filter(StrUtil::isNotBlank).distinct().collect(Collectors.toList());
+        if (idList.isEmpty()) {
+            return countMap;
+        }
+        this.list(new LambdaQueryWrapper<CourseClassStudent>()
+                        .select(CourseClassStudent::getClassId)
+                        .eq(CourseClassStudent::getStatus, CourseClassStudentStatusEnum.STUDYING.getValue())
+                        .in(CourseClassStudent::getClassId, idList))
+                .forEach(item -> countMap.merge(item.getClassId(), 1, Integer::sum));
+        return countMap;
     }
 
     @Transactional(rollbackFor = Exception.class)
