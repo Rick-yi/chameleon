@@ -204,7 +204,7 @@
 
 	const money = (v) => Number(v || 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })
 	const barWidth = (ratio) => `${Math.min(Math.round(Number(ratio || 0)), 100)}%`
-	const channelText = (c) => ({ WECHAT: '微信', CASH: '现金', OFFLINE: '线下转账', ALIPAY: '支付宝' }[c] || c || '-')
+	const channelText = (c) => ({ WECHAT: '微信', CASH: '现金', OFFLINE: '线下转账', ALIPAY: '支付宝' })[c] || c || '-'
 
 	const dateRange = () => {
 		const end = new Date()

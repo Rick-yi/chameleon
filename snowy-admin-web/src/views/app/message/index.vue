@@ -15,9 +15,7 @@
 				</div>
 				<div class="m-msg-desc">{{ item.content }}</div>
 			</div>
-			<a-button v-if="hasMore" block :loading="loading" style="margin-top: 12px" @click="loadMore">
-				加载更多
-			</a-button>
+			<a-button v-if="hasMore" block :loading="loading" style="margin-top: 12px" @click="loadMore"> 加载更多 </a-button>
 		</a-spin>
 
 		<a-modal v-model:open="detailOpen" title="消息详情" :footer="null" :width="'92%'" style="max-width: 480px">

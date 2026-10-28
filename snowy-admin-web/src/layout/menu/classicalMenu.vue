@@ -57,7 +57,7 @@
 			>
 				<div id="admin-ui-main" class="admin-ui-main">
 					<page-bar />
-						<a-result
+					<a-result
 						v-if="forbidden"
 						status="403"
 						title="无权访问"

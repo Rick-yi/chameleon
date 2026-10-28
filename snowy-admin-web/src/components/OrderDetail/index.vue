@@ -12,39 +12,77 @@
 				<div class="od-head">
 					<div>
 						<div class="od-amount">¥{{ money(order.paidAmount ?? order.amount) }}</div>
-						<div class="od-head-sub">
-							{{ order.studentName || '学员' }} · {{ order.packageName || '课包' }}
-						</div>
+						<div class="od-head-sub">{{ order.studentName || '学员' }} · {{ order.packageName || '课包' }}</div>
 					</div>
 					<a-tag :color="statusColor(order.status)">{{ statusText(order.status) }}</a-tag>
 				</div>
 
 				<div class="od-section-title">学员信息</div>
 				<div class="od-grid">
-					<div class="od-row"><span>学员</span><b>{{ order.studentName || '-' }}</b></div>
-					<div class="od-row"><span>家长手机</span><b>{{ order.parentPhone || student?.parentPhone || '-' }}</b></div>
-					<div class="od-row"><span>校区</span><b>{{ campusName || '-' }}</b></div>
-					<div class="od-row"><span>所在班级</span><b>{{ student?.classNames || '-' }}</b></div>
-					<div class="od-row"><span>剩余课时</span><b>{{ remainText }}</b></div>
-					<div class="od-row"><span>课包到期</span><b>{{ date(student?.accountExpireTime) }}</b></div>
+					<div class="od-row">
+						<span>学员</span><b>{{ order.studentName || '-' }}</b>
+					</div>
+					<div class="od-row">
+						<span>家长手机</span><b>{{ order.parentPhone || student?.parentPhone || '-' }}</b>
+					</div>
+					<div class="od-row">
+						<span>校区</span><b>{{ campusName || '-' }}</b>
+					</div>
+					<div class="od-row">
+						<span>所在班级</span><b>{{ student?.classNames || '-' }}</b>
+					</div>
+					<div class="od-row">
+						<span>剩余课时</span><b>{{ remainText }}</b>
+					</div>
+					<div class="od-row">
+						<span>课包到期</span><b>{{ date(student?.accountExpireTime) }}</b>
+					</div>
 				</div>
 
 				<div class="od-section-title">订单信息</div>
 				<div class="od-grid">
-					<div class="od-row od-wide"><span>订单号</span><a-typography-text copyable class="od-order-no">{{ order.id }}</a-typography-text></div>
-					<div class="od-row"><span>课包</span><b>{{ order.packageName || '-' }}</b></div>
-					<div class="od-row"><span>合计课时</span><b>{{ totalLessons }}</b></div>
-					<div class="od-row"><span>正课</span><b>{{ lessons(order.packageLessons) }}</b></div>
-					<div class="od-row"><span>赠课</span><b>{{ lessons(order.packageGiftLessons) }}</b></div>
-					<div class="od-row"><span>有效期</span><b>{{ order.packageValidityDays ? order.packageValidityDays + ' 天' : '-' }}</b></div>
-					<div class="od-row"><span>应收</span><b>¥{{ money(order.amount) }}</b></div>
-					<div class="od-row"><span>优惠</span><b class="od-discount">{{ discount > 0 ? '-¥' + money(discount) : '-' }}</b></div>
-					<div class="od-row"><span>实收</span><b class="od-paid">¥{{ money(order.paidAmount) }}</b></div>
-					<div class="od-row"><span>收款渠道</span><b>{{ payChannelText(order.payChannel) }}</b></div>
-					<div class="od-row"><span>下单时间</span><b>{{ date(order.createTime) }}</b></div>
-					<div class="od-row"><span>收款时间</span><b>{{ date(order.payTime) }}</b></div>
-					<div class="od-row"><span>经办人</span><b>{{ order.operatorName || '-' }}</b></div>
-					<div class="od-row od-wide"><span>备注</span><b>{{ order.remark || '-' }}</b></div>
+					<div class="od-row od-wide">
+						<span>订单号</span><a-typography-text copyable class="od-order-no">{{ order.id }}</a-typography-text>
+					</div>
+					<div class="od-row">
+						<span>课包</span><b>{{ order.packageName || '-' }}</b>
+					</div>
+					<div class="od-row">
+						<span>合计课时</span><b>{{ totalLessons }}</b>
+					</div>
+					<div class="od-row">
+						<span>正课</span><b>{{ lessons(order.packageLessons) }}</b>
+					</div>
+					<div class="od-row">
+						<span>赠课</span><b>{{ lessons(order.packageGiftLessons) }}</b>
+					</div>
+					<div class="od-row">
+						<span>有效期</span><b>{{ order.packageValidityDays ? order.packageValidityDays + ' 天' : '-' }}</b>
+					</div>
+					<div class="od-row">
+						<span>应收</span><b>¥{{ money(order.amount) }}</b>
+					</div>
+					<div class="od-row">
+						<span>优惠</span><b class="od-discount">{{ discount > 0 ? '-¥' + money(discount) : '-' }}</b>
+					</div>
+					<div class="od-row">
+						<span>实收</span><b class="od-paid">¥{{ money(order.paidAmount) }}</b>
+					</div>
+					<div class="od-row">
+						<span>收款渠道</span><b>{{ payChannelText(order.payChannel) }}</b>
+					</div>
+					<div class="od-row">
+						<span>下单时间</span><b>{{ date(order.createTime) }}</b>
+					</div>
+					<div class="od-row">
+						<span>收款时间</span><b>{{ date(order.payTime) }}</b>
+					</div>
+					<div class="od-row">
+						<span>经办人</span><b>{{ order.operatorName || '-' }}</b>
+					</div>
+					<div class="od-row od-wide">
+						<span>备注</span><b>{{ order.remark || '-' }}</b>
+					</div>
 				</div>
 			</template>
 			<a-empty v-else-if="!loading" description="订单不存在" />
@@ -54,7 +92,9 @@
 			<div class="od-actions">
 				<a-button @click="close">关闭</a-button>
 				<a-button v-if="order?.status === 'UNPAID' && canPay" type="primary" @click="onPay">去收款</a-button>
-				<a-button v-else-if="order?.studentId && showStudentLink" type="primary" @click="onViewStudent">查看学员</a-button>
+				<a-button v-else-if="order?.studentId && showStudentLink" type="primary" @click="onViewStudent"
+					>查看学员</a-button
+				>
 			</div>
 		</template>
 	</a-drawer>
@@ -92,7 +132,9 @@
 		if (student.value.hasLessonAccount === false) return '未报名'
 		return `${lessons(student.value.remainLessons)} 课时`
 	})
-	const totalLessons = computed(() => lessons(Number(order.value?.packageLessons || 0) + Number(order.value?.packageGiftLessons || 0)))
+	const totalLessons = computed(() =>
+		lessons(Number(order.value?.packageLessons || 0) + Number(order.value?.packageGiftLessons || 0))
+	)
 	const discount = computed(() => {
 		// 待支付订单未收款，不能把应收差额显示成优惠
 		if (order.value?.status !== 'PAID' && order.value?.status !== 'REFUNDED') return 0

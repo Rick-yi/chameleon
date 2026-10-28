@@ -631,11 +631,7 @@
 		return [leftPart, rightPart]
 	}
 	// 监听分页及数据变化
-	watch(
-		loadDatas,
-		() => searchFunc(),
-		{ deep: true }
-	)
+	watch(loadDatas, () => searchFunc(), { deep: true })
 	// 调用这个函数将子组件的一些数据和方法暴露出去
 	defineExpose({
 		onOpen

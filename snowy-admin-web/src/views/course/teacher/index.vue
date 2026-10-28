@@ -12,10 +12,22 @@
 		<div v-if="!isMobile" class="ent-toolbar">
 			<a-form layout="inline" :model="searchForm">
 				<a-form-item label="姓名/账号">
-					<a-input v-model:value="searchForm.searchKey" placeholder="姓名或账号" allow-clear style="width: 200px" @pressEnter="reload" />
+					<a-input
+						v-model:value="searchForm.searchKey"
+						placeholder="姓名或账号"
+						allow-clear
+						style="width: 200px"
+						@pressEnter="reload"
+					/>
 				</a-form-item>
 				<a-form-item label="状态">
-					<a-select v-model:value="searchForm.userStatus" placeholder="全部状态" :options="statusOptions" allow-clear style="width: 130px" />
+					<a-select
+						v-model:value="searchForm.userStatus"
+						placeholder="全部状态"
+						:options="statusOptions"
+						allow-clear
+						style="width: 130px"
+					/>
 				</a-form-item>
 				<a-form-item>
 					<a-space>
@@ -110,17 +122,29 @@
 							<span>{{ campusName(item) }}</span>
 						</div>
 						<div class="teacher-card-grid">
-							<div><span>带班</span><b>{{ item.classCount || 0 }} 个</b></div>
-							<div><span>学员</span><b>{{ item.studentCount || 0 }} 人</b></div>
+							<div>
+								<span>带班</span><b>{{ item.classCount || 0 }} 个</b>
+							</div>
+							<div>
+								<span>学员</span><b>{{ item.studentCount || 0 }} 人</b>
+							</div>
 						</div>
 						<div v-if="canManage" class="teacher-card-actions">
 							<a-button size="small" @click="onOpenEdit(item)">编辑</a-button>
-							<a-button size="small" @click="onToggle(item)">{{ item.userStatus === 'ENABLE' ? '停用' : '启用' }}</a-button>
+							<a-button size="small" @click="onToggle(item)">{{
+								item.userStatus === 'ENABLE' ? '停用' : '启用'
+							}}</a-button>
 							<a-button size="small" @click="onResetPassword(item)">重置密码</a-button>
 						</div>
 					</div>
 					<div v-if="page.total > page.size" class="teacher-mobile-pager">
-						<a-pagination simple :current="page.current" :page-size="page.size" :total="page.total" @change="onMobilePageChange" />
+						<a-pagination
+							simple
+							:current="page.current"
+							:page-size="page.size"
+							:total="page.total"
+							@change="onMobilePageChange"
+						/>
 					</div>
 				</a-spin>
 			</div>
@@ -142,7 +166,12 @@
 					</a-col>
 					<a-col :xs="24" :sm="12">
 						<a-form-item label="账号" name="account" :rules="[{ required: true, message: '请输入登录账号' }]">
-							<a-input v-model:value="formData.account" placeholder="用于登录 APP/后台" :disabled="!!formData.id" allow-clear />
+							<a-input
+								v-model:value="formData.account"
+								placeholder="用于登录 APP/后台"
+								:disabled="!!formData.id"
+								allow-clear
+							/>
 						</a-form-item>
 					</a-col>
 					<a-col :xs="24" :sm="12">
@@ -152,7 +181,13 @@
 					</a-col>
 					<a-col :xs="24" :sm="12">
 						<a-form-item label="所属校区" name="orgId" :rules="[{ required: true, message: '请选择校区' }]">
-							<a-select v-model:value="formData.orgId" :options="campusOptions" placeholder="请选择校区" show-search option-filter-prop="label" />
+							<a-select
+								v-model:value="formData.orgId"
+								:options="campusOptions"
+								placeholder="请选择校区"
+								show-search
+								option-filter-prop="label"
+							/>
 						</a-form-item>
 					</a-col>
 					<a-col v-if="!formData.id" :span="24">

@@ -30,9 +30,7 @@
 						</a-tab-pane>
 					</a-tabs>
 
-					<div class="register-footer">
-						想起密码了？ <a href="/front/client/login">立即登录</a>
-					</div>
+					<div class="register-footer">想起密码了？ <a href="/front/client/login">立即登录</a></div>
 				</div>
 			</div>
 		</div>

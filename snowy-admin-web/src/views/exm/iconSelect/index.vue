@@ -21,11 +21,13 @@
 			<a-tab-pane v-for="item in iconData" :key="item.key" :tab="item.name">
 				<div v-if="item.iconItem.length > 1" class="xn-icon-select-radio">
 					<a-radio-group v-model:value="iconItemDefault" @change="radioGroupChange">
-						<a-radio-button v-for="iconItem in item.iconItem" :value="iconItem.key">{{ iconItem.name }}</a-radio-button>
+						<a-radio-button v-for="iconItem in item.iconItem" :key="iconItem.key" :value="iconItem.key">{{
+							iconItem.name
+						}}</a-radio-button>
 					</a-radio-group>
 				</div>
 
-				<div v-for="iconItemIns in item.iconItem">
+				<div v-for="iconItemIns in item.iconItem" :key="iconItemIns.key">
 					<div v-if="iconItemIns.key === iconItemDefault" class="xn-icon-select-list">
 						<ul>
 							<li

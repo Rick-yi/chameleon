@@ -44,7 +44,9 @@
 			</template>
 			<template #bodyCell="{ column, record }">
 				<template v-if="column.dataIndex === 'status'">
-					<a-tag :color="record.status === 'OFF' ? 'default' : 'green'">{{ record.status === 'OFF' ? '已下架' : '已上架' }}</a-tag>
+					<a-tag :color="record.status === 'OFF' ? 'default' : 'green'">{{
+						record.status === 'OFF' ? '已下架' : '已上架'
+					}}</a-tag>
 				</template>
 				<template v-if="column.dataIndex === 'limits'">
 					<div class="limit-cell">
@@ -55,7 +57,11 @@
 				</template>
 				<template v-if="column.dataIndex === 'features'">
 					<a-space wrap :size="[4, 4]">
-						<a-tag v-for="item in funcOptions" :key="item.value" :color="isFuncOn(record, item.value) ? 'blue' : 'default'">
+						<a-tag
+							v-for="item in funcOptions"
+							:key="item.value"
+							:color="isFuncOn(record, item.value) ? 'blue' : 'default'"
+						>
 							{{ item.label }}
 						</a-tag>
 					</a-space>
@@ -78,7 +84,13 @@
 		</s-table>
 	</xn-panel>
 
-	<a-modal v-model:open="open" :title="formData.id ? '编辑套餐' : '新增套餐'" :width="600" :destroy-on-close="true" @ok="onSubmit">
+	<a-modal
+		v-model:open="open"
+		:title="formData.id ? '编辑套餐' : '新增套餐'"
+		:width="600"
+		:destroy-on-close="true"
+		@ok="onSubmit"
+	>
 		<a-form ref="formRef" :model="formData" layout="vertical">
 			<a-row :gutter="16">
 				<a-col :span="12">
@@ -124,7 +136,12 @@
 				<a-col :span="24">
 					<a-form-item label="功能开关" name="funcConfig">
 						<a-space wrap>
-							<a-tag v-for="item in funcOptions" :key="item.value" :color="funcConfig[item.value] ? 'green' : 'default'" :closable="false">
+							<a-tag
+								v-for="item in funcOptions"
+								:key="item.value"
+								:color="funcConfig[item.value] ? 'green' : 'default'"
+								:closable="false"
+							>
 								{{ item.label }}
 								<a-switch
 									v-model:checked="funcConfig[item.value]"
@@ -136,7 +153,8 @@
 							</a-tag>
 						</a-space>
 						<div style="color: rgba(0, 0, 0, 0.45); font-size: 12px; margin-top: 6px">
-							报表 / 自动化 / 家长端 / 支付为增值功能开关；招生、学员、课务、财务控制对应菜单是否下发。关闭后该租户看不到对应入口。
+							报表 / 自动化 / 家长端 /
+							支付为增值功能开关；招生、学员、课务、财务控制对应菜单是否下发。关闭后该租户看不到对应入口。
 						</div>
 					</a-form-item>
 				</a-col>

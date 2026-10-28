@@ -48,7 +48,7 @@
 								<template #title> 类型为内外链时，输入https开头的链接即可（例：https://xiaonuo.vip） </template>
 								<question-circle-outlined />
 							</a-tooltip>
-							&nbsp
+							&nbsp;
 							{{ formData.menuType === 'MENU' || formData.menuType === 'CATALOG' ? '界面地址' : 'https链接地址' }}：
 						</template>
 						<a-input v-model:value="formData.path" placeholder="请输入" allow-clear />

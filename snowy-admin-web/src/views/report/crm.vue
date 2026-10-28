@@ -39,22 +39,51 @@
 		<a-spin :spinning="loading">
 			<a-row :gutter="16" style="margin-top: 16px">
 				<a-col :xs="12" :sm="8" :md="8" :xl="6">
-					<a-card :bordered="false" class="kpi-link" @click="router.push({ path: '/crm', query: { status: 'NEW' } })"><a-statistic title="线索量" :value="leadCount" suffix="条" /><kpi-delta :current="leadCount" :previous="prevLeadCount" /></a-card>
+					<a-card :bordered="false" class="kpi-link" @click="router.push({ path: '/crm', query: { status: 'NEW' } })"
+						><a-statistic title="线索量" :value="leadCount" suffix="条" /><kpi-delta
+							:current="leadCount"
+							:previous="prevLeadCount"
+					/></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="kpi-link" @click="router.push({ path: '/crm', query: { status: 'ENROLLED' } })"><a-statistic title="已报名" :value="enrolledCount" suffix="人" :value-style="{ color: '#52c41a' }" /><kpi-delta :current="enrolledCount" :previous="prevEnrolledCount" /></a-card>
+					<a-card
+						:bordered="false"
+						class="kpi-link"
+						@click="router.push({ path: '/crm', query: { status: 'ENROLLED' } })"
+						><a-statistic
+							title="已报名"
+							:value="enrolledCount"
+							suffix="人"
+							:value-style="{ color: '#52c41a' }" /><kpi-delta :current="enrolledCount" :previous="prevEnrolledCount"
+					/></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="报名转化率" :value="enrollRate" :precision="2" suffix="%" /><kpi-delta :current="enrollRate" :previous="prevEnrollRate" /></a-card>
+					<a-card :bordered="false"
+						><a-statistic title="报名转化率" :value="enrollRate" :precision="2" suffix="%" /><kpi-delta
+							:current="enrollRate"
+							:previous="prevEnrollRate"
+					/></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="试听数" :value="trial.trialCount" suffix="次" /><kpi-delta :current="trial.trialCount" :previous="prevTrial.trialCount" /></a-card>
+					<a-card :bordered="false"
+						><a-statistic title="试听数" :value="trial.trialCount" suffix="次" /><kpi-delta
+							:current="trial.trialCount"
+							:previous="prevTrial.trialCount"
+					/></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="试听报名数" :value="trial.enrolledCount" suffix="人" /><kpi-delta :current="trial.enrolledCount" :previous="prevTrial.enrolledCount" /></a-card>
+					<a-card :bordered="false"
+						><a-statistic title="试听报名数" :value="trial.enrolledCount" suffix="人" /><kpi-delta
+							:current="trial.enrolledCount"
+							:previous="prevTrial.enrolledCount"
+					/></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="试听转化率" :value="trial.conversionRate" :precision="2" suffix="%" /><kpi-delta :current="trial.conversionRate" :previous="prevTrial.conversionRate" /></a-card>
+					<a-card :bordered="false"
+						><a-statistic title="试听转化率" :value="trial.conversionRate" :precision="2" suffix="%" /><kpi-delta
+							:current="trial.conversionRate"
+							:previous="prevTrial.conversionRate"
+					/></a-card>
 				</a-col>
 			</a-row>
 
@@ -139,7 +168,9 @@
 	const prevTrial = ref({ trialCount: 0, enrolledCount: 0, conversionRate: 0 })
 	const leadCount = computed(() => (funnelList.value[0]?.count ? Number(funnelList.value[0].count) : 0))
 	const enrolledCount = computed(() => (funnelList.value[3]?.count ? Number(funnelList.value[3].count) : 0))
-	const enrollRate = computed(() => (funnelList.value[3]?.conversionRate ? Number(funnelList.value[3].conversionRate) : 0))
+	const enrollRate = computed(() =>
+		funnelList.value[3]?.conversionRate ? Number(funnelList.value[3].conversionRate) : 0
+	)
 	const prevLeadCount = computed(() => (prevFunnelList.value[0]?.count ? Number(prevFunnelList.value[0].count) : 0))
 	const prevEnrolledCount = computed(() => (prevFunnelList.value[3]?.count ? Number(prevFunnelList.value[3].count) : 0))
 	const prevEnrollRate = computed(() =>

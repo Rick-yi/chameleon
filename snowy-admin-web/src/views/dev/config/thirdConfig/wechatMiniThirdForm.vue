@@ -1,6 +1,12 @@
 <template>
 	<a-spin :spinning="loadSpinning">
-		<a-alert message="微信小程序需要前端处于微信小程序环境，本系统仅提供后端功能，前端需自行开发" type="info" :closable="false" class="mb-2" show-icon />
+		<a-alert
+			message="微信小程序需要前端处于微信小程序环境，本系统仅提供后端功能，前端需自行开发"
+			type="info"
+			:closable="false"
+			class="mb-2"
+			show-icon
+		/>
 		<a-form
 			ref="formRef"
 			:model="formData"

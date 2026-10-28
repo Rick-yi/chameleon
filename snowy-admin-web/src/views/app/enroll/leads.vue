@@ -55,9 +55,9 @@
 	])
 
 	const statusText = (s) =>
-		({ NEW: '新线索', FOLLOWED: '跟进中', TRIALED: '已试听', ENROLLED: '已报名', LOST: '已流失' }[s] || s)
+		({ NEW: '新线索', FOLLOWED: '跟进中', TRIALED: '已试听', ENROLLED: '已报名', LOST: '已流失' })[s] || s
 	const statusColor = (s) =>
-		({ NEW: 'blue', FOLLOWED: 'orange', TRIALED: 'purple', ENROLLED: 'green', LOST: 'default' }[s] || 'default')
+		({ NEW: 'blue', FOLLOWED: 'orange', TRIALED: 'purple', ENROLLED: 'green', LOST: 'default' })[s] || 'default'
 
 	const load = async () => {
 		loading.value = true

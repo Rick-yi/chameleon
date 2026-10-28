@@ -12,20 +12,20 @@
 		<a-card :bordered="false" :body-style="{ padding: 0 }">
 			<a-spin :spinning="loading">
 				<vue-office-docx
-					v-if="fileType === 'doc' || fileType === 'docx'"
+					v-if="currentFileType === 'doc' || currentFileType === 'docx'"
 					:src="props.src + '&token=' + tool.data.get('TOKEN')"
 					class="xn-ht82"
 					@rendered="renderedHandler"
 				/>
 				<vue-office-excel
-					v-else-if="fileType === 'xls' || fileType === 'xlsx'"
+					v-else-if="currentFileType === 'xls' || currentFileType === 'xlsx'"
 					:src="props.src + '&token=' + tool.data.get('TOKEN')"
 					class="xn-ht82"
 					@rendered="renderedHandler"
 					@error="errorHandler"
 				/>
 				<vue-pdf-embed
-					v-else-if="fileType === 'pdf'"
+					v-else-if="currentFileType === 'pdf'"
 					annotation-layer
 					text-layer
 					:source="props.src + '&token=' + tool.data.get('TOKEN')"
@@ -34,13 +34,13 @@
 				/>
 				<img
 					v-else-if="
-						fileType === 'png' ||
-						fileType === 'jpg' ||
-						fileType === 'gif' ||
-						fileType === 'bmp' ||
-						fileType === 'jpeg' ||
-						fileType === 'ico' ||
-						fileType === 'svg'
+						currentFileType === 'png' ||
+						currentFileType === 'jpg' ||
+						currentFileType === 'gif' ||
+						currentFileType === 'bmp' ||
+						currentFileType === 'jpeg' ||
+						currentFileType === 'ico' ||
+						currentFileType === 'svg'
 					"
 					:src="props.src + '&token=' + tool.data.get('TOKEN')"
 					class="xn-mwh"
@@ -83,12 +83,12 @@
 			required: false
 		}
 	})
-	const fileType = ref()
+	const currentFileType = ref()
 	watch(
 		() => props.src,
 		(newVal) => {
 			if (newVal) {
-				fileType.value = props.fileType.toLowerCase()
+				currentFileType.value = props.fileType.toLowerCase()
 			}
 		},
 		{ immediate: true, deep: true }
@@ -98,11 +98,11 @@
 		(newVal) => {
 			if (newVal) {
 				if (
-					fileType.value === 'doc' ||
-					fileType.value === 'docx' ||
-					fileType.value === 'xls' ||
-					fileType.value === 'xlsx' ||
-					fileType.value === 'pdf'
+					currentFileType.value === 'doc' ||
+					currentFileType.value === 'docx' ||
+					currentFileType.value === 'xls' ||
+					currentFileType.value === 'xlsx' ||
+					currentFileType.value === 'pdf'
 				) {
 					loading.value = true
 				}

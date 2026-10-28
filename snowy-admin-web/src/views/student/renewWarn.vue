@@ -27,10 +27,21 @@
 				<div class="ent-toolbar">
 					<a-form layout="inline" :model="warnSearch">
 						<a-form-item label="学员">
-							<a-input v-model:value="warnSearch.searchKey" placeholder="姓名或家长手机" allow-clear style="width: 220px" />
+							<a-input
+								v-model:value="warnSearch.searchKey"
+								placeholder="姓名或家长手机"
+								allow-clear
+								style="width: 220px"
+							/>
 						</a-form-item>
 						<a-form-item label="状态">
-							<a-select v-model:value="warnSearch.status" placeholder="全部状态" :options="statusOptions" allow-clear style="width: 140px" />
+							<a-select
+								v-model:value="warnSearch.status"
+								placeholder="全部状态"
+								:options="statusOptions"
+								allow-clear
+								style="width: 140px"
+							/>
 						</a-form-item>
 						<a-form-item>
 							<a-space>
@@ -197,12 +208,23 @@
 		<!-- 续费 -->
 		<a-modal v-model:open="renewOpen" title="学员续费" :width="480" :destroy-on-close="true" @ok="onSubmitRenew">
 			<a-form ref="renewFormRef" :model="renewFormData" layout="vertical">
-				<a-alert type="info" show-icon message="选择课包并确认收款后，课时立即入账，该预警自动标记为已续费" style="margin-bottom: 16px" />
+				<a-alert
+					type="info"
+					show-icon
+					message="选择课包并确认收款后，课时立即入账，该预警自动标记为已续费"
+					style="margin-bottom: 16px"
+				/>
 				<a-form-item label="学员">
 					<a-input :value="`${renewFormData.studentName || ''}（${renewFormData.courseName || ''}）`" disabled />
 				</a-form-item>
 				<a-form-item label="续费课包" name="coursePackageId" :rules="[{ required: true, message: '请选择课包' }]">
-					<a-select v-model:value="renewFormData.coursePackageId" placeholder="请选择课包" :options="renewPackageOptions" show-search option-filter-prop="label" />
+					<a-select
+						v-model:value="renewFormData.coursePackageId"
+						placeholder="请选择课包"
+						:options="renewPackageOptions"
+						show-search
+						option-filter-prop="label"
+					/>
 				</a-form-item>
 				<a-form-item label="收款渠道" name="payChannel">
 					<a-select v-model:value="renewFormData.payChannel" :options="payChannelOptions" />
@@ -226,9 +248,19 @@
 			/>
 			<a-form ref="configFormRef" :model="configForm" layout="inline" class="config-form">
 				<a-form-item label="范围" name="scopeType" :rules="[{ required: true, message: '请选择范围' }]">
-					<a-select v-model:value="configForm.scopeType" :options="scopeTypeOptions" style="width: 110px" @change="onConfigScopeChange" />
+					<a-select
+						v-model:value="configForm.scopeType"
+						:options="scopeTypeOptions"
+						style="width: 110px"
+						@change="onConfigScopeChange"
+					/>
 				</a-form-item>
-				<a-form-item v-if="configForm.scopeType === 'COURSE'" label="课程" name="scopeId" :rules="[{ required: true, message: '请选择课程' }]">
+				<a-form-item
+					v-if="configForm.scopeType === 'COURSE'"
+					label="课程"
+					name="scopeId"
+					:rules="[{ required: true, message: '请选择课程' }]"
+				>
 					<a-select
 						v-model:value="configForm.scopeId"
 						:options="courseOptions"
@@ -238,7 +270,12 @@
 						style="width: 180px"
 					/>
 				</a-form-item>
-				<a-form-item v-if="configForm.scopeType === 'CLASS'" label="班级" name="scopeId" :rules="[{ required: true, message: '请选择班级' }]">
+				<a-form-item
+					v-if="configForm.scopeType === 'CLASS'"
+					label="班级"
+					name="scopeId"
+					:rules="[{ required: true, message: '请选择班级' }]"
+				>
 					<a-select
 						v-model:value="configForm.scopeId"
 						:options="classOptions"
@@ -252,10 +289,22 @@
 					<a-input-number v-model:value="configForm.lessonThreshold" :min="0" :precision="2" style="width: 110px" />
 				</a-form-item>
 				<a-form-item label="到期前(天)" name="expireDays" :rules="[{ required: true, message: '请输入天数' }]">
-					<a-input-number v-model:value="configForm.expireDays" :min="0" :max="365" :precision="0" style="width: 100px" />
+					<a-input-number
+						v-model:value="configForm.expireDays"
+						:min="0"
+						:max="365"
+						:precision="0"
+						style="width: 100px"
+					/>
 				</a-form-item>
 				<a-form-item label="重复提醒(天)" name="repeatDays" :rules="[{ required: true, message: '请输入间隔' }]">
-					<a-input-number v-model:value="configForm.repeatDays" :min="1" :max="365" :precision="0" style="width: 100px" />
+					<a-input-number
+						v-model:value="configForm.repeatDays"
+						:min="1"
+						:max="365"
+						:precision="0"
+						style="width: 100px"
+					/>
 				</a-form-item>
 				<a-form-item label="启用">
 					<a-switch v-model:checked="configEnabled" checked-children="是" un-checked-children="否" />
@@ -280,7 +329,9 @@
 						{{ scopeTypeText(record.scopeType) }}
 					</template>
 					<template v-if="column.dataIndex === 'enabled'">
-						<a-tag :color="record.enabled === 'NO' ? 'default' : 'green'">{{ record.enabled === 'NO' ? '停用' : '启用' }}</a-tag>
+						<a-tag :color="record.enabled === 'NO' ? 'default' : 'green'">{{
+							record.enabled === 'NO' ? '停用' : '启用'
+						}}</a-tag>
 					</template>
 					<template v-if="column.dataIndex === 'action'">
 						<a-space>
@@ -318,24 +369,44 @@
 		<!-- 跟进/流失登记 -->
 		<a-modal v-model:open="followOpen" :title="followTitle" :width="480" :destroy-on-close="true" @ok="onFollowSubmit">
 			<a-form ref="followFormRef" :model="followForm" layout="vertical">
-				<a-alert v-if="followMode === 'LOSS'" type="warning" show-icon message="登记流失只记录原因与回访，不自动改变学员在读状态，避免与退费/停课流程冲突" style="margin-bottom: 12px" />
+				<a-alert
+					v-if="followMode === 'LOSS'"
+					type="warning"
+					show-icon
+					message="登记流失只记录原因与回访，不自动改变学员在读状态，避免与退费/停课流程冲突"
+					style="margin-bottom: 12px"
+				/>
 				<a-form-item label="学员">
 					<a-input :value="followForm.target?.studentName || followForm.target?.studentId || ''" disabled />
 				</a-form-item>
 				<a-form-item label="跟进方式" name="followType">
 					<a-select v-model:value="followForm.followType" :options="followTypeOptions" />
 				</a-form-item>
-				<a-form-item v-if="followMode === 'LOSS'" label="流失类型" name="lossType" :rules="[{ required: true, message: '请选择流失类型' }]">
+				<a-form-item
+					v-if="followMode === 'LOSS'"
+					label="流失类型"
+					name="lossType"
+					:rules="[{ required: true, message: '请选择流失类型' }]"
+				>
 					<a-select v-model:value="followForm.lossType" :options="lossTypeOptions" />
 				</a-form-item>
 				<a-form-item v-if="followMode === 'LOSS'" label="流失原因" name="lossReason">
 					<a-input v-model:value="followForm.lossReason" placeholder="如：搬家、价格、课程不合适" allow-clear />
 				</a-form-item>
-				<a-form-item :label="followMode === 'LOSS' ? '回访记录' : '跟进内容'" name="content" :rules="[{ required: true, message: '请填写内容' }]">
+				<a-form-item
+					:label="followMode === 'LOSS' ? '回访记录' : '跟进内容'"
+					name="content"
+					:rules="[{ required: true, message: '请填写内容' }]"
+				>
 					<a-textarea v-model:value="followForm.content" :rows="4" placeholder="记录家长反馈、约定事项等" />
 				</a-form-item>
 				<a-form-item label="下次跟进时间" name="nextFollowTime">
-					<a-date-picker v-model:value="followForm.nextFollowTime" show-time value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" />
+					<a-date-picker
+						v-model:value="followForm.nextFollowTime"
+						show-time
+						value-format="YYYY-MM-DD HH:mm:ss"
+						style="width: 100%"
+					/>
 				</a-form-item>
 			</a-form>
 		</a-modal>
@@ -432,15 +503,17 @@
 	])
 
 	const reasonText = (value) =>
-		({ LESSON_LOW: '课时不足', EXPIRE_SOON: '即将到期', NO_ATTEND: '长期未消课', LOSS_RISK: '停课/流失风险' }[value] || value || '-')
+		({ LESSON_LOW: '课时不足', EXPIRE_SOON: '即将到期', NO_ATTEND: '长期未消课', LOSS_RISK: '停课/流失风险' })[value] ||
+		value ||
+		'-'
 	const reasonColor = (value) =>
 		value === 'LESSON_LOW' ? 'red' : value === 'EXPIRE_SOON' ? 'orange' : value === 'NO_ATTEND' ? 'volcano' : 'purple'
 	const statusText = (value) =>
-		({ PENDING: '待处理', PROCESSED: '已处理', RENEWED: '已续费', IGNORED: '已忽略' }[value] || value || '-')
+		({ PENDING: '待处理', PROCESSED: '已处理', RENEWED: '已续费', IGNORED: '已忽略' })[value] || value || '-'
 	const statusColor = (value) =>
 		value === 'PENDING' ? 'orange' : value === 'RENEWED' ? 'green' : value === 'PROCESSED' ? 'blue' : 'default'
 	const riskColor = (value) => (value === 'LOW_LESSON' ? 'red' : value === 'NO_ATTEND' ? 'volcano' : 'purple')
-	const scopeTypeText = (value) => ({ DEFAULT: '机构默认', COURSE: '课程', CLASS: '班级' }[value] || value)
+	const scopeTypeText = (value) => ({ DEFAULT: '机构默认', COURSE: '课程', CLASS: '班级' })[value] || value
 	const fmtLessons = (value) => (value == null || value === '' ? '-' : Number(value).toString())
 	const formatTime = (value) => (value ? String(value).replace('T', ' ').slice(0, 16) : '-')
 
@@ -506,7 +579,10 @@
 	const loadPackages = (courseId) => {
 		courseApi.packagePage({ current: 1, size: 100 }).then((data) => {
 			const list = (data.records || []).filter((item) => !courseId || item.courseId === courseId)
-			renewPackageOptions.value = list.map((item) => ({ value: item.id, label: `${item.name}（${item.lessons}课时 ${item.price}元）` }))
+			renewPackageOptions.value = list.map((item) => ({
+				value: item.id,
+				label: `${item.name}（${item.lessons}课时 ${item.price}元）`
+			}))
 		})
 	}
 	const onOpenRenew = (record) => {
@@ -676,7 +752,14 @@
 	})
 	const resetConfigForm = () => {
 		editingConfigId.value = undefined
-		configForm.value = { scopeType: 'DEFAULT', scopeId: '0', lessonThreshold: 3, expireDays: 7, repeatDays: 7, enabled: 'YES' }
+		configForm.value = {
+			scopeType: 'DEFAULT',
+			scopeId: '0',
+			lessonThreshold: 3,
+			expireDays: 7,
+			repeatDays: 7,
+			enabled: 'YES'
+		}
 	}
 	const loadConfigList = () => {
 		renewApi.renewWarnConfigList().then((data) => {

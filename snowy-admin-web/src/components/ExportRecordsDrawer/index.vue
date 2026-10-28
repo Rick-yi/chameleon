@@ -12,9 +12,7 @@
 					</div>
 					<div v-if="item.status === 'FAILED' && item.errorMsg" class="rec-err">{{ item.errorMsg }}</div>
 				</div>
-				<a-button v-if="item.status === 'SUCCESS'" type="link" size="small" @click="download(item)">
-					下载
-				</a-button>
+				<a-button v-if="item.status === 'SUCCESS'" type="link" size="small" @click="download(item)"> 下载 </a-button>
 			</div>
 		</a-spin>
 	</a-drawer>
@@ -48,7 +46,8 @@
 	const typeLabel = (type) => TYPE_LABEL[type] || type || '导出文件'
 	const statusText = (status) =>
 		({ PENDING: '排队中', RUNNING: '生成中', SUCCESS: '已完成', FAILED: '失败' })[status] || status
-	const statusColor = (status) => ({ PENDING: 'default', RUNNING: 'processing', SUCCESS: 'success', FAILED: 'error' })[status]
+	const statusColor = (status) =>
+		({ PENDING: 'default', RUNNING: 'processing', SUCCESS: 'success', FAILED: 'error' })[status]
 
 	const load = () => {
 		loading.value = true

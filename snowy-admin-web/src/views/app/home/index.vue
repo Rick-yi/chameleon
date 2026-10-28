@@ -2,7 +2,13 @@
 	<div class="m-home">
 		<!-- 指标块 -->
 		<div class="m-stat-grid">
-			<div v-for="item in statList" :key="item.key" class="m-stat" :class="{ link: appStore.canVisit(item.path) }" @click="go(item.path)">
+			<div
+				v-for="item in statList"
+				:key="item.key"
+				class="m-stat"
+				:class="{ link: appStore.canVisit(item.path) }"
+				@click="go(item.path)"
+			>
 				<div class="m-stat-label">{{ item.label }}</div>
 				<div class="m-stat-value" :style="{ color: statTextColor(item.color) }">{{ item.value }}</div>
 				<div class="m-stat-sub">{{ item.sub }}</div>
@@ -11,14 +17,11 @@
 
 		<!-- 今日待办 -->
 		<div class="m-section-title">今日待办</div>
-		<div v-if="loading && !todoList.length" class="m-card m-skeleton" v-for="i in 3" :key="`s${i}`"></div>
+		<template v-if="loading && !todoList.length">
+			<div v-for="i in 3" :key="`s${i}`" class="m-card m-skeleton"></div>
+		</template>
 		<div v-else-if="!todoList.length" class="m-card m-empty">今天没有待办事项</div>
-		<div
-			v-for="item in todoList"
-			:key="item.key"
-			class="m-card m-todo"
-			@click="go(item.path)"
-		>
+		<div v-for="item in todoList" :key="item.key" class="m-card m-todo" @click="go(item.path)">
 			<div class="m-todo-left">
 				<div class="m-todo-time">{{ item.time }}</div>
 				<div class="m-todo-title">{{ item.title }}</div>
@@ -108,7 +111,9 @@
 			courseApi.scheduleWeek({ startDate: todayStart(), endDate: todayEnd() }).catch(() => []),
 			studentApi.orderPage({ current: 1, size: 5, status: 'UNPAID' }).catch(() => ({})),
 			studentApi.orderPage({ current: 1, size: 200, status: 'PAID' }).catch(() => ({})),
-			crmApi.leadPage({ current: 1, size: 5, nextFollowBefore: todayEnd(), excludeStatus: 'ENROLLED,LOST' }).catch(() => ({})),
+			crmApi
+				.leadPage({ current: 1, size: 5, nextFollowBefore: todayEnd(), excludeStatus: 'ENROLLED,LOST' })
+				.catch(() => ({})),
 			studentApi.renewWarnPage({ current: 1, size: 5, status: 'PENDING' }).catch(() => ({})),
 			reportApi.dashboard({ startTime: todayStart(), endTime: todayEnd() }).catch(() => null)
 		])
@@ -118,10 +123,38 @@
 		const todayPaid = resolveTodayPaid(todaySummary, paidRes)
 
 		statList.value = [
-			{ key: 'paid', label: '今日收款', value: `¥${todayPaid.amount.toLocaleString('zh-CN')}`, sub: `${todayPaid.count} 笔`, color: '#2ba471', path: '/app/cashier/orders' },
-			{ key: 'class', label: '今日课节', value: `${scheduleList.length} 节`, sub: '待点名优先', color: '#4bb964', path: '/app/teach/schedule' },
-			{ key: 'unpaid', label: '待收款', value: `${unpaidTotal} 笔`, sub: '需跟进', color: '#d89614', path: '/app/cashier/orders' },
-			{ key: 'lead', label: '待跟进线索', value: `${leadTotal} 条`, sub: '今日到期', color: '#6f5bd8', path: '/app/enroll/leads' }
+			{
+				key: 'paid',
+				label: '今日收款',
+				value: `¥${todayPaid.amount.toLocaleString('zh-CN')}`,
+				sub: `${todayPaid.count} 笔`,
+				color: '#2ba471',
+				path: '/app/cashier/orders'
+			},
+			{
+				key: 'class',
+				label: '今日课节',
+				value: `${scheduleList.length} 节`,
+				sub: '待点名优先',
+				color: '#4bb964',
+				path: '/app/teach/schedule'
+			},
+			{
+				key: 'unpaid',
+				label: '待收款',
+				value: `${unpaidTotal} 笔`,
+				sub: '需跟进',
+				color: '#d89614',
+				path: '/app/cashier/orders'
+			},
+			{
+				key: 'lead',
+				label: '待跟进线索',
+				value: `${leadTotal} 条`,
+				sub: '今日到期',
+				color: '#6f5bd8',
+				path: '/app/enroll/leads'
+			}
 		]
 		todoList.value = [
 			...scheduleList.map((item) => ({
@@ -156,7 +189,14 @@
 			}))
 		]
 		quickList.value = filterQuick([
-			{ key: 'enroll', text: '录入学员', icon: UserAddOutlined, color: '#fff1e6', action: 'enroll', perm: '/student/add' },
+			{
+				key: 'enroll',
+				text: '录入学员',
+				icon: UserAddOutlined,
+				color: '#fff1e6',
+				action: 'enroll',
+				perm: '/student/add'
+			},
 			{ key: 'schedule', text: '我的课表', icon: CalendarOutlined, color: '#eaf2fd', path: '/app/teach/schedule' },
 			{ key: 'attend', text: '点名消课', icon: AuditOutlined, color: '#f3edfd', path: '/app/teach/attend' },
 			{ key: 'students', text: '学员名册', icon: TeamOutlined, color: '#e8f7f0', path: '/app/teach/students' },
@@ -175,9 +215,30 @@
 		])
 		const newLead = leadRes?.records?.filter((item) => item.status === 'NEW').length || 0
 		statList.value = [
-			{ key: 'lead', label: '在跟线索', value: `${leadRes?.total || 0} 条`, sub: `新线索 ${newLead}`, color: '#6f5bd8', path: '/app/enroll/leads' },
-			{ key: 'trial', label: '试听预约', value: `${trialRes?.total || 0} 场`, sub: '待到店', color: '#4bb964', path: '/app/enroll/leads' },
-			{ key: 'unpaid', label: '待收款', value: `${unpaidRes?.total || 0} 笔`, sub: '需跟进', color: '#d89614', path: '/app/cashier/orders' },
+			{
+				key: 'lead',
+				label: '在跟线索',
+				value: `${leadRes?.total || 0} 条`,
+				sub: `新线索 ${newLead}`,
+				color: '#6f5bd8',
+				path: '/app/enroll/leads'
+			},
+			{
+				key: 'trial',
+				label: '试听预约',
+				value: `${trialRes?.total || 0} 场`,
+				sub: '待到店',
+				color: '#4bb964',
+				path: '/app/enroll/leads'
+			},
+			{
+				key: 'unpaid',
+				label: '待收款',
+				value: `${unpaidRes?.total || 0} 笔`,
+				sub: '需跟进',
+				color: '#d89614',
+				path: '/app/cashier/orders'
+			},
 			{ key: 'report', label: '招生转化', value: '查看', sub: '漏斗/来源', color: '#2ba471', path: '/app/report' }
 		]
 		todoList.value = [
@@ -203,7 +264,14 @@
 			}))
 		]
 		quickList.value = filterQuick([
-			{ key: 'enroll', text: '录入学员', icon: UserAddOutlined, color: '#fff1e6', action: 'enroll', perm: '/student/add' },
+			{
+				key: 'enroll',
+				text: '录入学员',
+				icon: UserAddOutlined,
+				color: '#fff1e6',
+				action: 'enroll',
+				perm: '/student/add'
+			},
 			{ key: 'leads', text: '我的线索', icon: PhoneOutlined, color: '#f3edfd', path: '/app/enroll/leads' },
 			{ key: 'students', text: '学员名册', icon: TeamOutlined, color: '#e8f7f0', path: '/app/teach/students' },
 			{ key: 'order', text: '收款台', icon: WalletOutlined, color: '#eaf2fd', path: '/app/cashier/orders' },
@@ -220,9 +288,30 @@
 		])
 		const todayPaid = resolveTodayPaid(todaySummary, paidRes)
 		statList.value = [
-			{ key: 'paid', label: '今日收款', value: `¥${todayPaid.amount.toLocaleString('zh-CN')}`, sub: `${todayPaid.count} 笔`, color: '#2ba471', path: '/app/cashier/orders' },
-			{ key: 'unpaid', label: '待收款', value: `${unpaidRes?.total || 0} 笔`, sub: '需催收', color: '#d89614', path: '/app/cashier/orders' },
-			{ key: 'refund', label: '待审批退费', value: `${refundRes?.total || 0} 笔`, sub: '待处理', color: '#e5484d', path: '/app/cashier/orders' },
+			{
+				key: 'paid',
+				label: '今日收款',
+				value: `¥${todayPaid.amount.toLocaleString('zh-CN')}`,
+				sub: `${todayPaid.count} 笔`,
+				color: '#2ba471',
+				path: '/app/cashier/orders'
+			},
+			{
+				key: 'unpaid',
+				label: '待收款',
+				value: `${unpaidRes?.total || 0} 笔`,
+				sub: '需催收',
+				color: '#d89614',
+				path: '/app/cashier/orders'
+			},
+			{
+				key: 'refund',
+				label: '待审批退费',
+				value: `${refundRes?.total || 0} 笔`,
+				sub: '待处理',
+				color: '#e5484d',
+				path: '/app/cashier/orders'
+			},
 			{ key: 'report', label: '收款报表', value: '查看', sub: '趋势/渠道', color: '#4bb964', path: '/app/report' }
 		]
 		todoList.value = [
@@ -249,7 +338,13 @@
 		]
 		quickList.value = filterQuick([
 			{ key: 'order', text: '收款台', icon: WalletOutlined, color: '#eaf2fd', path: '/app/cashier/orders' },
-			{ key: 'refund', text: '退费审批', icon: AuditOutlined, color: '#fdedf0', path: '/app/cashier/orders?tab=refund' },
+			{
+				key: 'refund',
+				text: '退费审批',
+				icon: AuditOutlined,
+				color: '#fdedf0',
+				path: '/app/cashier/orders?tab=refund'
+			},
 			{ key: 'renew', text: '续费预警', icon: AuditOutlined, color: '#fdf3e6', path: '/app/student/renew' },
 			{ key: 'report', text: '收款报表', icon: BarChartOutlined, color: '#e8f7f0', path: '/app/report' },
 			{ key: 'mine', text: '我的', icon: UserOutlined, color: '#f3edfd', path: '/app/mine' }
@@ -262,7 +357,9 @@
 			studentApi.orderPage({ current: 1, size: 5, status: 'UNPAID' }).catch(() => ({})),
 			studentApi.refundPage({ current: 1, size: 5, status: 'PENDING' }).catch(() => ({})),
 			studentApi.renewWarnPage({ current: 1, size: 5, status: 'PENDING' }).catch(() => ({})),
-			crmApi.leadPage({ current: 1, size: 5, nextFollowBefore: todayEnd(), excludeStatus: 'ENROLLED,LOST' }).catch(() => ({})),
+			crmApi
+				.leadPage({ current: 1, size: 5, nextFollowBefore: todayEnd(), excludeStatus: 'ENROLLED,LOST' })
+				.catch(() => ({})),
 			courseApi.scheduleWeek({ startDate: todayStart(), endDate: todayEnd() }).catch(() => []),
 			studentApi.orderPage({ current: 1, size: 200, status: 'PAID' }).catch(() => ({})),
 			reportApi.dashboard({ startTime: todayStart(), endTime: todayEnd() }).catch(() => null)
@@ -270,10 +367,38 @@
 		const scheduleList = scheduleRes || []
 		const todayPaid = resolveTodayPaid(todaySummary, paidRes)
 		statList.value = [
-			{ key: 'paid', label: '今日收款', value: `¥${todayPaid.amount.toLocaleString('zh-CN')}`, sub: `${todayPaid.count} 笔`, color: '#2ba471', path: '/app/cashier/orders' },
-			{ key: 'unpaid', label: '待收款', value: `${unpaidRes?.total || 0} 笔`, sub: '需跟进', color: '#d89614', path: '/app/cashier/orders' },
-			{ key: 'class', label: '今日课节', value: `${scheduleList.length} 节`, sub: '待点名优先', color: '#4bb964', path: '/app/teach/schedule' },
-			{ key: 'lead', label: '待跟进线索', value: `${leadRes?.total || 0} 条`, sub: '今日到期', color: '#6f5bd8', path: '/app/enroll/leads' }
+			{
+				key: 'paid',
+				label: '今日收款',
+				value: `¥${todayPaid.amount.toLocaleString('zh-CN')}`,
+				sub: `${todayPaid.count} 笔`,
+				color: '#2ba471',
+				path: '/app/cashier/orders'
+			},
+			{
+				key: 'unpaid',
+				label: '待收款',
+				value: `${unpaidRes?.total || 0} 笔`,
+				sub: '需跟进',
+				color: '#d89614',
+				path: '/app/cashier/orders'
+			},
+			{
+				key: 'class',
+				label: '今日课节',
+				value: `${scheduleList.length} 节`,
+				sub: '待点名优先',
+				color: '#4bb964',
+				path: '/app/teach/schedule'
+			},
+			{
+				key: 'lead',
+				label: '待跟进线索',
+				value: `${leadRes?.total || 0} 条`,
+				sub: '今日到期',
+				color: '#6f5bd8',
+				path: '/app/enroll/leads'
+			}
 		]
 		todoList.value = [
 			...(unpaidRes?.records || []).slice(0, 3).map((item) => ({
@@ -328,7 +453,14 @@
 			}))
 		]
 		quickList.value = filterQuick([
-			{ key: 'enroll', text: '录入学员', icon: UserAddOutlined, color: '#fff1e6', action: 'enroll', perm: '/student/add' },
+			{
+				key: 'enroll',
+				text: '录入学员',
+				icon: UserAddOutlined,
+				color: '#fff1e6',
+				action: 'enroll',
+				perm: '/student/add'
+			},
 			{ key: 'order', text: '收款台', icon: WalletOutlined, color: '#eaf2fd', path: '/app/cashier/orders' },
 			{ key: 'schedule', text: '我的课表', icon: CalendarOutlined, color: '#f3edfd', path: '/app/teach/schedule' },
 			{ key: 'attend', text: '点名消课', icon: AuditOutlined, color: '#fdf3e6', path: '/app/teach/attend' },
@@ -361,10 +493,7 @@
 	/** 过滤当前视角不可访问的快捷入口 */
 	const filterQuick = (list) =>
 		list.filter(
-			(item) =>
-				(!item.perm || hasPerm(item.perm)) &&
-				(!item.admin || isAdmin()) &&
-				appStore.canVisit(item.path)
+			(item) => (!item.perm || hasPerm(item.perm)) && (!item.admin || isAdmin()) && appStore.canVisit(item.path)
 		)
 
 	const go = (path) => {

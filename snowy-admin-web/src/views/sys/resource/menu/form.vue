@@ -51,7 +51,7 @@
 								</template>
 								<question-circle-outlined />
 							</a-tooltip>
-							&nbsp
+							&nbsp;
 							{{ formData.menuType === 'MENU' || formData.menuType === 'CATALOG' ? '路由地址' : 'https链接地址' }}：
 						</template>
 						<a-input v-model:value="formData.path" placeholder="请输入路由地址" allow-clear />

@@ -28,7 +28,10 @@
 				<a-col :xs="12" :sm="12" :md="8" :xl="6">
 					<div class="ent-stat kpi-link" @click="drillAcademic()">
 						<div class="ent-stat-label">{{ periodLabel }}课消课时</div>
-						<div class="ent-stat-value">{{ fmt(summary.attendLessons) }} <span style="font-size: 13px; color: var(--text-color-tertiary)">课时</span></div>
+						<div class="ent-stat-value">
+							{{ fmt(summary.attendLessons) }}
+							<span style="font-size: 13px; color: var(--text-color-tertiary)">课时</span>
+						</div>
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="12" :md="8" :xl="6">
@@ -218,7 +221,10 @@
 			trendChart.render()
 		}
 
-		const channelData = channelList.value.map((item) => ({ type: payChannelText(item.channel), value: money(item.paidAmount) }))
+		const channelData = channelList.value.map((item) => ({
+			type: payChannelText(item.channel),
+			value: money(item.paidAmount)
+		}))
 		if (channelData.length) {
 			channelChart = new Pie('reportChannelChart', {
 				data: channelData,

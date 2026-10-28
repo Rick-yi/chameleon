@@ -42,7 +42,12 @@
 					</a-col>
 					<a-col :span="9">
 						<div class="captcha-img-wrapper" style="height: 40px">
-							<img :src="validCodeBase64" class="login-validCode-img" @click="getPhonePicCaptcha" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer" />
+							<img
+								:src="validCodeBase64"
+								class="login-validCode-img"
+								@click="getPhonePicCaptcha"
+								style="width: 100%; height: 100%; object-fit: cover; cursor: pointer"
+							/>
 						</div>
 					</a-col>
 				</a-row>

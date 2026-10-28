@@ -62,7 +62,9 @@
 							</template>
 							<template v-if="column.dataIndex === 'dictTypeCode'">
 								<a-select
-									v-if="record.effectType === 'radio' || record.effectType === 'select' || record.effectType === 'checkbox'"
+									v-if="
+										record.effectType === 'radio' || record.effectType === 'select' || record.effectType === 'checkbox'
+									"
 									class="xn-wd"
 									v-model:value="record.dictTypeCode"
 									:options="dictTypeCodeOptions"
@@ -71,13 +73,23 @@
 								<span v-else>无</span>
 							</template>
 							<template v-if="column.dataIndex === 'whetherTable'">
-								<a-checkbox v-model:checked="record.whetherTable" @change="whetherTableChange(record)" :disabled="isTreeParentField(record) || isLeftTreeNonNameField(record)" />
+								<a-checkbox
+									v-model:checked="record.whetherTable"
+									@change="whetherTableChange(record)"
+									:disabled="isTreeParentField(record) || isLeftTreeNonNameField(record)"
+								/>
 							</template>
 							<template v-if="column.dataIndex === 'whetherDetail'">
-								<a-checkbox v-model:checked="record.whetherDetail" :disabled="isTreeParentField(record) || isLeftTreeNonNameField(record)" />
+								<a-checkbox
+									v-model:checked="record.whetherDetail"
+									:disabled="isTreeParentField(record) || isLeftTreeNonNameField(record)"
+								/>
 							</template>
 							<template v-if="column.dataIndex === 'whetherRetract'">
-								<a-checkbox v-model:checked="record.whetherRetract" :disabled="!record.whetherTable || isTreeParentField(record) || isLeftTreeNonNameField(record)" />
+								<a-checkbox
+									v-model:checked="record.whetherRetract"
+									:disabled="!record.whetherTable || isTreeParentField(record) || isLeftTreeNonNameField(record)"
+								/>
 							</template>
 							<template v-if="column.dataIndex === 'whetherAddUpdate'">
 								<a-checkbox
@@ -96,11 +108,21 @@
 							<template v-if="column.dataIndex === 'whetherUnique'">
 								<a-checkbox
 									v-model:checked="record.whetherUnique"
-									:disabled="toFieldEstimate(record) || !record.whetherAddUpdate || !record.whetherRequired || isTreeParentField(record)"
+									:disabled="
+										toFieldEstimate(record) ||
+										!record.whetherAddUpdate ||
+										!record.whetherRequired ||
+										isTreeParentField(record)
+									"
 								/>
 							</template>
 							<template v-if="column.dataIndex === 'queryWhether'">
-								<a-switch v-model:checked="record.queryWhether" :disabled="toQueryWhetherDisabled(record) || isTreeParentField(record) || isLeftTreeNonNameField(record)" />
+								<a-switch
+									v-model:checked="record.queryWhether"
+									:disabled="
+										toQueryWhetherDisabled(record) || isTreeParentField(record) || isLeftTreeNonNameField(record)
+									"
+								/>
 							</template>
 							<template v-if="column.dataIndex === 'queryType'">
 								<a-select
@@ -184,7 +206,9 @@
 							</template>
 							<template v-if="column.dataIndex === 'dictTypeCode'">
 								<a-select
-									v-if="record.effectType === 'radio' || record.effectType === 'select' || record.effectType === 'checkbox'"
+									v-if="
+										record.effectType === 'radio' || record.effectType === 'select' || record.effectType === 'checkbox'
+									"
 									class="xn-wd"
 									v-model:value="record.dictTypeCode"
 									:options="dictTypeCodeOptions"
@@ -193,13 +217,23 @@
 								<span v-else>无</span>
 							</template>
 							<template v-if="column.dataIndex === 'whetherTable'">
-								<a-checkbox v-model:checked="record.whetherTable" @change="whetherTableChange(record)" :disabled="isTreeParentField(record) || isSubForeignKeyField(record)" />
+								<a-checkbox
+									v-model:checked="record.whetherTable"
+									@change="whetherTableChange(record)"
+									:disabled="isTreeParentField(record) || isSubForeignKeyField(record)"
+								/>
 							</template>
 							<template v-if="column.dataIndex === 'whetherDetail'">
-								<a-checkbox v-model:checked="record.whetherDetail" :disabled="isTreeParentField(record) || isSubForeignKeyField(record)" />
+								<a-checkbox
+									v-model:checked="record.whetherDetail"
+									:disabled="isTreeParentField(record) || isSubForeignKeyField(record)"
+								/>
 							</template>
 							<template v-if="column.dataIndex === 'whetherRetract'">
-								<a-checkbox v-model:checked="record.whetherRetract" :disabled="!record.whetherTable || isTreeParentField(record) || isSubForeignKeyField(record)" />
+								<a-checkbox
+									v-model:checked="record.whetherRetract"
+									:disabled="!record.whetherTable || isTreeParentField(record) || isSubForeignKeyField(record)"
+								/>
 							</template>
 							<template v-if="column.dataIndex === 'whetherAddUpdate'">
 								<a-checkbox
@@ -212,17 +246,33 @@
 								<a-checkbox
 									v-model:checked="record.whetherRequired"
 									@change="whetherRequiredChange(record)"
-									:disabled="toFieldEstimate(record) || !record.whetherAddUpdate || isTreeParentField(record) || isSubForeignKeyField(record)"
+									:disabled="
+										toFieldEstimate(record) ||
+										!record.whetherAddUpdate ||
+										isTreeParentField(record) ||
+										isSubForeignKeyField(record)
+									"
 								/>
 							</template>
 							<template v-if="column.dataIndex === 'whetherUnique'">
 								<a-checkbox
 									v-model:checked="record.whetherUnique"
-									:disabled="toFieldEstimate(record) || !record.whetherAddUpdate || !record.whetherRequired || isTreeParentField(record) || isSubForeignKeyField(record)"
+									:disabled="
+										toFieldEstimate(record) ||
+										!record.whetherAddUpdate ||
+										!record.whetherRequired ||
+										isTreeParentField(record) ||
+										isSubForeignKeyField(record)
+									"
 								/>
 							</template>
 							<template v-if="column.dataIndex === 'queryWhether'">
-								<a-switch v-model:checked="record.queryWhether" :disabled="toQueryWhetherDisabled(record) || isTreeParentField(record) || isSubForeignKeyField(record)" />
+								<a-switch
+									v-model:checked="record.queryWhether"
+									:disabled="
+										toQueryWhetherDisabled(record) || isTreeParentField(record) || isSubForeignKeyField(record)
+									"
+								/>
 							</template>
 							<template v-if="column.dataIndex === 'queryType'">
 								<a-select
@@ -302,13 +352,20 @@
 						<span v-else>无</span>
 					</template>
 					<template v-if="column.dataIndex === 'whetherTable'">
-						<a-checkbox v-model:checked="record.whetherTable" @change="whetherTableChange(record)" :disabled="isTreeParentField(record)" />
+						<a-checkbox
+							v-model:checked="record.whetherTable"
+							@change="whetherTableChange(record)"
+							:disabled="isTreeParentField(record)"
+						/>
 					</template>
 					<template v-if="column.dataIndex === 'whetherDetail'">
 						<a-checkbox v-model:checked="record.whetherDetail" :disabled="isTreeParentField(record)" />
 					</template>
 					<template v-if="column.dataIndex === 'whetherRetract'">
-						<a-checkbox v-model:checked="record.whetherRetract" :disabled="!record.whetherTable || isTreeParentField(record)" />
+						<a-checkbox
+							v-model:checked="record.whetherRetract"
+							:disabled="!record.whetherTable || isTreeParentField(record)"
+						/>
 					</template>
 					<template v-if="column.dataIndex === 'whetherAddUpdate'">
 						<a-checkbox
@@ -327,11 +384,19 @@
 					<template v-if="column.dataIndex === 'whetherUnique'">
 						<a-checkbox
 							v-model:checked="record.whetherUnique"
-							:disabled="toFieldEstimate(record) || !record.whetherAddUpdate || !record.whetherRequired || isTreeParentField(record)"
+							:disabled="
+								toFieldEstimate(record) ||
+								!record.whetherAddUpdate ||
+								!record.whetherRequired ||
+								isTreeParentField(record)
+							"
 						/>
 					</template>
 					<template v-if="column.dataIndex === 'queryWhether'">
-						<a-switch v-model:checked="record.queryWhether" :disabled="toQueryWhetherDisabled(record) || isTreeParentField(record)" />
+						<a-switch
+							v-model:checked="record.queryWhether"
+							:disabled="toQueryWhetherDisabled(record) || isTreeParentField(record)"
+						/>
 					</template>
 					<template v-if="column.dataIndex === 'queryType'">
 						<a-select
@@ -764,8 +829,16 @@
 	}
 	// 判断是否为选择器类型
 	const isSelectorType = (effectType) => {
-		return ['userSelector', 'userSelectorMulti', 'orgSelector', 'orgSelectorMulti',
-			'positionSelector', 'positionSelectorMulti', 'groupSelector', 'groupSelectorMulti'].includes(effectType)
+		return [
+			'userSelector',
+			'userSelectorMulti',
+			'orgSelector',
+			'orgSelectorMulti',
+			'positionSelector',
+			'positionSelectorMulti',
+			'groupSelector',
+			'groupSelectorMulti'
+		].includes(effectType)
 	}
 	// 通用字段是否可选
 	const toCommonFieldEstimate = (record) => {
@@ -829,7 +902,12 @@
 	// 查询条件是否可用
 	const toQueryWhetherDisabled = (record) => {
 		// 去掉了列表显示、图片上传、文件上传、选择器类型是不让生成搜索的
-		return !record.whetherTable || record.effectType === 'imageUpload' || record.effectType === 'fileUpload' || isSelectorType(record.effectType)
+		return (
+			!record.whetherTable ||
+			record.effectType === 'imageUpload' ||
+			record.effectType === 'fileUpload' ||
+			isSelectorType(record.effectType)
+		)
 	}
 	// 实体类型选择触发
 	const fieldJavaTypeChange = (record) => {

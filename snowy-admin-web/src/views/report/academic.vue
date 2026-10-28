@@ -10,13 +10,31 @@
 					<a-range-picker v-model:value="dateRange" value-format="YYYY-MM-DD" allow-clear @change="onDateRangeChange" />
 				</a-form-item>
 				<a-form-item label="校区">
-					<a-select v-model:value="query.campusId" placeholder="全部校区" :options="campusOptions" allow-clear style="width: 150px" />
+					<a-select
+						v-model:value="query.campusId"
+						placeholder="全部校区"
+						:options="campusOptions"
+						allow-clear
+						style="width: 150px"
+					/>
 				</a-form-item>
 				<a-form-item label="课程">
-					<a-select v-model:value="query.courseId" placeholder="全部课程" :options="courseOptions" allow-clear style="width: 170px" />
+					<a-select
+						v-model:value="query.courseId"
+						placeholder="全部课程"
+						:options="courseOptions"
+						allow-clear
+						style="width: 170px"
+					/>
 				</a-form-item>
 				<a-form-item label="班级">
-					<a-select v-model:value="query.classId" placeholder="全部班级" :options="classOptions" allow-clear style="width: 170px" />
+					<a-select
+						v-model:value="query.classId"
+						placeholder="全部班级"
+						:options="classOptions"
+						allow-clear
+						style="width: 170px"
+					/>
 				</a-form-item>
 				<a-form-item>
 					<a-space>
@@ -59,16 +77,42 @@
 		<a-spin :spinning="loading">
 			<a-row :gutter="16" style="margin-top: 16px">
 				<a-col :xs="12" :sm="8" :md="8" :xl="6">
-					<a-card :bordered="false" class="kpi-link" @click="router.push('/course/attend')"><a-statistic title="到课人次" :value="attendance.attendCount" suffix="人次" /><kpi-delta :current="attendance.attendCount" :previous="prevAttendance.attendCount" /></a-card>
+					<a-card :bordered="false" class="kpi-link" @click="router.push('/course/attend')"
+						><a-statistic title="到课人次" :value="attendance.attendCount" suffix="人次" /><kpi-delta
+							:current="attendance.attendCount"
+							:previous="prevAttendance.attendCount"
+					/></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="请假人次" :value="attendance.leaveCount" suffix="人次" :value-style="{ color: '#faad14' }" /><kpi-delta :current="attendance.leaveCount" :previous="prevAttendance.leaveCount" invert /></a-card>
+					<a-card :bordered="false"
+						><a-statistic
+							title="请假人次"
+							:value="attendance.leaveCount"
+							suffix="人次"
+							:value-style="{ color: '#faad14' }" /><kpi-delta
+							:current="attendance.leaveCount"
+							:previous="prevAttendance.leaveCount"
+							invert
+					/></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="缺勤人次" :value="attendance.absentCount" suffix="人次" :value-style="{ color: '#fa541c' }" /><kpi-delta :current="attendance.absentCount" :previous="prevAttendance.absentCount" invert /></a-card>
+					<a-card :bordered="false"
+						><a-statistic
+							title="缺勤人次"
+							:value="attendance.absentCount"
+							suffix="人次"
+							:value-style="{ color: '#fa541c' }" /><kpi-delta
+							:current="attendance.absentCount"
+							:previous="prevAttendance.absentCount"
+							invert
+					/></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false" class="kpi-link" @click="router.push('/course/class')"><a-statistic title="应到人次" :value="attendance.expectedCount" suffix="人次" /><kpi-delta :current="attendance.expectedCount" :previous="prevAttendance.expectedCount" /></a-card>
+					<a-card :bordered="false" class="kpi-link" @click="router.push('/course/class')"
+						><a-statistic title="应到人次" :value="attendance.expectedCount" suffix="人次" /><kpi-delta
+							:current="attendance.expectedCount"
+							:previous="prevAttendance.expectedCount"
+					/></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
 					<a-card :bordered="false">
@@ -107,7 +151,12 @@
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
 					<a-card :bordered="false">
-						<a-statistic title="未点名人次" :value="unmarkedCount" suffix="人次" :value-style="{ color: unmarkedCount > 0 ? '#faad14' : undefined }">
+						<a-statistic
+							title="未点名人次"
+							:value="unmarkedCount"
+							suffix="人次"
+							:value-style="{ color: unmarkedCount > 0 ? '#faad14' : undefined }"
+						>
 							<template #title>
 								未点名人次
 								<a-tooltip>
@@ -241,7 +290,10 @@
 	const prevAttendance = ref({ attendCount: 0, leaveCount: 0, absentCount: 0, expectedCount: 0, attendRate: 0 })
 	// 已点名 = 到课 + 请假 + 缺勤；未点名 = 应到 - 已点名（小于 0 说明数据异常，单独提示）
 	const markedCount = computed(
-		() => Number(attendance.value.attendCount || 0) + Number(attendance.value.leaveCount || 0) + Number(attendance.value.absentCount || 0)
+		() =>
+			Number(attendance.value.attendCount || 0) +
+			Number(attendance.value.leaveCount || 0) +
+			Number(attendance.value.absentCount || 0)
 	)
 	const unmarkedCount = computed(() => Math.max(0, Number(attendance.value.expectedCount || 0) - markedCount.value))
 	const attendanceMismatch = computed(() => markedCount.value > Number(attendance.value.expectedCount || 0))

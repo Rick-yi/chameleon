@@ -15,12 +15,10 @@ import downloadUtil from '@/utils/downloadUtil'
  * @param {Object} param 查询参数（会序列化成 JSON 交给后端 Builder）
  */
 export function runAsyncExport(type, param) {
-	return exportApi
-		.create({ type, paramJson: JSON.stringify(param || {}) })
-		.then((task) => {
-			message.info('已开始导出，完成后会自动下载')
-			return poll(task.id)
-		})
+	return exportApi.create({ type, paramJson: JSON.stringify(param || {}) }).then((task) => {
+		message.info('已开始导出，完成后会自动下载')
+		return poll(task.id)
+	})
 }
 
 function poll(taskId) {

@@ -16,9 +16,7 @@
 							<a-menu-item v-if="hasPerm('/course/schedule/generateAdhoc')" key="adhoc">
 								<team-outlined /> 直接排课
 							</a-menu-item>
-							<a-menu-item v-if="hasPerm('/course/schedule/add')" key="add">
-								<plus-outlined /> 手动排课
-							</a-menu-item>
+							<a-menu-item v-if="hasPerm('/course/schedule/add')" key="add"> <plus-outlined /> 手动排课 </a-menu-item>
 						</a-menu>
 					</template>
 				</a-dropdown>
@@ -32,18 +30,10 @@
 							<a-menu-item v-if="hasPerm('/course/schedule/export')" key="export">
 								<file-text-outlined /> 导出课表
 							</a-menu-item>
-							<a-menu-item v-if="hasPerm('/course/schedule/add')" key="copy">
-								<copy-outlined /> 复制上周
-							</a-menu-item>
-							<a-menu-item key="template">
-								<profile-outlined /> 课表模板
-							</a-menu-item>
-							<a-menu-item key="history">
-								<history-outlined /> 调课记录
-							</a-menu-item>
-							<a-menu-item key="config">
-								<setting-outlined /> 排课配置
-							</a-menu-item>
+							<a-menu-item v-if="hasPerm('/course/schedule/add')" key="copy"> <copy-outlined /> 复制上周 </a-menu-item>
+							<a-menu-item key="template"> <profile-outlined /> 课表模板 </a-menu-item>
+							<a-menu-item key="history"> <history-outlined /> 调课记录 </a-menu-item>
+							<a-menu-item key="config"> <setting-outlined /> 排课配置 </a-menu-item>
 						</a-menu>
 					</template>
 				</a-dropdown>
@@ -77,219 +67,284 @@
 				</template>
 			</div>
 			<div v-if="viewMode !== 'split'" class="sched-filter-row">
-				<a-select v-model:value="searchFormState.campusId" placeholder="全部校区" :options="campusOptions" allow-clear style="width: 140px" @change="loadWeek" />
-				<a-select v-model:value="searchFormState.courseId" placeholder="全部课程" :options="courseOptions" allow-clear style="width: 160px" @change="loadWeek" />
-				<a-select v-model:value="searchFormState.classId" placeholder="全部班级" :options="classOptions" allow-clear show-search option-filter-prop="label" style="width: 180px" @change="loadWeek" />
-				<a-select v-model:value="searchFormState.teacherId" placeholder="全部教师" :options="teacherOptions" allow-clear style="width: 150px" show-search option-filter-prop="label" @change="loadWeek" />
-				<a-input v-model:value="searchFormState.classroom" placeholder="教室" allow-clear style="width: 110px" @pressEnter="loadWeek" />
-				<a-select v-model:value="searchFormState.attendStatus" placeholder="点名状态" :options="attendStatusOptions" allow-clear style="width: 120px" @change="loadWeek" />
+				<a-select
+					v-model:value="searchFormState.campusId"
+					placeholder="全部校区"
+					:options="campusOptions"
+					allow-clear
+					style="width: 140px"
+					@change="loadWeek"
+				/>
+				<a-select
+					v-model:value="searchFormState.courseId"
+					placeholder="全部课程"
+					:options="courseOptions"
+					allow-clear
+					style="width: 160px"
+					@change="loadWeek"
+				/>
+				<a-select
+					v-model:value="searchFormState.classId"
+					placeholder="全部班级"
+					:options="classOptions"
+					allow-clear
+					show-search
+					option-filter-prop="label"
+					style="width: 180px"
+					@change="loadWeek"
+				/>
+				<a-select
+					v-model:value="searchFormState.teacherId"
+					placeholder="全部教师"
+					:options="teacherOptions"
+					allow-clear
+					style="width: 150px"
+					show-search
+					option-filter-prop="label"
+					@change="loadWeek"
+				/>
+				<a-input
+					v-model:value="searchFormState.classroom"
+					placeholder="教室"
+					allow-clear
+					style="width: 110px"
+					@pressEnter="loadWeek"
+				/>
+				<a-select
+					v-model:value="searchFormState.attendStatus"
+					placeholder="点名状态"
+					:options="attendStatusOptions"
+					allow-clear
+					style="width: 120px"
+					@change="loadWeek"
+				/>
 				<a class="sched-filter-reset" @click="resetScheduleFilters">重置</a>
 			</div>
 		</div>
 
 		<div class="ent-body" style="padding: 0">
-		<!-- 周视图 -->
-		<div v-if="viewMode === 'week'" style="padding: 16px; overflow-x: auto">
-			<div class="sched-grid">
-				<div class="sched-corner">时间</div>
-				<div v-for="d in weekDays" :key="d.date" class="sched-head" :class="{ 'is-today': d.date === fmtToday() }">
-					{{ d.label }}
-					<a-tag v-if="closureMap[d.date]" color="orange" style="margin-left: 6px">停课</a-tag>
-				</div>
-				<template v-for="slot in timeSlots" :key="slot.start">
-					<div class="sched-time">
-						{{ slot.start }}<br />{{ slot.end }}
+			<!-- 周视图 -->
+			<div v-if="viewMode === 'week'" style="padding: 16px; overflow-x: auto">
+				<div class="sched-grid">
+					<div class="sched-corner">时间</div>
+					<div v-for="d in weekDays" :key="d.date" class="sched-head" :class="{ 'is-today': d.date === fmtToday() }">
+						{{ d.label }}
+						<a-tag v-if="closureMap[d.date]" color="orange" style="margin-left: 6px">停课</a-tag>
 					</div>
-					<div
-						v-for="d in weekDays"
-						:key="d.date + slot.start"
-						class="sched-cell"
-						:class="{ 'is-today': d.date === fmtToday(), 'is-drop-target': dragOverKey === d.date + '|' + slot.start }"
-						@dragover.prevent="onDragOver(d, slot)"
-						@dragleave="onDragLeave(d, slot)"
-						@drop.prevent="onDrop($event, d, slot)"
-					>
+					<template v-for="slot in timeSlots" :key="slot.start">
+						<div class="sched-time">{{ slot.start }}<br />{{ slot.end }}</div>
 						<div
-							v-for="s in scheduleMap[d.date + '|' + slot.start] || []"
-							:key="s.id"
-							class="ent-schedule-card"
-							:class="{ 'is-conflict': conflictIdSet.has(s.id), 'is-dragging': draggingSchedule?.id === s.id }"
-							:draggable="hasPerm('/course/schedule/change')"
-							:title="hasPerm('/course/schedule/change') ? '点击进入点名，拖拽到其他日期/时段可调课' : '点击进入点名'"
-							@dragstart="onDragStart($event, s)"
-							@dragend="onDragEnd"
-							@click="onCardClick(s)"
+							v-for="d in weekDays"
+							:key="d.date + slot.start"
+							class="sched-cell"
+							:class="{
+								'is-today': d.date === fmtToday(),
+								'is-drop-target': dragOverKey === d.date + '|' + slot.start
+							}"
+							@dragover.prevent="onDragOver(d, slot)"
+							@dragleave="onDragLeave(d, slot)"
+							@drop.prevent="onDrop($event, d, slot)"
 						>
-							<div class="sched-card-head">
-								<span class="sched-card-title">{{ s.className || className(s.classId) }}</span>
-								<a-tag v-if="conflictIdSet.has(s.id)" color="red" class="sched-card-tag">冲突</a-tag>
-								<a-tag v-else :color="attendColor(s.attendStatus)" class="sched-card-tag">
-									{{ attendText(s.attendStatus) }}
-								</a-tag>
-							</div>
-							<div class="sched-card-sub">{{ s.classroom || '未设教室' }}</div>
-							<div v-if="s.teacherName" class="sched-card-sub2">{{ s.teacherName }}</div>
-							<div class="sched-card-attend">
-								应到 {{ s.studentCount || 0 }} · 已点 {{ s.attendCount || 0 }}
-							</div>
-							<div class="sched-card-actions">
-								<a-button type="link" size="small" class="sched-card-link" @click.stop="goAttend(s)">点名 ›</a-button>
-								<a class="sched-card-link" @click.stop="onOpenChange(s)">调课</a>
-								<a class="sched-card-link sched-card-cancel" @click.stop="onCancelScheduleConfirm(s)">取消</a>
-							</div>
-						</div>
-					</div>
-				</template>
-			</div>
-			<div class="ent-note" :class="{ 'is-error': conflictIdSet.size }">
-				{{ conflictTip || `本周共 ${scheduleList.length} 节课${conflictIdSet.size ? '，存在 ' + conflictIdSet.size + ' 节冲突（教室或教师撞课）' : ''}${hasPerm('/course/schedule/change') ? ' · 可拖拽课节调整日期/时段' : ''}` }}
-			</div>
-		</div>
-
-		<!-- 日视图 -->
-		<div v-else-if="viewMode === 'day'" style="padding: 16px">
-			<div style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
-				<a-tag v-for="item in classroomUsage" :key="item.name" color="blue">{{ item.name }} {{ item.count }} 节</a-tag>
-				<a-button v-if="selectedScheduleIds.length" danger size="small" @click="onBatchCancel">
-					批量取消（{{ selectedScheduleIds.length }}）
-				</a-button>
-			</div>
-			<div v-if="!dayScheduleList.length" class="ent-empty">当天没有排课</div>
-			<a-table
-				v-else
-				:columns="dayColumns"
-				:data-source="dayScheduleList"
-				:row-key="(r) => r.id"
-				:row-selection="{ selectedRowKeys: selectedScheduleIds, onChange: onSelectSchedules }"
-				bordered
-				size="middle"
-				:pagination="false"
-			>
-				<template #bodyCell="{ column, record }">
-					<template v-if="column.dataIndex === 'time'">
-						{{ (record.startTime || '').slice(0, 5) }} - {{ (record.endTime || '').slice(0, 5) }}
-					</template>
-					<template v-if="column.dataIndex === 'className'">
-						{{ record.className || className(record.classId) }}
-					</template>
-					<template v-if="column.dataIndex === 'attendStatus'">
-						<a-tag :color="attendColor(record.attendStatus)">{{ attendText(record.attendStatus) }}</a-tag>
-					</template>
-					<template v-if="column.dataIndex === 'attendance'">
-						<span class="sched-attend-text">应到 {{ record.studentCount || 0 }} · 已点 {{ record.attendCount || 0 }}</span>
-					</template>
-					<template v-if="column.dataIndex === 'conflict'">
-						<a-tag v-if="conflictIdSet.has(record.id)" color="red">冲突</a-tag>
-						<span v-else>-</span>
-					</template>
-					<template v-if="column.dataIndex === 'action'">
-						<a-space>
-							<a @click="goAttend(record)">点名</a>
-							<a-divider type="vertical" />
-							<a @click="onOpenChange(record)">调课</a>
-							<a-divider type="vertical" />
-							<a style="color: var(--danger-text)" @click="onCancelScheduleConfirm(record)">取消</a>
-						</a-space>
-					</template>
-				</template>
-			</a-table>
-		</div>
-
-		<!-- 教师视图 -->
-		<div v-else-if="viewMode === 'teacher'" style="padding: 16px">
-			<div v-if="!teacherGroups.length" class="ent-empty">本周没有排课</div>
-			<a-row v-else :gutter="12">
-				<a-col v-for="group in teacherGroups" :key="group.key" :xs="24" :sm="12" :xl="8">
-					<a-card size="small" style="margin-bottom: 12px">
-						<template #title>
-							<span>{{ group.name }} <a-tag>{{ group.list.length }} 节</a-tag></span>
-						</template>
-						<div v-for="day in group.days" :key="day.label" style="margin-bottom: 8px">
-							<div style="font-size: 12px; color: rgba(0,0,0,.45); margin-bottom: 4px">{{ day.label }}</div>
 							<div
-								v-for="s in day.list"
+								v-for="s in scheduleMap[d.date + '|' + slot.start] || []"
 								:key="s.id"
 								class="ent-schedule-card"
-								:class="{ 'is-conflict': conflictIdSet.has(s.id) }"
-								style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px"
-								@click="onOpenChange(s)"
+								:class="{ 'is-conflict': conflictIdSet.has(s.id), 'is-dragging': draggingSchedule?.id === s.id }"
+								:draggable="hasPerm('/course/schedule/change')"
+								:title="hasPerm('/course/schedule/change') ? '点击进入点名，拖拽到其他日期/时段可调课' : '点击进入点名'"
+								@dragstart="onDragStart($event, s)"
+								@dragend="onDragEnd"
+								@click="onCardClick(s)"
 							>
-								<span class="sched-teacher-time">
-									{{ (s.startTime || '').slice(0, 5) }}-{{ (s.endTime || '').slice(0, 5) }}
-								</span>
-								<span style="font-size: 12px">{{ s.className || className(s.classId) }}</span>
-								<span class="sched-card-sub2">{{ s.classroom || '未设教室' }}</span>
-								<a class="sched-card-link sched-card-cancel" style="margin-left: auto" @click.stop="onCancelScheduleConfirm(s)">取消</a>
-								<a-tag v-if="conflictIdSet.has(s.id)" color="red" style="font-size: 11px; line-height: 16px; padding: 0 4px">冲突</a-tag>
+								<div class="sched-card-head">
+									<span class="sched-card-title">{{ s.className || className(s.classId) }}</span>
+									<a-tag v-if="conflictIdSet.has(s.id)" color="red" class="sched-card-tag">冲突</a-tag>
+									<a-tag v-else :color="attendColor(s.attendStatus)" class="sched-card-tag">
+										{{ attendText(s.attendStatus) }}
+									</a-tag>
+								</div>
+								<div class="sched-card-sub">{{ s.classroom || '未设教室' }}</div>
+								<div v-if="s.teacherName" class="sched-card-sub2">{{ s.teacherName }}</div>
+								<div class="sched-card-attend">应到 {{ s.studentCount || 0 }} · 已点 {{ s.attendCount || 0 }}</div>
+								<div class="sched-card-actions">
+									<a-button type="link" size="small" class="sched-card-link" @click.stop="goAttend(s)">点名 ›</a-button>
+									<a class="sched-card-link" @click.stop="onOpenChange(s)">调课</a>
+									<a class="sched-card-link sched-card-cancel" @click.stop="onCancelScheduleConfirm(s)">取消</a>
+								</div>
 							</div>
 						</div>
-					</a-card>
-				</a-col>
-			</a-row>
-		</div>
-
-		<!-- 分屏查看：每个窗口独立筛选，同一周并排对比 -->
-		<div v-else-if="viewMode === 'split'" class="sched-split-wrap">
-			<div v-for="panel in splitPanels" :key="panel.key" class="sched-split-panel">
-				<div class="sched-split-head">
-					<span class="sched-split-title">窗口 {{ panel.key }}</span>
-					<a-select
-						v-model:value="panel.teacherId"
-						placeholder="全部教师"
-						:options="teacherOptions"
-						allow-clear
-						show-search
-						option-filter-prop="label"
-						size="small"
-						style="width: 130px"
-						@change="loadSplitPanel(panel)"
-					/>
-					<a-select
-						v-model:value="panel.classId"
-						placeholder="全部班级"
-						:options="classOptions"
-						allow-clear
-						show-search
-						option-filter-prop="label"
-						size="small"
-						style="width: 140px"
-						@change="loadSplitPanel(panel)"
-					/>
-					<a-input
-						v-model:value="panel.classroom"
-						placeholder="教室"
-						allow-clear
-						size="small"
-						style="width: 90px"
-						@pressEnter="loadSplitPanel(panel)"
-					/>
+					</template>
 				</div>
-				<a-spin :spinning="panel.loading">
-					<div class="sched-split-body">
-						<div v-if="!panel.list.length" class="ent-empty">本周没有排课</div>
-						<div v-for="day in splitPanelDays(panel)" :key="day.date" class="sched-split-day">
-							<div class="sched-split-day-label">{{ day.label }}</div>
-							<div
-								v-for="s in day.list"
-								:key="s.id"
-								class="ent-schedule-card sched-split-card"
-								:class="{ 'is-conflict': conflictIdSet.has(s.id) }"
-								@click="goAttend(s)"
+				<div class="ent-note" :class="{ 'is-error': conflictIdSet.size }">
+					{{
+						conflictTip ||
+						`本周共 ${scheduleList.length} 节课${conflictIdSet.size ? '，存在 ' + conflictIdSet.size + ' 节冲突（教室或教师撞课）' : ''}${hasPerm('/course/schedule/change') ? ' · 可拖拽课节调整日期/时段' : ''}`
+					}}
+				</div>
+			</div>
+
+			<!-- 日视图 -->
+			<div v-else-if="viewMode === 'day'" style="padding: 16px">
+				<div style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+					<a-tag v-for="item in classroomUsage" :key="item.name" color="blue"
+						>{{ item.name }} {{ item.count }} 节</a-tag
+					>
+					<a-button v-if="selectedScheduleIds.length" danger size="small" @click="onBatchCancel">
+						批量取消（{{ selectedScheduleIds.length }}）
+					</a-button>
+				</div>
+				<div v-if="!dayScheduleList.length" class="ent-empty">当天没有排课</div>
+				<a-table
+					v-else
+					:columns="dayColumns"
+					:data-source="dayScheduleList"
+					:row-key="(r) => r.id"
+					:row-selection="{ selectedRowKeys: selectedScheduleIds, onChange: onSelectSchedules }"
+					bordered
+					size="middle"
+					:pagination="false"
+				>
+					<template #bodyCell="{ column, record }">
+						<template v-if="column.dataIndex === 'time'">
+							{{ (record.startTime || '').slice(0, 5) }} - {{ (record.endTime || '').slice(0, 5) }}
+						</template>
+						<template v-if="column.dataIndex === 'className'">
+							{{ record.className || className(record.classId) }}
+						</template>
+						<template v-if="column.dataIndex === 'attendStatus'">
+							<a-tag :color="attendColor(record.attendStatus)">{{ attendText(record.attendStatus) }}</a-tag>
+						</template>
+						<template v-if="column.dataIndex === 'attendance'">
+							<span class="sched-attend-text"
+								>应到 {{ record.studentCount || 0 }} · 已点 {{ record.attendCount || 0 }}</span
 							>
-								<div class="sched-split-card-top">
-									<span class="sched-split-time">{{ startOf(s) }}-{{ endOf(s) }}</span>
-									<a-tag :color="attendColor(s.attendStatus)" class="sched-split-tag">{{ attendText(s.attendStatus) }}</a-tag>
+						</template>
+						<template v-if="column.dataIndex === 'conflict'">
+							<a-tag v-if="conflictIdSet.has(record.id)" color="red">冲突</a-tag>
+							<span v-else>-</span>
+						</template>
+						<template v-if="column.dataIndex === 'action'">
+							<a-space>
+								<a @click="goAttend(record)">点名</a>
+								<a-divider type="vertical" />
+								<a @click="onOpenChange(record)">调课</a>
+								<a-divider type="vertical" />
+								<a style="color: var(--danger-text)" @click="onCancelScheduleConfirm(record)">取消</a>
+							</a-space>
+						</template>
+					</template>
+				</a-table>
+			</div>
+
+			<!-- 教师视图 -->
+			<div v-else-if="viewMode === 'teacher'" style="padding: 16px">
+				<div v-if="!teacherGroups.length" class="ent-empty">本周没有排课</div>
+				<a-row v-else :gutter="12">
+					<a-col v-for="group in teacherGroups" :key="group.key" :xs="24" :sm="12" :xl="8">
+						<a-card size="small" style="margin-bottom: 12px">
+							<template #title>
+								<span
+									>{{ group.name }} <a-tag>{{ group.list.length }} 节</a-tag></span
+								>
+							</template>
+							<div v-for="day in group.days" :key="day.label" style="margin-bottom: 8px">
+								<div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-bottom: 4px">{{ day.label }}</div>
+								<div
+									v-for="s in day.list"
+									:key="s.id"
+									class="ent-schedule-card"
+									:class="{ 'is-conflict': conflictIdSet.has(s.id) }"
+									style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px"
+									@click="onOpenChange(s)"
+								>
+									<span class="sched-teacher-time">
+										{{ (s.startTime || '').slice(0, 5) }}-{{ (s.endTime || '').slice(0, 5) }}
+									</span>
+									<span style="font-size: 12px">{{ s.className || className(s.classId) }}</span>
+									<span class="sched-card-sub2">{{ s.classroom || '未设教室' }}</span>
+									<a
+										class="sched-card-link sched-card-cancel"
+										style="margin-left: auto"
+										@click.stop="onCancelScheduleConfirm(s)"
+										>取消</a
+									>
+									<a-tag
+										v-if="conflictIdSet.has(s.id)"
+										color="red"
+										style="font-size: 11px; line-height: 16px; padding: 0 4px"
+										>冲突</a-tag
+									>
 								</div>
-								<div class="sched-split-class">{{ s.className || className(s.classId) }}</div>
-								<div class="sched-split-meta">
-									{{ s.teacherName || '未指定教师' }} · {{ s.classroom || '未设教室' }}
+							</div>
+						</a-card>
+					</a-col>
+				</a-row>
+			</div>
+
+			<!-- 分屏查看：每个窗口独立筛选，同一周并排对比 -->
+			<div v-else-if="viewMode === 'split'" class="sched-split-wrap">
+				<div v-for="panel in splitPanels" :key="panel.key" class="sched-split-panel">
+					<div class="sched-split-head">
+						<span class="sched-split-title">窗口 {{ panel.key }}</span>
+						<a-select
+							v-model:value="panel.teacherId"
+							placeholder="全部教师"
+							:options="teacherOptions"
+							allow-clear
+							show-search
+							option-filter-prop="label"
+							size="small"
+							style="width: 130px"
+							@change="loadSplitPanel(panel)"
+						/>
+						<a-select
+							v-model:value="panel.classId"
+							placeholder="全部班级"
+							:options="classOptions"
+							allow-clear
+							show-search
+							option-filter-prop="label"
+							size="small"
+							style="width: 140px"
+							@change="loadSplitPanel(panel)"
+						/>
+						<a-input
+							v-model:value="panel.classroom"
+							placeholder="教室"
+							allow-clear
+							size="small"
+							style="width: 90px"
+							@pressEnter="loadSplitPanel(panel)"
+						/>
+					</div>
+					<a-spin :spinning="panel.loading">
+						<div class="sched-split-body">
+							<div v-if="!panel.list.length" class="ent-empty">本周没有排课</div>
+							<div v-for="day in splitPanelDays(panel)" :key="day.date" class="sched-split-day">
+								<div class="sched-split-day-label">{{ day.label }}</div>
+								<div
+									v-for="s in day.list"
+									:key="s.id"
+									class="ent-schedule-card sched-split-card"
+									:class="{ 'is-conflict': conflictIdSet.has(s.id) }"
+									@click="goAttend(s)"
+								>
+									<div class="sched-split-card-top">
+										<span class="sched-split-time">{{ startOf(s) }}-{{ endOf(s) }}</span>
+										<a-tag :color="attendColor(s.attendStatus)" class="sched-split-tag">{{
+											attendText(s.attendStatus)
+										}}</a-tag>
+									</div>
+									<div class="sched-split-class">{{ s.className || className(s.classId) }}</div>
+									<div class="sched-split-meta">
+										{{ s.teacherName || '未指定教师' }} · {{ s.classroom || '未设教室' }}
+									</div>
 								</div>
 							</div>
 						</div>
-					</div>
-				</a-spin>
+					</a-spin>
+				</div>
 			</div>
-		</div>
 		</div>
 	</div>
 
@@ -298,7 +353,12 @@
 		<a-tabs v-model:activeKey="configTab">
 			<a-tab-pane key="closure" tab="停课日">
 				<a-space style="margin-bottom: 12px" wrap>
-					<a-date-picker v-model:value="closureForm.closureDate" value-format="YYYY-MM-DD" placeholder="停课日期" style="width: 160px" />
+					<a-date-picker
+						v-model:value="closureForm.closureDate"
+						value-format="YYYY-MM-DD"
+						placeholder="停课日期"
+						style="width: 160px"
+					/>
 					<a-input v-model:value="closureForm.name" placeholder="名称，如 国庆节" style="width: 180px" />
 					<a-button type="primary" @click="addClosure">添加</a-button>
 				</a-space>
@@ -331,7 +391,13 @@
 					<a-input v-model:value="unavailableForm.reason" placeholder="原因（请假/教研）" style="width: 150px" />
 					<a-button type="primary" @click="addUnavailable">添加</a-button>
 				</a-space>
-				<a-table :data-source="unavailableList" :columns="unavailableColumns" size="small" :pagination="false" row-key="id">
+				<a-table
+					:data-source="unavailableList"
+					:columns="unavailableColumns"
+					size="small"
+					:pagination="false"
+					row-key="id"
+				>
 					<template #bodyCell="{ column, record }">
 						<template v-if="column.dataIndex === 'teacherId'">{{ teacherName(record.teacherId) }}</template>
 						<template v-if="column.dataIndex === 'time'">
@@ -351,14 +417,28 @@
 	<a-modal v-model:open="copyOpen" title="复制上周课表" :width="520" :destroy-on-close="true" @ok="onSubmitCopy">
 		<a-form layout="vertical">
 			<a-form-item label="班级" required>
-				<a-select v-model:value="copyForm.classId" placeholder="请选择要复制的班级" :options="classOptions" show-search option-filter-prop="label" />
+				<a-select
+					v-model:value="copyForm.classId"
+					placeholder="请选择要复制的班级"
+					:options="classOptions"
+					show-search
+					option-filter-prop="label"
+				/>
 			</a-form-item>
 			<a-form-item label="复制到">
 				<span>{{ weekLabel }}（上一周 → 本周）</span>
 			</a-form-item>
-			<a-alert type="info" show-icon message="停课日、已有相同课节、教室/教师冲突的课节会跳过，并在结果中说明原因。" style="margin-bottom: 12px" />
+			<a-alert
+				type="info"
+				show-icon
+				message="停课日、已有相同课节、教室/教师冲突的课节会跳过，并在结果中说明原因。"
+				style="margin-bottom: 12px"
+			/>
 			<div v-if="copyResult" class="copy-result">
-				<div>计划 {{ copyResult.plannedCount || 0 }} 节 · 新增 {{ copyResult.createdCount || 0 }} 节 · 跳过 {{ copyResult.skippedCount || 0 }} 节</div>
+				<div>
+					计划 {{ copyResult.plannedCount || 0 }} 节 · 新增 {{ copyResult.createdCount || 0 }} 节 · 跳过
+					{{ copyResult.skippedCount || 0 }} 节
+				</div>
 				<div v-if="copyResult.skipReasons?.length" class="copy-result-reasons">
 					<div v-for="(item, index) in copyResult.skipReasons" :key="index">· {{ item }}</div>
 				</div>
@@ -372,7 +452,12 @@
 			<a-row :gutter="16">
 				<a-col :span="12">
 					<a-form-item label="班级" name="classId" :rules="[{ required: true, message: '请选择班级' }]">
-						<a-select v-model:value="addFormData.classId" placeholder="请选择班级" :options="classOptions" @change="loadSuggest" />
+						<a-select
+							v-model:value="addFormData.classId"
+							placeholder="请选择班级"
+							:options="classOptions"
+							@change="loadSuggest"
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
@@ -382,12 +467,22 @@
 				</a-col>
 				<a-col :span="12">
 					<a-form-item label="开始时间" name="startTime" :rules="[{ required: true, message: '请选择开始时间' }]">
-						<a-time-picker v-model:value="addFormData.startTime" format="HH:mm" value-format="HH:mm" style="width: 100%" />
+						<a-time-picker
+							v-model:value="addFormData.startTime"
+							format="HH:mm"
+							value-format="HH:mm"
+							style="width: 100%"
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
 					<a-form-item label="结束时间" name="endTime" :rules="[{ required: true, message: '请选择结束时间' }]">
-						<a-time-picker v-model:value="addFormData.endTime" format="HH:mm" value-format="HH:mm" style="width: 100%" />
+						<a-time-picker
+							v-model:value="addFormData.endTime"
+							format="HH:mm"
+							value-format="HH:mm"
+							style="width: 100%"
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
@@ -468,11 +563,15 @@
 			<a-form-item label="固定课表">
 				<div style="width: 100%">
 					<template v-if="currentTemplate.length">
-						<div v-for="(item, index) in currentTemplate" :key="index" style="font-size: 12px; color: rgba(0,0,0,.65); margin-bottom: 2px">
+						<div
+							v-for="(item, index) in currentTemplate"
+							:key="index"
+							style="font-size: 12px; color: rgba(0, 0, 0, 0.65); margin-bottom: 2px"
+						>
 							周{{ '一二三四五六日'[item.dayOfWeek - 1] }} {{ item.startTime }}-{{ item.endTime }}
 							<span v-if="item.classroom"> · {{ item.classroom }}</span>
 						</div>
-						<div style="font-size: 12px; color: rgba(0,0,0,.45); margin-top: 4px">
+						<div style="font-size: 12px; color: rgba(0, 0, 0, 0.45); margin-top: 4px">
 							未填教室/教师的时段自动沿用班级默认设置
 						</div>
 					</template>
@@ -482,12 +581,18 @@
 			<a-form-item v-if="generateRangeLabel" label="生成区间">
 				<span>{{ generateRangeLabel }}</span>
 			</a-form-item>
-			<div v-if="generateResult" style="background: #f5f7fa; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px">
+			<div
+				v-if="generateResult"
+				style="background: #f5f7fa; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px"
+			>
 				<div style="font-size: 13px; margin-bottom: 4px">{{ generateSummary }}</div>
 				<div v-if="generateResult.conflicts && generateResult.conflicts.length" style="color: #ff4d4f; font-size: 12px">
 					<div v-for="(item, index) in generateResult.conflicts" :key="index">· {{ item }}</div>
 				</div>
-				<div v-if="generateResult.skipReasons && generateResult.skipReasons.length" style="color: var(--text-color-tertiary); font-size: 12px; margin-top: 4px">
+				<div
+					v-if="generateResult.skipReasons && generateResult.skipReasons.length"
+					style="color: var(--text-color-tertiary); font-size: 12px; margin-top: 4px"
+				>
 					<div v-for="(item, index) in generateResult.skipReasons" :key="index">· {{ item }}</div>
 				</div>
 			</div>
@@ -499,7 +604,13 @@
 	</a-modal>
 
 	<!-- 直接排课：不建班级，直接给课程和一群学员排课 -->
-	<a-modal v-model:open="adhocOpen" title="直接排课（无需建班级）" :width="720" :destroy-on-close="true" @ok="onSubmitAdhoc">
+	<a-modal
+		v-model:open="adhocOpen"
+		title="直接排课（无需建班级）"
+		:width="720"
+		:destroy-on-close="true"
+		@ok="onSubmitAdhoc"
+	>
 		<a-alert
 			type="info"
 			show-icon
@@ -510,12 +621,25 @@
 			<a-row :gutter="16">
 				<a-col :span="12">
 					<a-form-item label="课程" required>
-						<a-select v-model:value="adhocForm.courseId" placeholder="请选择课程" :options="courseOptions" show-search option-filter-prop="label" />
+						<a-select
+							v-model:value="adhocForm.courseId"
+							placeholder="请选择课程"
+							:options="courseOptions"
+							show-search
+							option-filter-prop="label"
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
 					<a-form-item label="老师">
-						<a-select v-model:value="adhocForm.teacherId" placeholder="请选择老师" :options="teacherOptions" allow-clear show-search option-filter-prop="label" />
+						<a-select
+							v-model:value="adhocForm.teacherId"
+							placeholder="请选择老师"
+							:options="teacherOptions"
+							allow-clear
+							show-search
+							option-filter-prop="label"
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :span="8">
@@ -549,12 +673,23 @@
 				<a-col :span="24">
 					<a-form-item label="每周时段" required>
 						<div style="width: 100%">
-							<div v-for="(item, index) in adhocForm.weekTemplate" :key="index" style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap">
+							<div
+								v-for="(item, index) in adhocForm.weekTemplate"
+								:key="index"
+								style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap"
+							>
 								<a-select v-model:value="item.dayOfWeek" style="width: 110px" :options="weekDayOptions" />
-								<a-time-picker v-model:value="item.startTime" format="HH:mm" value-format="HH:mm" style="width: 110px" />
+								<a-time-picker
+									v-model:value="item.startTime"
+									format="HH:mm"
+									value-format="HH:mm"
+									style="width: 110px"
+								/>
 								<span>至</span>
 								<a-time-picker v-model:value="item.endTime" format="HH:mm" value-format="HH:mm" style="width: 110px" />
-								<a-button type="link" danger size="small" @click="adhocForm.weekTemplate.splice(index, 1)">删除</a-button>
+								<a-button type="link" danger size="small" @click="adhocForm.weekTemplate.splice(index, 1)"
+									>删除</a-button
+								>
 							</div>
 							<a-button type="dashed" block @click="addAdhocSlot">
 								<template #icon><plus-outlined /></template>
@@ -568,10 +703,21 @@
 	</a-modal>
 
 	<!-- 课表模板 -->
-	<a-modal v-model:open="templateOpen" title="编辑班级课表模板" :width="720" :destroy-on-close="true" @ok="onSubmitTemplate">
+	<a-modal
+		v-model:open="templateOpen"
+		title="编辑班级课表模板"
+		:width="720"
+		:destroy-on-close="true"
+		@ok="onSubmitTemplate"
+	>
 		<a-form layout="vertical">
 			<a-form-item label="班级" name="templateClassId" :rules="[{ required: true, message: '请选择班级' }]">
-				<a-select v-model:value="templateFormData.classId" placeholder="请选择班级" :options="classOptions" @change="loadTemplate" />
+				<a-select
+					v-model:value="templateFormData.classId"
+					placeholder="请选择班级"
+					:options="classOptions"
+					@change="loadTemplate"
+				/>
 			</a-form-item>
 			<a-form-item label="每周固定课表">
 				<week-template-editor ref="templateEditorRef" :model-value="templateFormData.weekTemplate" />
@@ -594,11 +740,11 @@
 				<template v-if="column.dataIndex === 'change'">
 					<div class="change-from">
 						{{ record.fromDate || '-' }} {{ record.fromTime || '' }}
-						<span v-if="record.fromClassName" style="color: rgba(0,0,0,.45)">（{{ record.fromClassName }}）</span>
+						<span v-if="record.fromClassName" style="color: rgba(0, 0, 0, 0.45)">（{{ record.fromClassName }}）</span>
 					</div>
 					<div class="change-to">
 						→ {{ record.toDate || '-' }} {{ record.toTime || '' }}
-						<span v-if="record.toClassName" style="color: rgba(0,0,0,.45)">（{{ record.toClassName }}）</span>
+						<span v-if="record.toClassName" style="color: rgba(0, 0, 0, 0.45)">（{{ record.toClassName }}）</span>
 					</div>
 				</template>
 				<template v-if="column.dataIndex === 'changeReason'">
@@ -668,14 +814,25 @@
 <script setup name="courseSchedule">
 	import { useRoute, useRouter } from 'vue-router'
 	import { message, Modal } from 'ant-design-vue'
-	import { CopyOutlined, DownOutlined, FileTextOutlined, HistoryOutlined, MoreOutlined, PlusOutlined, ProfileOutlined, SettingOutlined, TeamOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
+	import {
+		CopyOutlined,
+		DownOutlined,
+		FileTextOutlined,
+		HistoryOutlined,
+		MoreOutlined,
+		PlusOutlined,
+		ProfileOutlined,
+		SettingOutlined,
+		TeamOutlined,
+		ThunderboltOutlined
+	} from '@ant-design/icons-vue'
 	import courseApi from '@/api/course/courseApi'
 	import { runAsyncExport } from '@/utils/asyncExport'
 	import studentApi from '@/api/student/studentApi'
 	const router = useRouter()
 	const route = useRoute()
-	const attendText = (status) => ({ NONE: '待点名', PARTIAL: '部分点名', DONE: '已点名' }[status] || '待点名')
-	const attendColor = (status) => ({ NONE: 'orange', PARTIAL: 'gold', DONE: 'green' }[status] || 'default')
+	const attendText = (status) => ({ NONE: '待点名', PARTIAL: '部分点名', DONE: '已点名' })[status] || '待点名'
+	const attendColor = (status) => ({ NONE: 'orange', PARTIAL: 'gold', DONE: 'green' })[status] || 'default'
 	const goAttend = (record) => {
 		router.push({
 			path: '/course/attend',
@@ -983,9 +1140,15 @@
 		})
 	}
 	const loadFilterOptions = () => {
-		courseApi.campusOptions().then((data) => {
-			campusOptions.value = (data || []).map((item) => ({ value: item.value ?? item.id, label: item.label ?? item.name }))
-		}).catch(() => {})
+		courseApi
+			.campusOptions()
+			.then((data) => {
+				campusOptions.value = (data || []).map((item) => ({
+					value: item.value ?? item.id,
+					label: item.label ?? item.name
+				}))
+			})
+			.catch(() => {})
 	}
 	const loadTeachers = () => {
 		courseApi.teacherOptions({}).then((data) => {
@@ -1048,9 +1211,7 @@
 
 	// 日视图数据
 	const dayScheduleList = computed(() =>
-		scheduleList.value
-			.filter((s) => dateOf(s) === dayDate.value)
-			.sort((a, b) => startOf(a).localeCompare(startOf(b)))
+		scheduleList.value.filter((s) => dateOf(s) === dayDate.value).sort((a, b) => startOf(a).localeCompare(startOf(b)))
 	)
 	const dayLabel = computed(() => {
 		const names = '一二三四五六日'
@@ -1155,8 +1316,7 @@
 					.then((data) => {
 						const result = data || {}
 						message.success(
-							`已取消 ${result.canceledCount || 0} 节` +
-								(result.skippedCount ? `，跳过 ${result.skippedCount} 节` : '')
+							`已取消 ${result.canceledCount || 0} 节` + (result.skippedCount ? `，跳过 ${result.skippedCount} 节` : '')
 						)
 						if (result.skippedList && result.skippedList.length) {
 							Modal.info({
@@ -1347,7 +1507,9 @@
 			}
 		}
 		const slots = startSet.size
-			? [...startSet.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([start, end]) => ({ start, end: toTimeText(end) }))
+			? [...startSet.entries()]
+					.sort((a, b) => a[0].localeCompare(b[0]))
+					.map(([start, end]) => ({ start, end: toTimeText(end) }))
 			: DEFAULT_SLOTS
 		timeSlots.value = slots
 		const map = {}
@@ -1534,7 +1696,8 @@
 		let list = []
 		if (cls && cls.weekTemplateJson) {
 			try {
-				const parsed = typeof cls.weekTemplateJson === 'string' ? JSON.parse(cls.weekTemplateJson) : cls.weekTemplateJson
+				const parsed =
+					typeof cls.weekTemplateJson === 'string' ? JSON.parse(cls.weekTemplateJson) : cls.weekTemplateJson
 				list = Array.isArray(parsed) ? parsed : []
 			} catch (e) {
 				list = []
@@ -1560,13 +1723,11 @@
 			return
 		}
 		const weekTemplate = templateEditorRef.value ? templateEditorRef.value.getValue() : []
-		courseApi
-			.classEdit({ ...cls, weekTemplateJson: JSON.stringify(weekTemplate) })
-			.then(() => {
-				templateOpen.value = false
-				message.success('课表模板已保存')
-				loadClasses()
-			})
+		courseApi.classEdit({ ...cls, weekTemplateJson: JSON.stringify(weekTemplate) }).then(() => {
+			templateOpen.value = false
+			message.success('课表模板已保存')
+			loadClasses()
+		})
 	}
 
 	// 导出课表

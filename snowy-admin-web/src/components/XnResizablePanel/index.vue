@@ -94,8 +94,8 @@
 		const size = collapsed.value ? '0px' : leftSize.value + 'px'
 		return {
 			[sizeProperty.value]: size,
-			minWidth: collapsed.value ? '0px' : (props.direction === 'row' ? props.minSize + 'px' : 'auto'),
-			minHeight: collapsed.value ? '0px' : (props.direction === 'column' ? props.minSize + 'px' : 'auto'),
+			minWidth: collapsed.value ? '0px' : props.direction === 'row' ? props.minSize + 'px' : 'auto',
+			minHeight: collapsed.value ? '0px' : props.direction === 'column' ? props.minSize + 'px' : 'auto',
 			overflow: 'hidden'
 		}
 	})
@@ -105,7 +105,9 @@
 		animating.value = true
 		collapsed.value = !collapsed.value
 		emit('collapse', collapsed.value)
-		setTimeout(() => { animating.value = false }, 300)
+		setTimeout(() => {
+			animating.value = false
+		}, 300)
 	}
 
 	const onResizerMouseDown = (e) => {
@@ -143,7 +145,9 @@
 
 	let resizeHandler = null
 	onMounted(() => {
-		resizeHandler = () => { windowWidth.value = window.innerWidth }
+		resizeHandler = () => {
+			windowWidth.value = window.innerWidth
+		}
 		window.addEventListener('resize', resizeHandler)
 		resizeHandler()
 	})
@@ -192,10 +196,11 @@
 	}
 
 	.panel-left-animating {
-		transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-					height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-					min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-					min-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		transition:
+			width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+			height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+			min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+			min-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 	}
 
 	.panel-left-inner {

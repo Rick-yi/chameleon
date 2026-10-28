@@ -55,61 +55,76 @@
 					@change="(value) => onSelectChange('classroom', value)"
 				/>
 				<a-checkbox v-model:checked="onlyFull" @change="(event) => onCheckboxChange('full', event)">满班</a-checkbox>
-				<a-checkbox v-model:checked="onlyScheduled" @change="(event) => onCheckboxChange('schedule', event)">已排课</a-checkbox>
+				<a-checkbox v-model:checked="onlyScheduled" @change="(event) => onCheckboxChange('schedule', event)"
+					>已排课</a-checkbox
+				>
 			</div>
 		</div>
 		<div class="ent-body">
-		<s-table
-			ref="tableRef"
-			:columns="columns"
-			:data="loadData"
-			:row-key="(record) => record.id"
-			:scroll="{ x: 'max-content' }"
-		>
-			<template #bodyCell="{ column, record }">
-				<template v-if="column.dataIndex === 'courseId'">
-					{{ courseName(record.courseId) }}
+			<s-table
+				ref="tableRef"
+				:columns="columns"
+				:data="loadData"
+				:row-key="(record) => record.id"
+				:scroll="{ x: 'max-content' }"
+			>
+				<template #bodyCell="{ column, record }">
+					<template v-if="column.dataIndex === 'courseId'">
+						{{ courseName(record.courseId) }}
+					</template>
+					<template v-if="column.dataIndex === 'studentName'">
+						<span>{{ record.studentName || '未绑定学员' }}</span>
+					</template>
+					<template v-if="column.dataIndex === 'teacherId'">
+						{{ teacherName(record.teacherId) }}
+					</template>
+					<template v-if="column.dataIndex === 'studentCount'">
+						<a-tooltip :title="capacityTitle(record)">
+							<a-tag :color="capacityColor(record)"
+								>{{ record.studentCount || 0 }} / {{ record.capacity || '-' }}</a-tag
+							>
+						</a-tooltip>
+					</template>
+					<template v-if="column.dataIndex === 'weekTemplateJson'">
+						<span v-if="templateSummary(record)">{{ templateSummary(record) }}</span>
+						<span v-else style="color: rgba(0, 0, 0, 0.45)">未设置</span>
+					</template>
+					<template v-if="column.dataIndex === 'status'">
+						<a-tag :color="record.status === 'ENABLE' ? 'green' : 'red'">
+							{{ record.status === 'ENABLE' ? '启用' : '停用' }}
+						</a-tag>
+					</template>
+					<template v-if="column.dataIndex === 'action'">
+						<a-space>
+							<a @click="onOpenStudent(record)">学员</a>
+							<a-divider type="vertical" />
+							<a v-if="hasPerm('/course/schedule/generate')" @click="goSchedule(record)">排课</a>
+							<a-divider type="vertical" />
+							<table-more :actions="classMoreActions" @select="(action) => onClassMore(action, record)" />
+						</a-space>
+					</template>
 				</template>
-				<template v-if="column.dataIndex === 'studentName'">
-					<span>{{ record.studentName || '未绑定学员' }}</span>
-				</template>
-				<template v-if="column.dataIndex === 'teacherId'">
-					{{ teacherName(record.teacherId) }}
-				</template>
-				<template v-if="column.dataIndex === 'studentCount'">
-					<a-tooltip :title="capacityTitle(record)">
-						<a-tag :color="capacityColor(record)">{{ record.studentCount || 0 }} / {{ record.capacity || '-' }}</a-tag>
-					</a-tooltip>
-				</template>
-				<template v-if="column.dataIndex === 'weekTemplateJson'">
-					<span v-if="templateSummary(record)">{{ templateSummary(record) }}</span>
-					<span v-else style="color: rgba(0,0,0,.45)">未设置</span>
-				</template>
-				<template v-if="column.dataIndex === 'status'">
-					<a-tag :color="record.status === 'ENABLE' ? 'green' : 'red'">
-						{{ record.status === 'ENABLE' ? '启用' : '停用' }}
-					</a-tag>
-				</template>
-				<template v-if="column.dataIndex === 'action'">
-					<a-space>
-						<a @click="onOpenStudent(record)">学员</a>
-						<a-divider type="vertical" />
-						<a v-if="hasPerm('/course/schedule/generate')" @click="goSchedule(record)">排课</a>
-						<a-divider type="vertical" />
-						<table-more :actions="classMoreActions" @select="(action) => onClassMore(action, record)" />
-					</a-space>
-				</template>
-			</template>
-		</s-table>
+			</s-table>
 		</div>
 	</div>
 
-	<a-modal v-model:open="open" :title="formData.id ? '编辑班级' : '新增班级'" :width="700" :destroy-on-close="true" @ok="onSubmit">
+	<a-modal
+		v-model:open="open"
+		:title="formData.id ? '编辑班级' : '新增班级'"
+		:width="700"
+		:destroy-on-close="true"
+		@ok="onSubmit"
+	>
 		<a-form ref="formRef" :model="formData" layout="vertical">
 			<a-row :gutter="16">
 				<a-col :span="12">
 					<a-form-item label="课程" name="courseId" :rules="[{ required: true, message: '请选择课程' }]">
-						<a-select v-model:value="formData.courseId" placeholder="请选择课程" :options="courseOptions" @change="onCourseChange" />
+						<a-select
+							v-model:value="formData.courseId"
+							placeholder="请选择课程"
+							:options="courseOptions"
+							@change="onCourseChange"
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
@@ -119,7 +134,12 @@
 				</a-col>
 				<a-col :span="8">
 					<a-form-item label="班型" name="classType">
-						<a-select v-model:value="formData.classType" :options="classTypeOptions" :disabled="selectedCourseIsOne2One" @change="onClassTypeChange" />
+						<a-select
+							v-model:value="formData.classType"
+							:options="classTypeOptions"
+							:disabled="selectedCourseIsOne2One"
+							@change="onClassTypeChange"
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col v-if="isOne2One" :span="16">
@@ -146,7 +166,14 @@
 				</a-col>
 				<a-col :span="8">
 					<a-form-item label="教师" name="teacherId">
-						<a-select v-model:value="formData.teacherId" placeholder="请选择教师" :options="teacherOptions" show-search option-filter-prop="label" allow-clear />
+						<a-select
+							v-model:value="formData.teacherId"
+							placeholder="请选择教师"
+							:options="teacherOptions"
+							show-search
+							option-filter-prop="label"
+							allow-clear
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :span="8">
@@ -173,10 +200,29 @@
 		</a-form>
 	</a-modal>
 
-	<a-modal v-model:open="studentOpen" :title="`班级学员 · ${currentClass?.name || ''}`" :width="760" :destroy-on-close="true" :footer="null">
+	<a-modal
+		v-model:open="studentOpen"
+		:title="`班级学员 · ${currentClass?.name || ''}`"
+		:width="760"
+		:destroy-on-close="true"
+		:footer="null"
+	>
 		<div v-if="currentClass.classType !== 'ONE2ONE'" style="margin-bottom: 12px; display: flex; gap: 8px">
-			<a-select v-model:value="addStudentIds" mode="multiple" placeholder="选择学员加入班级" :options="studentOptions" style="flex: 1" allow-clear />
-			<a-button v-if="hasPerm('/course/classStudent/add')" type="primary" :disabled="!addStudentIds || addStudentIds.length === 0" @click="onAddStudents">加入班级</a-button>
+			<a-select
+				v-model:value="addStudentIds"
+				mode="multiple"
+				placeholder="选择学员加入班级"
+				:options="studentOptions"
+				style="flex: 1"
+				allow-clear
+			/>
+			<a-button
+				v-if="hasPerm('/course/classStudent/add')"
+				type="primary"
+				:disabled="!addStudentIds || addStudentIds.length === 0"
+				@click="onAddStudents"
+				>加入班级</a-button
+			>
 		</div>
 		<a-alert
 			v-else
@@ -221,7 +267,7 @@
 					<a-popconfirm v-if="currentClass.classType !== 'ONE2ONE'" title="确定退班吗？" @confirm="onQuit(record)">
 						<a-button type="link" danger size="small">退班</a-button>
 					</a-popconfirm>
-					<span v-else style="color: rgba(0,0,0,.45)">请在编辑班级中换绑</span>
+					<span v-else style="color: rgba(0, 0, 0, 0.45)">请在编辑班级中换绑</span>
 				</template>
 			</template>
 		</s-table>
@@ -410,12 +456,11 @@
 	const templateSummary = (record) => {
 		if (!record.weekTemplateJson) return ''
 		try {
-			const list = typeof record.weekTemplateJson === 'string' ? JSON.parse(record.weekTemplateJson) : record.weekTemplateJson
+			const list =
+				typeof record.weekTemplateJson === 'string' ? JSON.parse(record.weekTemplateJson) : record.weekTemplateJson
 			if (!Array.isArray(list) || !list.length) return ''
 			const names = '一二三四五六日'
-			return list
-				.map((item) => `周${names[item.dayOfWeek - 1]} ${item.startTime}-${item.endTime}`)
-				.join('、')
+			return list.map((item) => `周${names[item.dayOfWeek - 1]} ${item.startTime}-${item.endTime}`).join('、')
 		} catch (e) {
 			return ''
 		}
@@ -523,7 +568,13 @@
 	// 操作列：次要操作收进「更多」下拉
 	const classMoreActions = [
 		{ key: 'edit', label: '编辑' },
-		{ key: 'delete', label: '删除', danger: true, confirmTitle: '确定删除该班级吗？', confirmContent: '删除后班内学员与点名记录会保留，但不再出现在班级列表。' }
+		{
+			key: 'delete',
+			label: '删除',
+			danger: true,
+			confirmTitle: '确定删除该班级吗？',
+			confirmContent: '删除后班内学员与点名记录会保留，但不再出现在班级列表。'
+		}
 	]
 	const onClassMore = (action, record) => {
 		if (action.key === 'edit') {
@@ -543,37 +594,37 @@
 	}
 	const balanceMap = ref({})
 	const loadClassStudents = (parameter) => {
-		return courseApi
-			.classStudentPage({ current: 1, size: 100, classId: currentClass.value.id })
-			.then((data) => {
-				// 课时余额按课程维度查询：让老师一眼看出谁还有课可上
-				const cls = classRecords.value.find((item) => item.id === currentClass.value.id)
-				const studentIdList = (data.records || []).map((item) => item.studentId)
-				if (cls?.courseId && studentIdList.length) {
-					studentApi
-						.lessonBalance({ studentIds: studentIdList.join(','), courseId: cls.courseId })
-						.then((list) => {
-							const map = {}
-							for (const item of list || []) map[item.studentId] = item
-							balanceMap.value = map
-						})
-						.catch(() => (balanceMap.value = {}))
-				} else {
-					balanceMap.value = {}
-				}
-				return data
-			})
+		return courseApi.classStudentPage({ current: 1, size: 100, classId: currentClass.value.id }).then((data) => {
+			// 课时余额按课程维度查询：让老师一眼看出谁还有课可上
+			const cls = classRecords.value.find((item) => item.id === currentClass.value.id)
+			const studentIdList = (data.records || []).map((item) => item.studentId)
+			if (cls?.courseId && studentIdList.length) {
+				studentApi
+					.lessonBalance({ studentIds: studentIdList.join(','), courseId: cls.courseId })
+					.then((list) => {
+						const map = {}
+						for (const item of list || []) map[item.studentId] = item
+						balanceMap.value = map
+					})
+					.catch(() => (balanceMap.value = {}))
+			} else {
+				balanceMap.value = {}
+			}
+			return data
+		})
 	}
 	const doAddStudents = () => {
 		const addCount = addStudentIds.value.length
 		const currentCount = Number(currentClass.value.studentCount || 0)
-		return courseApi.classStudentAdd({ classId: currentClass.value.id, studentIdList: addStudentIds.value }).then(() => {
-			addStudentIds.value = []
-			// 当前弹窗和背后的列表都同步人数，避免连续加人时用旧容量判断
-			currentClass.value = { ...currentClass.value, studentCount: currentCount + addCount }
-			studentTableRef.value.refresh()
-			tableRef.value?.refresh()
-		})
+		return courseApi
+			.classStudentAdd({ classId: currentClass.value.id, studentIdList: addStudentIds.value })
+			.then(() => {
+				addStudentIds.value = []
+				// 当前弹窗和背后的列表都同步人数，避免连续加人时用旧容量判断
+				currentClass.value = { ...currentClass.value, studentCount: currentCount + addCount }
+				studentTableRef.value.refresh()
+				tableRef.value?.refresh()
+			})
 	}
 	const onAddStudents = () => {
 		const capacity = Number(currentClass.value.capacity || 0)

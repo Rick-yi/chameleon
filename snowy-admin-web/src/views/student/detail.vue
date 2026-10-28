@@ -2,12 +2,22 @@
 	<div>
 		<a-card :loading="loading" style="margin-bottom: 16px">
 			<div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap">
-				<a-avatar size="large" style="background: #4bb964; flex: none">{{ (student.name || '?').slice(0, 1) }}</a-avatar>
+				<a-avatar size="large" style="background: #4bb964; flex: none">{{
+					(student.name || '?').slice(0, 1)
+				}}</a-avatar>
 				<div>
-					<div style="font-size: 16px; font-weight: 600">{{ student.name }} <a-tag :color="statusColor" style="margin-left: 8px">{{ statusText }}</a-tag></div>
-					<div style="color: rgba(0,0,0,.45); font-size: 13px; margin-top: 4px">家长：{{ student.parentName }} {{ student.parentPhone }} · 生日：{{ student.birthday ? String(student.birthday).slice(0, 10) : '-' }}</div>
+					<div style="font-size: 16px; font-weight: 600">
+						{{ student.name }} <a-tag :color="statusColor" style="margin-left: 8px">{{ statusText }}</a-tag>
+					</div>
+					<div style="color: rgba(0, 0, 0, 0.45); font-size: 13px; margin-top: 4px">
+						家长：{{ student.parentName }} {{ student.parentPhone }} · 生日：{{
+							student.birthday ? String(student.birthday).slice(0, 10) : '-'
+						}}
+					</div>
 					<div class="detail-tags">
-						<a-tag v-for="tag in student.tagList || []" :key="tag.id" :color="tag.color || 'blue'">{{ tag.name }}</a-tag>
+						<a-tag v-for="tag in student.tagList || []" :key="tag.id" :color="tag.color || 'blue'">{{
+							tag.name
+						}}</a-tag>
 						<span v-if="student.statusReason" class="detail-reason">状态原因：{{ student.statusReason }}</span>
 					</div>
 				</div>
@@ -26,7 +36,9 @@
 				</div>
 				<div class="kpi">
 					<span>课包到期</span>
-					<b :class="{ 'kpi-danger': isExpired(student.accountExpireTime) }">{{ formatDate(student.accountExpireTime) }}</b>
+					<b :class="{ 'kpi-danger': isExpired(student.accountExpireTime) }">{{
+						formatDate(student.accountExpireTime)
+					}}</b>
 				</div>
 				<div class="kpi">
 					<span>待收款</span>
@@ -63,7 +75,9 @@
 								<div class="timeline-title">{{ item.title }}</div>
 								<div v-if="item.content" class="timeline-content">{{ item.content }}</div>
 								<div class="timeline-meta">
-									<span v-if="item.amount !== null && item.amount !== undefined">金额 ¥{{ Number(item.amount).toFixed(2) }}</span>
+									<span v-if="item.amount !== null && item.amount !== undefined"
+										>金额 ¥{{ Number(item.amount).toFixed(2) }}</span
+									>
 									<span v-if="item.lessons !== null && item.lessons !== undefined">课时 {{ item.lessons }}</span>
 									<span v-if="item.operator">操作人 {{ item.operator }}</span>
 								</div>
@@ -79,7 +93,14 @@
 						style="margin-bottom: 12px"
 						message="课时账户按「学员 + 课程」维度：同一课程下的多个班级共用一个余额，任一班点名都会扣减它"
 					/>
-					<a-table :columns="accountColumns" :data-source="accounts" :row-key="(r) => r.id" :pagination="false" bordered size="middle">
+					<a-table
+						:columns="accountColumns"
+						:data-source="accounts"
+						:row-key="(r) => r.id"
+						:pagination="false"
+						bordered
+						size="middle"
+					>
 						<template #bodyCell="{ column, record }">
 							<template v-if="column.dataIndex === 'courseId'">
 								{{ courseMap[record.courseId] || record.courseId }}
@@ -96,7 +117,14 @@
 					</a-table>
 				</a-tab-pane>
 				<a-tab-pane key="flow" tab="课时流水">
-					<a-table :columns="flowColumns" :data-source="flows" :row-key="(r) => r.id" :pagination="false" bordered size="middle">
+					<a-table
+						:columns="flowColumns"
+						:data-source="flows"
+						:row-key="(r) => r.id"
+						:pagination="false"
+						bordered
+						size="middle"
+					>
 						<template #bodyCell="{ column, record }">
 							<template v-if="column.dataIndex === 'courseId'">
 								{{ courseMap[record.courseId] || '-' }}
@@ -108,26 +136,48 @@
 					</a-table>
 				</a-tab-pane>
 				<a-tab-pane key="order" tab="报名订单">
-					<a-table :columns="orderColumns" :data-source="orders" :row-key="(r) => r.id" :pagination="false" bordered size="middle">
+					<a-table
+						:columns="orderColumns"
+						:data-source="orders"
+						:row-key="(r) => r.id"
+						:pagination="false"
+						bordered
+						size="middle"
+					>
 						<template #bodyCell="{ column, record }">
 							<template v-if="column.dataIndex === 'status'">
 								<a-tag :color="orderStatusColor(record.status)">{{ orderStatusText(record.status) }}</a-tag>
 							</template>
 							<template v-if="column.dataIndex === 'action'">
 								<a-space>
-									<a-button v-if="record.status === 'UNPAID'" type="link" size="small" @click="onOpenPay(record)">线下收款</a-button>
-									<a-button v-if="record.status === 'UNPAID'" type="link" size="small" @click="onCancelOrder(record)">取消</a-button>
-									<a-button v-if="record.status === 'PAID'" type="link" size="small" @click="onOpenRefund(record)">退费</a-button>
+									<a-button v-if="record.status === 'UNPAID'" type="link" size="small" @click="onOpenPay(record)"
+										>线下收款</a-button
+									>
+									<a-button v-if="record.status === 'UNPAID'" type="link" size="small" @click="onCancelOrder(record)"
+										>取消</a-button
+									>
+									<a-button v-if="record.status === 'PAID'" type="link" size="small" @click="onOpenRefund(record)"
+										>退费</a-button
+									>
 								</a-space>
 							</template>
 						</template>
 					</a-table>
 				</a-tab-pane>
 				<a-tab-pane key="attend" tab="出勤记录">
-					<a-table :columns="attendColumns" :data-source="attends" :row-key="(r) => r.id" :pagination="false" bordered size="middle">
+					<a-table
+						:columns="attendColumns"
+						:data-source="attends"
+						:row-key="(r) => r.id"
+						:pagination="false"
+						bordered
+						size="middle"
+					>
 						<template #bodyCell="{ column, record }">
 							<template v-if="column.dataIndex === 'attendStatus'">
-								<a-tag :color="attendStatusColor(record.attendStatus)">{{ attendStatusText(record.attendStatus) }}</a-tag>
+								<a-tag :color="attendStatusColor(record.attendStatus)">{{
+									attendStatusText(record.attendStatus)
+								}}</a-tag>
 							</template>
 							<template v-if="column.dataIndex === 'lessonsDeducted'">
 								{{ record.lessonsDeducted ?? 0 }}
@@ -146,14 +196,25 @@
 					/>
 				</a-tab-pane>
 				<a-tab-pane key="refund" tab="退费单">
-					<a-table :columns="refundColumns" :data-source="refunds" :row-key="(r) => r.id" :pagination="false" bordered size="middle">
+					<a-table
+						:columns="refundColumns"
+						:data-source="refunds"
+						:row-key="(r) => r.id"
+						:pagination="false"
+						bordered
+						size="middle"
+					>
 						<template #bodyCell="{ column, record }">
 							<template v-if="column.dataIndex === 'status'">
 								<a-tag :color="refundStatusColor(record.status)">{{ refundStatusText(record.status) }}</a-tag>
 							</template>
 							<template v-if="column.dataIndex === 'action'">
-								<a-button v-if="record.status === 'PENDING'" type="link" size="small" @click="onOpenApprove(record)">审批</a-button>
-								<a-button v-if="record.status === 'TO_REFUND'" type="link" size="small" @click="onConfirmRefund(record)">确认退款</a-button>
+								<a-button v-if="record.status === 'PENDING'" type="link" size="small" @click="onOpenApprove(record)"
+									>审批</a-button
+								>
+								<a-button v-if="record.status === 'TO_REFUND'" type="link" size="small" @click="onConfirmRefund(record)"
+									>确认退款</a-button
+								>
 								<a-popconfirm
 									v-if="record.status === 'PENDING' || record.status === 'TO_REFUND'"
 									title="确定撤销该退费单吗？"
@@ -172,7 +233,12 @@
 
 		<a-modal v-model:open="payOpen" title="线下收款登记" :width="480" :destroy-on-close="true" @ok="onSubmitPay">
 			<a-form ref="payFormRef" :model="payFormData" layout="vertical">
-				<a-alert type="info" show-icon message="v1 暂未接入线上支付，请在此登记线下/现金收款" style="margin-bottom: 16px" />
+				<a-alert
+					type="info"
+					show-icon
+					message="v1 暂未接入线上支付，请在此登记线下/现金收款"
+					style="margin-bottom: 16px"
+				/>
 				<a-form-item label="收款渠道" name="payChannel">
 					<a-select
 						v-model:value="payFormData.payChannel"
@@ -215,7 +281,12 @@
 
 		<a-modal v-model:open="adjustOpen" title="人工调整课时" :width="480" :destroy-on-close="true" @ok="onSubmitAdjust">
 			<a-form ref="adjustFormRef" :model="adjustFormData" layout="vertical">
-				<a-alert type="info" show-icon message="正数为补录/赠送课时，负数为收回课时；收回不能超过剩余课时" style="margin-bottom: 16px" />
+				<a-alert
+					type="info"
+					show-icon
+					message="正数为补录/赠送课时，负数为收回课时；收回不能超过剩余课时"
+					style="margin-bottom: 16px"
+				/>
 				<a-form-item label="课程">
 					<a-input :value="courseMap[adjustFormData.courseId] || adjustFormData.courseId" disabled />
 				</a-form-item>
@@ -229,45 +300,47 @@
 					<a-input v-model:value="adjustFormData.reason" placeholder="如：赠送 2 课时活动 / 扣错补正" allow-clear />
 				</a-form-item>
 			</a-form>
-			</a-modal>
+		</a-modal>
 
-			<a-modal v-model:open="statusOpen" title="学员状态变更" :width="480" :destroy-on-close="true" @ok="onSubmitStatus">
-				<a-form :model="statusForm" layout="vertical">
-					<a-alert
-						type="info"
-						show-icon
-						style="margin-bottom: 12px"
-						message="停课/休学后恢复上课请选择「在读」完成复课；每次变更都会写入动态时间线。"
+		<a-modal v-model:open="statusOpen" title="学员状态变更" :width="480" :destroy-on-close="true" @ok="onSubmitStatus">
+			<a-form :model="statusForm" layout="vertical">
+				<a-alert
+					type="info"
+					show-icon
+					style="margin-bottom: 12px"
+					message="停课/休学后恢复上课请选择「在读」完成复课；每次变更都会写入动态时间线。"
+				/>
+				<a-form-item label="目标状态" required>
+					<a-select v-model:value="statusForm.status" :options="statusChangeOptions" />
+				</a-form-item>
+				<a-form-item label="变更原因" :required="statusForm.status !== 'STUDYING'">
+					<a-textarea
+						v-model:value="statusForm.reason"
+						:auto-size="{ minRows: 3, maxRows: 5 }"
+						:placeholder="
+							statusForm.status === 'STUDYING' ? '复课备注（选填）' : '请填写原因，如：家长申请、搬迁、课程结束'
+						"
 					/>
-					<a-form-item label="目标状态" required>
-						<a-select v-model:value="statusForm.status" :options="statusChangeOptions" />
-					</a-form-item>
-					<a-form-item label="变更原因" :required="statusForm.status !== 'STUDYING'">
-						<a-textarea
-							v-model:value="statusForm.reason"
-							:auto-size="{ minRows: 3, maxRows: 5 }"
-							:placeholder="statusForm.status === 'STUDYING' ? '复课备注（选填）' : '请填写原因，如：家长申请、搬迁、课程结束'"
-						/>
-					</a-form-item>
-				</a-form>
-			</a-modal>
+				</a-form-item>
+			</a-form>
+		</a-modal>
 
-			<a-modal v-model:open="tagBindOpen" title="设置学员标签" :width="480" :destroy-on-close="true" @ok="onSubmitTags">
-				<a-form layout="vertical">
-					<a-form-item label="标签（可多选）">
-						<a-select
-							v-model:value="tagBindForm.tagIdList"
-							mode="multiple"
-							:options="tagOptions"
-							placeholder="请选择标签，可多选"
-							allow-clear
-							option-filter-prop="label"
-						/>
-					</a-form-item>
-				</a-form>
-			</a-modal>
-		</div>
-	</template>
+		<a-modal v-model:open="tagBindOpen" title="设置学员标签" :width="480" :destroy-on-close="true" @ok="onSubmitTags">
+			<a-form layout="vertical">
+				<a-form-item label="标签（可多选）">
+					<a-select
+						v-model:value="tagBindForm.tagIdList"
+						mode="multiple"
+						:options="tagOptions"
+						placeholder="请选择标签，可多选"
+						allow-clear
+						option-filter-prop="label"
+					/>
+				</a-form-item>
+			</a-form>
+		</a-modal>
+	</div>
+</template>
 
 <script setup name="studentDetail">
 	import { useRoute } from 'vue-router'
@@ -360,7 +433,10 @@
 		return !!date && date < new Date()
 	}
 	const lastAttendDate = computed(() => {
-		const dates = attends.value.map((item) => item.scheduleDate).filter(Boolean).sort()
+		const dates = attends.value
+			.map((item) => item.scheduleDate)
+			.filter(Boolean)
+			.sort()
 		return dates.length ? String(dates[dates.length - 1]).slice(0, 10) : ''
 	})
 	const riskTags = computed(() => {
@@ -419,8 +495,8 @@
 		{ title: '扣减课时', dataIndex: 'lessonsDeducted', width: 100 },
 		{ title: '说明', dataIndex: 'remark' }
 	]
-	const attendStatusText = (status) => ({ ATTEND: '到课', LEAVE: '请假', ABSENT: '缺勤' }[status] || status || '-')
-	const attendStatusColor = (status) => ({ ATTEND: 'green', LEAVE: 'orange', ABSENT: 'red' }[status] || 'default')
+	const attendStatusText = (status) => ({ ATTEND: '到课', LEAVE: '请假', ABSENT: '缺勤' })[status] || status || '-'
+	const attendStatusColor = (status) => ({ ATTEND: 'green', LEAVE: 'orange', ABSENT: 'red' })[status] || 'default'
 	const refundColumns = [
 		{ title: '退费单号', dataIndex: 'id' },
 		{ title: '可退课时', dataIndex: 'refundLessons' },
@@ -430,11 +506,13 @@
 		{ title: '操作', dataIndex: 'action', align: 'center' }
 	]
 
-	const flowTypeText = (t) => ({ SIGNUP: '购课入账', ATTEND: '点名消课', RESTORE: '回补', REFUND: '退费销课', ADJUST: '人工调整' }[t] || t)
-	const orderStatusText = (s) => ({ UNPAID: '待支付', PAID: '已支付', REFUNDED: '已退费', CANCELED: '已取消' }[s] || s)
-	const orderStatusColor = (s) => (s === 'PAID' ? 'green' : s === 'UNPAID' ? 'orange' : s === 'REFUNDED' ? 'red' : 'default')
+	const flowTypeText = (t) =>
+		({ SIGNUP: '购课入账', ATTEND: '点名消课', RESTORE: '回补', REFUND: '退费销课', ADJUST: '人工调整' })[t] || t
+	const orderStatusText = (s) => ({ UNPAID: '待支付', PAID: '已支付', REFUNDED: '已退费', CANCELED: '已取消' })[s] || s
+	const orderStatusColor = (s) =>
+		s === 'PAID' ? 'green' : s === 'UNPAID' ? 'orange' : s === 'REFUNDED' ? 'red' : 'default'
 	const refundStatusText = (s) =>
-		({ PENDING: '待审批', TO_REFUND: '待退款', REFUNDED: '已退款', REJECTED: '已驳回', CANCELLED: '已撤销' }[s] || s)
+		({ PENDING: '待审批', TO_REFUND: '待退款', REFUNDED: '已退款', REJECTED: '已驳回', CANCELLED: '已撤销' })[s] || s
 	const refundStatusColor = (s) =>
 		s === 'REFUNDED' ? 'green' : s === 'PENDING' ? 'orange' : s === 'REJECTED' || s === 'CANCELLED' ? 'red' : 'blue'
 
@@ -451,24 +529,27 @@
 			courseApi.studentAttendPage({ current: 1, size: 50, studentId: currentStudentId.value }),
 			studentApi.studentTimeline({ studentId: currentStudentId.value }),
 			studentApi.tagList()
-		]).then(([stu, acc, flow, order, refund, course, attend, timelineData, tags]) => {
-			student.value = stu
-			accounts.value = acc.records || []
-			flows.value = (flow.records || []).map((f) => ({ ...f, flowType: flowTypeText(f.flowType) }))
-			orders.value = order.records || []
-			attends.value = (attend?.records || []).map((a) => ({ ...a }))
-			refunds.value = refund.records || []
-			timeline.value = timelineData || []
-			tagList.value = tags || []
-			const cmap = {}
-			for (const c of course.records || []) cmap[c.id] = c.name
-			courseMap.value = cmap
-		}).catch((err) => {
-			message.error(err?.msg || '学员详情加载失败，请重试')
-		}).finally(() => {
-			loading.value = false
-			timelineLoading.value = false
-		})
+		])
+			.then(([stu, acc, flow, order, refund, course, attend, timelineData, tags]) => {
+				student.value = stu
+				accounts.value = acc.records || []
+				flows.value = (flow.records || []).map((f) => ({ ...f, flowType: flowTypeText(f.flowType) }))
+				orders.value = order.records || []
+				attends.value = (attend?.records || []).map((a) => ({ ...a }))
+				refunds.value = refund.records || []
+				timeline.value = timelineData || []
+				tagList.value = tags || []
+				const cmap = {}
+				for (const c of course.records || []) cmap[c.id] = c.name
+				courseMap.value = cmap
+			})
+			.catch((err) => {
+				message.error(err?.msg || '学员详情加载失败，请重试')
+			})
+			.finally(() => {
+				loading.value = false
+				timelineLoading.value = false
+			})
 	}
 
 	const onOpenPay = (record) => {

@@ -71,7 +71,12 @@
 										</a-col>
 										<a-col :span="9">
 											<div class="captcha-img-wrapper">
-												<img :src="validCodeBase64" class="login-validCode-img" @click="loginCaptcha" title="点击刷新验证码" />
+												<img
+													:src="validCodeBase64"
+													class="login-validCode-img"
+													@click="loginCaptcha"
+													title="点击刷新验证码"
+												/>
 											</div>
 										</a-col>
 									</a-row>

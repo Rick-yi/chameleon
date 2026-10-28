@@ -5,13 +5,29 @@
 				<a-card :bordered="false"><a-statistic title="账单数" :value="summary.billCount || 0" /></a-card>
 			</a-col>
 			<a-col :xs="12" :sm="8" :xl="4">
-				<a-card :bordered="false"><a-statistic title="已收款" :value="summary.paidAmount || 0" prefix="¥" :precision="2" :value-style="{ color: '#2ba471' }" /></a-card>
+				<a-card :bordered="false"
+					><a-statistic
+						title="已收款"
+						:value="summary.paidAmount || 0"
+						prefix="¥"
+						:precision="2"
+						:value-style="{ color: '#2ba471' }"
+				/></a-card>
 			</a-col>
 			<a-col :xs="12" :sm="8" :xl="4">
-				<a-card :bordered="false"><a-statistic title="待收款" :value="summary.unpaidAmount || 0" prefix="¥" :precision="2" :value-style="{ color: '#d89614' }" /></a-card>
+				<a-card :bordered="false"
+					><a-statistic
+						title="待收款"
+						:value="summary.unpaidAmount || 0"
+						prefix="¥"
+						:precision="2"
+						:value-style="{ color: '#d89614' }"
+				/></a-card>
 			</a-col>
 			<a-col :xs="12" :sm="8" :xl="4">
-				<a-card :bordered="false"><a-statistic title="已作废" :value="summary.voidAmount || 0" prefix="¥" :precision="2" /></a-card>
+				<a-card :bordered="false"
+					><a-statistic title="已作废" :value="summary.voidAmount || 0" prefix="¥" :precision="2"
+				/></a-card>
 			</a-col>
 			<a-col :xs="12" :sm="8" :xl="4">
 				<a-card :bordered="false"><a-statistic title="待收款单数" :value="summary.unpaidCount || 0" /></a-card>
@@ -35,7 +51,12 @@
 				</a-col>
 				<a-col :xs="24" :sm="12" :lg="5">
 					<a-form-item label="发票">
-						<a-select v-model:value="searchForm.invoiceStatus" placeholder="全部" :options="invoiceOptions" allow-clear />
+						<a-select
+							v-model:value="searchForm.invoiceStatus"
+							placeholder="全部"
+							:options="invoiceOptions"
+							allow-clear
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :xs="24" :sm="12" :lg="8">
@@ -50,7 +71,14 @@
 			</a-row>
 		</a-form>
 
-		<s-table ref="tableRef" :columns="columns" :data="loadData" bordered :row-key="(r) => r.id" :scroll="{ x: 'max-content' }">
+		<s-table
+			ref="tableRef"
+			:columns="columns"
+			:data="loadData"
+			bordered
+			:row-key="(r) => r.id"
+			:scroll="{ x: 'max-content' }"
+		>
 			<template #operator>
 				<a-button type="primary" @click="onOpenAdd">新增账单</a-button>
 			</template>
@@ -67,7 +95,9 @@
 					<a-tag :color="billColor(record.status)">{{ billText(record.status) }}</a-tag>
 				</template>
 				<template v-if="column.dataIndex === 'invoiceStatus'">{{ invoiceText(record.invoiceStatus) }}</template>
-				<template v-if="column.dataIndex === 'period'">{{ date(record.periodStart) }} ~ {{ date(record.periodEnd) }}</template>
+				<template v-if="column.dataIndex === 'period'"
+					>{{ date(record.periodStart) }} ~ {{ date(record.periodEnd) }}</template
+				>
 				<template v-if="column.dataIndex === 'action'">
 					<a-space :size="4">
 						<a @click="onOpenEdit(record)">编辑</a>
@@ -83,27 +113,56 @@
 			</template>
 		</s-table>
 
-		<a-modal v-model:open="open" :title="form.id ? '编辑账单' : '新增账单'" :width="620" :destroy-on-close="true" @ok="onSubmit">
+		<a-modal
+			v-model:open="open"
+			:title="form.id ? '编辑账单' : '新增账单'"
+			:width="620"
+			:destroy-on-close="true"
+			@ok="onSubmit"
+		>
 			<a-form ref="formRef" :model="form" layout="vertical">
 				<a-row :gutter="16">
 					<a-col :span="12">
 						<a-form-item label="租户" name="tenantId" :rules="[{ required: true, message: '请选择租户' }]">
-							<a-select v-model:value="form.tenantId" :options="tenantOptions" show-search option-filter-prop="label" placeholder="请选择租户" />
+							<a-select
+								v-model:value="form.tenantId"
+								:options="tenantOptions"
+								show-search
+								option-filter-prop="label"
+								placeholder="请选择租户"
+							/>
 						</a-form-item>
 					</a-col>
 					<a-col :span="12">
 						<a-form-item label="套餐" name="packageId">
-							<a-select v-model:value="form.packageId" :options="packageOptions" placeholder="选填" show-search option-filter-prop="label" allow-clear />
+							<a-select
+								v-model:value="form.packageId"
+								:options="packageOptions"
+								placeholder="选填"
+								show-search
+								option-filter-prop="label"
+								allow-clear
+							/>
 						</a-form-item>
 					</a-col>
 					<a-col :span="12">
 						<a-form-item label="周期开始">
-							<a-date-picker v-model:value="form.periodStart" show-time value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" />
+							<a-date-picker
+								v-model:value="form.periodStart"
+								show-time
+								value-format="YYYY-MM-DD HH:mm:ss"
+								style="width: 100%"
+							/>
 						</a-form-item>
 					</a-col>
 					<a-col :span="12">
 						<a-form-item label="周期结束">
-							<a-date-picker v-model:value="form.periodEnd" show-time value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" />
+							<a-date-picker
+								v-model:value="form.periodEnd"
+								show-time
+								value-format="YYYY-MM-DD HH:mm:ss"
+								style="width: 100%"
+							/>
 						</a-form-item>
 					</a-col>
 					<a-col :span="12">
@@ -138,13 +197,21 @@
 		<a-modal v-model:open="payOpen" title="登记收款" :width="460" :destroy-on-close="true" @ok="onPay">
 			<a-form layout="vertical">
 				<a-form-item label="账单">
-					<a-input :value="`${payBill.tenantName || ''} · ${payBill.billNo || ''} · ¥${Number(payBill.amount || 0).toFixed(2)}`" disabled />
+					<a-input
+						:value="`${payBill.tenantName || ''} · ${payBill.billNo || ''} · ¥${Number(payBill.amount || 0).toFixed(2)}`"
+						disabled
+					/>
 				</a-form-item>
 				<a-form-item label="收款方式">
 					<a-select v-model:value="payForm.payMethod" :options="payMethodOptions" />
 				</a-form-item>
 				<a-form-item label="收款时间">
-					<a-date-picker v-model:value="payForm.payTime" show-time value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" />
+					<a-date-picker
+						v-model:value="payForm.payTime"
+						show-time
+						value-format="YYYY-MM-DD HH:mm:ss"
+						style="width: 100%"
+					/>
 				</a-form-item>
 				<a-form-item label="备注">
 					<a-input v-model:value="payForm.remark" placeholder="流水号/收款人" allow-clear />
@@ -200,14 +267,17 @@
 		{ title: '操作', dataIndex: 'action', align: 'center', width: 180, fixed: 'right' }
 	]
 	const date = (v) => (v ? String(v).slice(0, 10) : '-')
-	const billText = (s) => ({ UNPAID: '待收款', PAID: '已收款', VOID: '已作废' }[s] || s)
+	const billText = (s) => ({ UNPAID: '待收款', PAID: '已收款', VOID: '已作废' })[s] || s
 	const billColor = (s) => (s === 'PAID' ? 'green' : s === 'UNPAID' ? 'orange' : 'default')
-	const invoiceText = (s) => ({ NONE: '未开票', REQUESTED: '已申请', ISSUED: '已开票' }[s] || s)
+	const invoiceText = (s) => ({ NONE: '未开票', REQUESTED: '已申请', ISSUED: '已开票' })[s] || s
 	const loadData = (parameter) => tenantApi.billPage(Object.assign({}, parameter, searchForm.value))
 	const loadSummary = () => tenantApi.billSummary(searchForm.value).then((data) => (summary.value = data || {}))
 	const loadOptions = () => {
 		tenantApi.tenantPage({ current: 1, size: 500 }).then((data) => {
-			tenantOptions.value = (data?.records || []).map((item) => ({ value: item.id, label: `${item.name}（${item.code || '-'}）` }))
+			tenantOptions.value = (data?.records || []).map((item) => ({
+				value: item.id,
+				label: `${item.name}（${item.code || '-'}）`
+			}))
 		})
 		tenantApi.packagePage({ current: 1, size: 200 }).then((data) => {
 			packageOptions.value = (data?.records || []).map((item) => ({ value: item.id, label: item.name }))

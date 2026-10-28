@@ -63,7 +63,7 @@
 	import { ref, computed } from 'vue'
 	import configApi from '@/api/dev/configApi'
 	import thirdApi from '@/api/auth/thirdApi'
-	import {message} from "ant-design-vue";
+	import { message } from 'ant-design-vue'
 	const formData = ref({})
 	const hasAnyThirdLogin = computed(() => {
 		return Object.values(formData.value).some((v) => v === true)
@@ -84,7 +84,7 @@
 		}
 	}
 	const getLoginRenderUrl = (platform) => {
-		if(platform === 'WECHAT_MINI') {
+		if (platform === 'WECHAT_MINI') {
 			message.warning('请在微信小程序环境使用微信小程序登录')
 		} else {
 			const param = {

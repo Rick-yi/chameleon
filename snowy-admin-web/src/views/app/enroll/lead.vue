@@ -106,12 +106,18 @@
 		{ value: 'VISIT', label: '到访' },
 		{ value: 'WECHAT', label: '微信' }
 	]
-	const followTypeText = (t) => ({ PHONE: '电话沟通', VISIT: '到访', WECHAT: '微信', TRIAL: '试听' }[t] || t)
+	const followTypeText = (t) => ({ PHONE: '电话沟通', VISIT: '到访', WECHAT: '微信', TRIAL: '试听' })[t] || t
 	const statusText = computed(
-		() => ({ NEW: '新线索', FOLLOWED: '跟进中', TRIALED: '已试听', ENROLLED: '已报名', LOST: '已流失' }[lead.value?.status] || lead.value?.status)
+		() =>
+			({ NEW: '新线索', FOLLOWED: '跟进中', TRIALED: '已试听', ENROLLED: '已报名', LOST: '已流失' })[
+				lead.value?.status
+			] || lead.value?.status
 	)
 	const statusColor = computed(
-		() => ({ NEW: 'blue', FOLLOWED: 'orange', TRIALED: 'purple', ENROLLED: 'green', LOST: 'default' }[lead.value?.status] || 'default')
+		() =>
+			({ NEW: 'blue', FOLLOWED: 'orange', TRIALED: 'purple', ENROLLED: 'green', LOST: 'default' })[
+				lead.value?.status
+			] || 'default'
 	)
 
 	const load = async () => {

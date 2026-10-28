@@ -53,7 +53,9 @@
 					<a-avatar :src="record.avatar" style="margin-bottom: -5px; margin-top: -5px" />
 				</template>
 				<template v-if="column.dataIndex === 'gender'">
-					<a-tag :color="$TOOL.dictTypeColor('GENDER', record.gender)">{{ $TOOL.dictTypeData('GENDER', record.gender) }}</a-tag>
+					<a-tag :color="$TOOL.dictTypeColor('GENDER', record.gender)">{{
+						$TOOL.dictTypeData('GENDER', record.gender)
+					}}</a-tag>
 				</template>
 				<template v-if="column.dataIndex === 'latestLoginDevice'">
 					<a-tag :color="$TOOL.dictTypeColor('AUTH_DEVICE_TYPE', record.latestLoginDevice)">

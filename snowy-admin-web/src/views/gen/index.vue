@@ -35,7 +35,9 @@
 					{{ generateTypeFilter(record.generateType) }}
 				</template>
 				<template v-else-if="column.dataIndex === 'genType'">
-					<a-tag :color="$TOOL.dictTypeColor('GEN_TYPE', record.genType || 'TABLE')">{{ $TOOL.dictTypeData('GEN_TYPE', record.genType || 'TABLE') }}</a-tag>
+					<a-tag :color="$TOOL.dictTypeColor('GEN_TYPE', record.genType || 'TABLE')">{{
+						$TOOL.dictTypeData('GEN_TYPE', record.genType || 'TABLE')
+					}}</a-tag>
 				</template>
 				<template v-else-if="column.dataIndex === 'action'">
 					<a @click="genPreviewRef.onOpen(record)">预览</a>

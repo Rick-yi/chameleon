@@ -78,21 +78,24 @@
 				resolve()
 				return
 			}
-			roleApi.roleOrgTreeSelector({ parentId: treeNode.dataRef.id }).then((res) => {
-				if (res && res.length > 0) {
-					treeNode.dataRef.children = res.map((item) => ({
-						...item,
-						isLeaf: item.isLeaf === undefined ? false : item.isLeaf
-					}))
-				} else {
-					treeNode.dataRef.children = []
-					treeNode.dataRef.isLeaf = true
-				}
-				treeData.value = [...treeData.value]
-				resolve()
-			}).catch(() => {
-				resolve()
-			})
+			roleApi
+				.roleOrgTreeSelector({ parentId: treeNode.dataRef.id })
+				.then((res) => {
+					if (res && res.length > 0) {
+						treeNode.dataRef.children = res.map((item) => ({
+							...item,
+							isLeaf: item.isLeaf === undefined ? false : item.isLeaf
+						}))
+					} else {
+						treeNode.dataRef.children = []
+						treeNode.dataRef.isLeaf = true
+					}
+					treeData.value = [...treeData.value]
+					resolve()
+				})
+				.catch(() => {
+					resolve()
+				})
 		})
 	}
 

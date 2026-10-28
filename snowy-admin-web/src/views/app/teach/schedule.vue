@@ -73,8 +73,8 @@
 		return `${d.getMonth() + 1}月${d.getDate()}日 周${weekName[d.getDay()]}`
 	})
 
-	const attendText = (status) => ({ NONE: '待点名', PARTIAL: '部分点名', DONE: '已点名' }[status] || '待点名')
-	const attendColor = (status) => ({ NONE: 'orange', PARTIAL: 'gold', DONE: 'green' }[status] || 'default')
+	const attendText = (status) => ({ NONE: '待点名', PARTIAL: '部分点名', DONE: '已点名' })[status] || '待点名'
+	const attendColor = (status) => ({ NONE: 'orange', PARTIAL: 'gold', DONE: 'green' })[status] || 'default'
 
 	/** 按天分组的课节 */
 	const groupedList = computed(() => {

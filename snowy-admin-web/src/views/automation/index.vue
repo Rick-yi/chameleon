@@ -133,10 +133,20 @@
 							</div>
 							<div class="auto-card-actions">
 								<a-button v-if="rule.supportsHoldout" size="small" @click="onExperiment(rule)">效果</a-button>
-								<a-button v-if="rule.mode === 'TIMER' && hasPerm('/biz/automation/run')" size="small" @click="onRun(rule, true)">
+								<a-button
+									v-if="rule.mode === 'TIMER' && hasPerm('/biz/automation/run')"
+									size="small"
+									@click="onRun(rule, true)"
+								>
 									预览
 								</a-button>
-								<a-button v-if="rule.mode === 'TIMER' && hasPerm('/biz/automation/run')" type="primary" ghost :loading="running === rule.ruleCode" @click="onRun(rule)">
+								<a-button
+									v-if="rule.mode === 'TIMER' && hasPerm('/biz/automation/run')"
+									type="primary"
+									ghost
+									:loading="running === rule.ruleCode"
+									@click="onRun(rule)"
+								>
 									<template #icon><play-circle-outlined /></template>
 									立即执行
 								</a-button>
@@ -171,7 +181,8 @@
 						</template>
 						<template v-if="column.dataIndex === 'counts'">
 							<span class="auto-log-counts">
-								成功 {{ record.successCount ?? 0 }} · 失败 {{ record.failCount ?? 0 }} · 跳过 {{ record.skipCount ?? 0 }}
+								成功 {{ record.successCount ?? 0 }} · 失败 {{ record.failCount ?? 0 }} · 跳过
+								{{ record.skipCount ?? 0 }}
 							</span>
 						</template>
 						<template v-if="column.dataIndex === 'delivery'">
@@ -195,7 +206,12 @@
 		</a-spin>
 
 		<a-modal v-model:open="experimentOpen" title="效果归因" :width="680" :footer="null">
-			<a-alert type="info" show-icon :message="experimentData.note || '按 holdout 分组的观察性统计'" style="margin-bottom: 12px" />
+			<a-alert
+				type="info"
+				show-icon
+				:message="experimentData.note || '按 holdout 分组的观察性统计'"
+				style="margin-bottom: 12px"
+			/>
 			<a-table
 				:columns="experimentColumns"
 				:data-source="experimentData.groups || []"
@@ -241,10 +257,10 @@
 		{ title: '归因金额', dataIndex: 'value', width: 110 }
 	]
 
-	const triggerText = (type) => ({ TIMER: '定时', MANUAL: '手动', TRIGGER: '实时' }[type] || type)
-	const triggerColor = (type) => ({ TIMER: 'blue', MANUAL: 'orange', TRIGGER: 'purple' }[type] || 'default')
-	const deliveryText = (status) => ({ CREATED: '已创建', FAILED: '失败', NONE: '未触达' }[status] || '-')
-	const deliveryColor = (status) => ({ CREATED: 'green', FAILED: 'red' }[status] || 'default')
+	const triggerText = (type) => ({ TIMER: '定时', MANUAL: '手动', TRIGGER: '实时' })[type] || type
+	const triggerColor = (type) => ({ TIMER: 'blue', MANUAL: 'orange', TRIGGER: 'purple' })[type] || 'default'
+	const deliveryText = (status) => ({ CREATED: '已创建', FAILED: '失败', NONE: '未触达' })[status] || '-'
+	const deliveryColor = (status) => ({ CREATED: 'green', FAILED: 'red' })[status] || 'default'
 
 	// 参数编辑模型：ruleCode -> {paramKey: 值}（开关存布尔，数字存数值）
 	const paramModel = ref({})

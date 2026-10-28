@@ -27,4 +27,4 @@ export const crmSourceText = (value) => {
  * @param {string} value 来源编码
  */
 export const crmSourceColor = (value) =>
-	({ GROUND: 'blue', REFERRAL: 'green', ONLINE: 'purple', VISIT: 'default' }[value] || 'default')
+	({ GROUND: 'blue', REFERRAL: 'green', ONLINE: 'purple', VISIT: 'default' })[value] || 'default'

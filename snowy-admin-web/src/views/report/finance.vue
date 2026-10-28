@@ -10,19 +10,47 @@
 					<a-range-picker v-model:value="dateRange" value-format="YYYY-MM-DD" allow-clear @change="onDateRangeChange" />
 				</a-form-item>
 				<a-form-item label="校区">
-					<a-select v-model:value="query.campusId" placeholder="全部校区" :options="campusOptions" allow-clear style="width: 160px" />
+					<a-select
+						v-model:value="query.campusId"
+						placeholder="全部校区"
+						:options="campusOptions"
+						allow-clear
+						style="width: 160px"
+					/>
 				</a-form-item>
 				<a-form-item label="课程">
-					<a-select v-model:value="query.courseId" placeholder="全部课程" :options="courseOptions" allow-clear style="width: 180px" />
+					<a-select
+						v-model:value="query.courseId"
+						placeholder="全部课程"
+						:options="courseOptions"
+						allow-clear
+						style="width: 180px"
+					/>
 				</a-form-item>
 				<a-form-item label="渠道">
-					<a-select v-model:value="query.channel" placeholder="全部渠道" :options="channelOptions" allow-clear style="width: 140px" />
+					<a-select
+						v-model:value="query.channel"
+						placeholder="全部渠道"
+						:options="channelOptions"
+						allow-clear
+						style="width: 140px"
+					/>
 				</a-form-item>
 				<a-form-item label="对比">
-					<a-select v-model:value="compareMode" :options="compareModeOptions" style="width: 130px" @change="onCompareModeChange" />
+					<a-select
+						v-model:value="compareMode"
+						:options="compareModeOptions"
+						style="width: 130px"
+						@change="onCompareModeChange"
+					/>
 				</a-form-item>
 				<a-form-item v-if="compareMode === 'CUSTOM'" label="对比期">
-					<a-range-picker v-model:value="customCompareRange" value-format="YYYY-MM-DD" allow-clear @change="loadCompare" />
+					<a-range-picker
+						v-model:value="customCompareRange"
+						value-format="YYYY-MM-DD"
+						allow-clear
+						@change="loadCompare"
+					/>
 				</a-form-item>
 				<a-form-item>
 					<a-space>
@@ -74,13 +102,17 @@
 					<div class="export-rec-main">
 						<div class="export-rec-title">{{ item.fileName || exportTypeText(item.exportType) }}</div>
 						<div class="export-rec-sub">
-							<a-tag :color="exportStatusColor(item.status)" style="margin-right: 6px">{{ exportStatusText(item.status) }}</a-tag>
+							<a-tag :color="exportStatusColor(item.status)" style="margin-right: 6px">{{
+								exportStatusText(item.status)
+							}}</a-tag>
 							{{ item.createTime }}
 							<span v-if="item.rowCount"> · {{ item.rowCount }} 行</span>
 						</div>
 						<div v-if="item.status === 'FAILED' && item.errorMsg" class="export-rec-err">{{ item.errorMsg }}</div>
 					</div>
-					<a-button v-if="item.status === 'SUCCESS'" type="link" size="small" @click="downloadExportRecord(item)">下载</a-button>
+					<a-button v-if="item.status === 'SUCCESS'" type="link" size="small" @click="downloadExportRecord(item)"
+						>下载</a-button
+					>
 				</div>
 			</a-spin>
 		</a-drawer>
@@ -100,9 +132,20 @@
 					<div class="ent-stat kpi-link" @click="activeTab = 'payment'">
 						<div class="ent-stat-label">
 							收款金额
-							<a-tooltip><template #title><div v-for="(line, i) in metricTips.paidAmount" :key="i">{{ line }}</div></template><question-circle-outlined class="metric-help" /></a-tooltip>
+							<a-tooltip
+								><template #title
+									><div v-for="(line, i) in metricTips.paidAmount" :key="i">{{ line }}</div></template
+								><question-circle-outlined class="metric-help"
+							/></a-tooltip>
 						</div>
-						<div class="ent-stat-value">¥{{ money(summary.paidAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+						<div class="ent-stat-value">
+							¥{{
+								money(summary.paidAmount).toLocaleString('zh-CN', {
+									minimumFractionDigits: 2,
+									maximumFractionDigits: 2
+								})
+							}}
+						</div>
 						<delta-group
 							:current="summary.paidAmount"
 							:previous="prevSummary.paidAmount"
@@ -115,14 +158,26 @@
 					<div class="ent-stat kpi-link" @click="activeTab = 'refund'">
 						<div class="ent-stat-label">
 							退费金额
-							<a-tooltip><template #title><div v-for="(line, i) in metricTips.refundAmount" :key="i">{{ line }}</div></template><question-circle-outlined class="metric-help" /></a-tooltip>
+							<a-tooltip
+								><template #title
+									><div v-for="(line, i) in metricTips.refundAmount" :key="i">{{ line }}</div></template
+								><question-circle-outlined class="metric-help"
+							/></a-tooltip>
 						</div>
-						<div class="ent-stat-value" style="color: var(--danger-text)">¥{{ money(summary.refundAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+						<div class="ent-stat-value" style="color: var(--danger-text)">
+							¥{{
+								money(summary.refundAmount).toLocaleString('zh-CN', {
+									minimumFractionDigits: 2,
+									maximumFractionDigits: 2
+								})
+							}}
+						</div>
 						<delta-group
 							:current="summary.refundAmount"
 							:previous="prevSummary.refundAmount"
 							:yoy="yoySummary.refundAmount"
-							:custom="compareMode === 'CUSTOM' ? customSummary.refundAmount : undefined" invert
+							:custom="compareMode === 'CUSTOM' ? customSummary.refundAmount : undefined"
+							invert
 						/>
 					</div>
 				</a-col>
@@ -130,9 +185,17 @@
 					<div class="ent-stat">
 						<div class="ent-stat-label">
 							净营收
-							<a-tooltip><template #title><div v-for="(line, i) in metricTips.netAmount" :key="i">{{ line }}</div></template><question-circle-outlined class="metric-help" /></a-tooltip>
+							<a-tooltip
+								><template #title
+									><div v-for="(line, i) in metricTips.netAmount" :key="i">{{ line }}</div></template
+								><question-circle-outlined class="metric-help"
+							/></a-tooltip>
 						</div>
-						<div class="ent-stat-value" style="color: var(--success-text)">¥{{ money(summary.netAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+						<div class="ent-stat-value" style="color: var(--success-text)">
+							¥{{
+								money(summary.netAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+							}}
+						</div>
 						<delta-group
 							:current="summary.netAmount"
 							:previous="prevSummary.netAmount"
@@ -145,9 +208,20 @@
 					<div class="ent-stat kpi-link" @click="router.push('/report/academic')">
 						<div class="ent-stat-label">
 							课消金额
-							<a-tooltip><template #title><div v-for="(line, i) in metricTips.recognizedAmount" :key="i">{{ line }}</div></template><question-circle-outlined class="metric-help" /></a-tooltip>
+							<a-tooltip
+								><template #title
+									><div v-for="(line, i) in metricTips.recognizedAmount" :key="i">{{ line }}</div></template
+								><question-circle-outlined class="metric-help"
+							/></a-tooltip>
 						</div>
-						<div class="ent-stat-value">¥{{ money(summary.recognizedAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+						<div class="ent-stat-value">
+							¥{{
+								money(summary.recognizedAmount).toLocaleString('zh-CN', {
+									minimumFractionDigits: 2,
+									maximumFractionDigits: 2
+								})
+							}}
+						</div>
 						<delta-group
 							:current="summary.recognizedAmount"
 							:previous="prevSummary.recognizedAmount"
@@ -160,7 +234,11 @@
 					<div class="ent-stat kpi-link" @click="activeTab = 'payment'">
 						<div class="ent-stat-label">
 							已支付订单数
-							<a-tooltip><template #title><div v-for="(line, i) in metricTips.orderCount" :key="i">{{ line }}</div></template><question-circle-outlined class="metric-help" /></a-tooltip>
+							<a-tooltip
+								><template #title
+									><div v-for="(line, i) in metricTips.orderCount" :key="i">{{ line }}</div></template
+								><question-circle-outlined class="metric-help"
+							/></a-tooltip>
 						</div>
 						<div class="ent-stat-value">{{ summary.orderCount }}笔</div>
 						<delta-group
@@ -175,9 +253,20 @@
 					<div class="ent-stat">
 						<div class="ent-stat-label">
 							客单价
-							<a-tooltip><template #title><div v-for="(line, i) in metricTips.avgOrderAmount" :key="i">{{ line }}</div></template><question-circle-outlined class="metric-help" /></a-tooltip>
+							<a-tooltip
+								><template #title
+									><div v-for="(line, i) in metricTips.avgOrderAmount" :key="i">{{ line }}</div></template
+								><question-circle-outlined class="metric-help"
+							/></a-tooltip>
 						</div>
-						<div class="ent-stat-value">¥{{ money(summary.avgOrderAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+						<div class="ent-stat-value">
+							¥{{
+								money(summary.avgOrderAmount).toLocaleString('zh-CN', {
+									minimumFractionDigits: 2,
+									maximumFractionDigits: 2
+								})
+							}}
+						</div>
 						<delta-group
 							:current="summary.avgOrderAmount"
 							:previous="prevSummary.avgOrderAmount"
@@ -190,9 +279,20 @@
 					<div class="ent-stat">
 						<div class="ent-stat-label">
 							生均收入
-							<a-tooltip><template #title><div v-for="(line, i) in metricTips.perStudentRevenue" :key="i">{{ line }}</div></template><question-circle-outlined class="metric-help" /></a-tooltip>
+							<a-tooltip
+								><template #title
+									><div v-for="(line, i) in metricTips.perStudentRevenue" :key="i">{{ line }}</div></template
+								><question-circle-outlined class="metric-help"
+							/></a-tooltip>
 						</div>
-						<div class="ent-stat-value">¥{{ money(summary.perStudentRevenue).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+						<div class="ent-stat-value">
+							¥{{
+								money(summary.perStudentRevenue).toLocaleString('zh-CN', {
+									minimumFractionDigits: 2,
+									maximumFractionDigits: 2
+								})
+							}}
+						</div>
 						<delta-group
 							:current="summary.perStudentRevenue"
 							:previous="prevSummary.perStudentRevenue"
@@ -205,14 +305,19 @@
 					<div class="ent-stat">
 						<div class="ent-stat-label">
 							退费率
-							<a-tooltip><template #title><div v-for="(line, i) in metricTips.refundRate" :key="i">{{ line }}</div></template><question-circle-outlined class="metric-help" /></a-tooltip>
+							<a-tooltip
+								><template #title
+									><div v-for="(line, i) in metricTips.refundRate" :key="i">{{ line }}</div></template
+								><question-circle-outlined class="metric-help"
+							/></a-tooltip>
 						</div>
 						<div class="ent-stat-value">{{ summary.refundRate }}%</div>
 						<delta-group
 							:current="summary.refundRate"
 							:previous="prevSummary.refundRate"
 							:yoy="yoySummary.refundRate"
-							:custom="compareMode === 'CUSTOM' ? customSummary.refundRate : undefined" invert
+							:custom="compareMode === 'CUSTOM' ? customSummary.refundRate : undefined"
+							invert
 						/>
 					</div>
 				</a-col>
@@ -220,7 +325,11 @@
 					<div class="ent-stat">
 						<div class="ent-stat-label">
 							实收率
-							<a-tooltip><template #title><div v-for="(line, i) in metricTips.collectionRate" :key="i">{{ line }}</div></template><question-circle-outlined class="metric-help" /></a-tooltip>
+							<a-tooltip
+								><template #title
+									><div v-for="(line, i) in metricTips.collectionRate" :key="i">{{ line }}</div></template
+								><question-circle-outlined class="metric-help"
+							/></a-tooltip>
 						</div>
 						<div class="ent-stat-value">{{ summary.collectionRate }}%</div>
 						<delta-group
@@ -534,7 +643,10 @@
 			trendChart.render()
 		}
 
-		const channelData = channelList.value.map((item) => ({ type: payChannelText(item.channel), value: money(item.paidAmount) }))
+		const channelData = channelList.value.map((item) => ({
+			type: payChannelText(item.channel),
+			value: money(item.paidAmount)
+		}))
 		if (channelData.length) {
 			channelChart = new Pie('financeChannelChart', {
 				data: channelData,
@@ -879,14 +991,24 @@
 		{ title: '净营收', dataIndex: 'netAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
 		{ title: '课消课时', dataIndex: 'attendLessons', customRender: ({ text }) => Number(text || 0).toFixed(2) },
 		{ title: '订单数', dataIndex: 'orderCount' },
-		{ title: '操作', dataIndex: 'action', align: 'center', customRender: ({ record }) => h('a', { onClick: () => drillCourse(record) }, '查看明细') }
+		{
+			title: '操作',
+			dataIndex: 'action',
+			align: 'center',
+			customRender: ({ record }) => h('a', { onClick: () => drillCourse(record) }, '查看明细')
+		}
 	]
 	const campusColumns = [
 		{ title: '校区', dataIndex: 'campusName' },
 		{ title: '收款', dataIndex: 'paidAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
 		{ title: '退费', dataIndex: 'refundAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
 		{ title: '净营收', dataIndex: 'netAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
-		{ title: '操作', dataIndex: 'action', align: 'center', customRender: ({ record }) => h('a', { onClick: () => drillCampus(record) }, '查看明细') }
+		{
+			title: '操作',
+			dataIndex: 'action',
+			align: 'center',
+			customRender: ({ record }) => h('a', { onClick: () => drillCampus(record) }, '查看明细')
+		}
 	]
 	const paymentColumns = [
 		{ title: '学员', dataIndex: 'studentName' },
@@ -910,14 +1032,22 @@
 		{ title: '净营收', dataIndex: 'netAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
 		{ title: '订单数', dataIndex: 'orderCount' },
 		{ title: '净课消课时', dataIndex: 'netLessons', customRender: ({ text }) => Number(text || 0).toFixed(2) },
-		{ title: '课消金额', dataIndex: 'recognizedAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
+		{
+			title: '课消金额',
+			dataIndex: 'recognizedAmount',
+			customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}`
+		},
 		{ title: '新增学员', dataIndex: 'newStudentCount' }
 	]
 	const consumeColumns = [
 		{ title: '课程', dataIndex: 'courseName' },
 		{ title: '课包', dataIndex: 'coursePackageName' },
 		{ title: '消课课时', dataIndex: 'attendLessons', customRender: ({ text }) => Number(text || 0).toFixed(2) },
-		{ title: '课消金额', dataIndex: 'recognizedAmount', customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}` },
+		{
+			title: '课消金额',
+			dataIndex: 'recognizedAmount',
+			customRender: ({ text }) => `¥${Number(text || 0).toFixed(2)}`
+		},
 		{ title: '订单数', dataIndex: 'orderCount' },
 		{ title: '学员数', dataIndex: 'studentCount' }
 	]

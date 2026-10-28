@@ -60,7 +60,9 @@
 			</template>
 			<template #bodyCell="{ column, record }">
 				<template v-if="column.dataIndex === 'engine'">
-					<a-tag :color="$TOOL.dictTypeColor('EMAIL_ENGINE', record.engine)">{{ $TOOL.dictTypeData('EMAIL_ENGINE', record.engine) }}</a-tag>
+					<a-tag :color="$TOOL.dictTypeColor('EMAIL_ENGINE', record.engine)">{{
+						$TOOL.dictTypeData('EMAIL_ENGINE', record.engine)
+					}}</a-tag>
 				</template>
 				<template v-if="column.dataIndex === 'action'">
 					<a @click="detailRef.onOpen(record)">详情</a>

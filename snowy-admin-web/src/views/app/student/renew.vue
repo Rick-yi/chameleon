@@ -27,8 +27,7 @@
 				</a-tag>
 			</div>
 			<div class="m-renew-sub">
-				{{ item.courseName || '课程' }} ·
-				预警时剩余 {{ item.remainLessons == null ? '-' : item.remainLessons }} 课时
+				{{ item.courseName || '课程' }} · 预警时剩余 {{ item.remainLessons == null ? '-' : item.remainLessons }} 课时
 				<span v-if="item.currentRemainLessons != null"> / 当前 {{ item.currentRemainLessons }} 课时</span>
 			</div>
 			<div v-if="item.currentRenewed && item.status === 'PENDING'" class="m-renew-tag">
@@ -40,7 +39,9 @@
 				<span v-if="item.followUserName">跟进人 {{ item.followUserName }}</span>
 			</div>
 			<div v-if="item.status === 'PENDING'" class="m-renew-actions">
-				<a-button v-if="hasPerm('/student/order/add')" type="primary" size="small" @click="onRenew(item)">续费</a-button>
+				<a-button v-if="hasPerm('/student/order/add')" type="primary" size="small" @click="onRenew(item)"
+					>续费</a-button
+				>
 				<a-button size="small" @click="onNotify(item)">提醒</a-button>
 				<a-button size="small" @click="onProcess(item)">已处理</a-button>
 				<a-button size="small" @click="onIgnore(item)">忽略</a-button>
@@ -72,15 +73,13 @@
 	]
 
 	const statusText = (value) =>
-		({ PENDING: '待处理', PROCESSED: '已处理', RENEWED: '已续费', IGNORED: '已忽略' }[value] || value)
+		({ PENDING: '待处理', PROCESSED: '已处理', RENEWED: '已续费', IGNORED: '已忽略' })[value] || value
 	const formatTime = (value) => (value ? String(value).slice(5, 16).replace('T', ' ') : '-')
 
 	const load = async () => {
 		loading.value = true
 		try {
-			const res = await renewApi
-				.renewWarnPage({ current: 1, size: 50, status: status.value })
-				.catch(() => ({}))
+			const res = await renewApi.renewWarnPage({ current: 1, size: 50, status: status.value }).catch(() => ({}))
 			list.value = res?.records || []
 		} finally {
 			loading.value = false

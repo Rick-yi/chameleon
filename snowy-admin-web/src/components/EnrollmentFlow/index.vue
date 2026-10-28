@@ -27,75 +27,80 @@
 				</div>
 			</div>
 			<template v-if="!isExisting">
-			<div class="qe-section-title">学员信息</div>
-			<a-row :gutter="12">
-				<a-col :xs="24" :sm="12">
-					<a-form-item label="学员姓名" name="name" :rules="[{ required: true, message: '请输入学员姓名' }]">
-						<a-input v-model:value="form.name" placeholder="请输入学员姓名" allow-clear />
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="12">
-					<a-form-item label="性别" name="gender">
-						<a-radio-group v-model:value="form.gender">
-							<a-radio-button value="MALE">男</a-radio-button>
-							<a-radio-button value="FEMALE">女</a-radio-button>
-						</a-radio-group>
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="12">
-					<a-form-item label="生日" name="birthday">
-						<a-date-picker v-model:value="form.birthday" value-format="YYYY-MM-DD" style="width: 100%" placeholder="选填" />
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="12">
-					<a-form-item label="校区" name="campusId" :rules="[{ required: true, message: '请选择校区' }]">
-						<a-select
-							v-model:value="form.campusId"
-							:options="campusOptions"
-							placeholder="请选择校区"
-							show-search
-							option-filter-prop="label"
-						/>
-					</a-form-item>
-				</a-col>
-			</a-row>
+				<div class="qe-section-title">学员信息</div>
+				<a-row :gutter="12">
+					<a-col :xs="24" :sm="12">
+						<a-form-item label="学员姓名" name="name" :rules="[{ required: true, message: '请输入学员姓名' }]">
+							<a-input v-model:value="form.name" placeholder="请输入学员姓名" allow-clear />
+						</a-form-item>
+					</a-col>
+					<a-col :xs="24" :sm="12">
+						<a-form-item label="性别" name="gender">
+							<a-radio-group v-model:value="form.gender">
+								<a-radio-button value="MALE">男</a-radio-button>
+								<a-radio-button value="FEMALE">女</a-radio-button>
+							</a-radio-group>
+						</a-form-item>
+					</a-col>
+					<a-col :xs="24" :sm="12">
+						<a-form-item label="生日" name="birthday">
+							<a-date-picker
+								v-model:value="form.birthday"
+								value-format="YYYY-MM-DD"
+								style="width: 100%"
+								placeholder="选填"
+							/>
+						</a-form-item>
+					</a-col>
+					<a-col :xs="24" :sm="12">
+						<a-form-item label="校区" name="campusId" :rules="[{ required: true, message: '请选择校区' }]">
+							<a-select
+								v-model:value="form.campusId"
+								:options="campusOptions"
+								placeholder="请选择校区"
+								show-search
+								option-filter-prop="label"
+							/>
+						</a-form-item>
+					</a-col>
+				</a-row>
 
-			<div class="qe-section-title">家长信息</div>
-			<a-row :gutter="12">
-				<a-col :xs="24" :sm="12">
-					<a-form-item label="家长姓名" name="parentName">
-						<a-input v-model:value="form.parentName" placeholder="如：王妈妈" allow-clear />
-					</a-form-item>
-				</a-col>
-				<a-col :xs="24" :sm="12">
-					<a-form-item
-						label="家长手机"
-						name="parentPhone"
-						:rules="[
-							{
-								validator: (_rule, value, callback) => {
-									if (!value || /^1\d{10}$/.test(value)) callback()
-									else callback('请输入 11 位手机号')
+				<div class="qe-section-title">家长信息</div>
+				<a-row :gutter="12">
+					<a-col :xs="24" :sm="12">
+						<a-form-item label="家长姓名" name="parentName">
+							<a-input v-model:value="form.parentName" placeholder="如：王妈妈" allow-clear />
+						</a-form-item>
+					</a-col>
+					<a-col :xs="24" :sm="12">
+						<a-form-item
+							label="家长手机"
+							name="parentPhone"
+							:rules="[
+								{
+									validator: (_rule, value, callback) => {
+										if (!value || /^1\d{10}$/.test(value)) callback()
+										else callback('请输入 11 位手机号')
+									}
 								}
-							}
-						]"
-					>
-						<a-input
-							v-model:value="form.parentPhone"
-							placeholder="选填，用于联系与后续续费"
-							allow-clear
-							@blur="checkParentPhone"
-						/>
-					</a-form-item>
-				</a-col>
-			</a-row>
+							]"
+						>
+							<a-input
+								v-model:value="form.parentPhone"
+								placeholder="选填，用于联系与后续续费"
+								allow-clear
+								@blur="checkParentPhone"
+							/>
+						</a-form-item>
+					</a-col>
+				</a-row>
 
-			<a-alert v-if="samePhoneStudents.length" class="qe-duplicate" type="warning" show-icon>
-				<template #message>
-					该手机号已有学员：{{ samePhoneNames }}
-					<a class="qe-duplicate-link" @click="onViewExistingStudent">查看</a>
-				</template>
-			</a-alert>
+				<a-alert v-if="samePhoneStudents.length" class="qe-duplicate" type="warning" show-icon>
+					<template #message>
+						该手机号已有学员：{{ samePhoneNames }}
+						<a class="qe-duplicate-link" @click="onViewExistingStudent">查看</a>
+					</template>
+				</a-alert>
 			</template>
 
 			<div class="qe-section-title">报名与收款</div>
@@ -145,7 +150,9 @@
 					<a-col v-if="form.payNow" :xs="24" :sm="12">
 						<a-form-item label="实收金额（元）" name="paidAmount">
 							<a-input-number v-model:value="form.paidAmount" :min="0.01" :precision="2" style="width: 100%" />
-							<a v-if="moneyOff > 0" class="qe-money-off" @click="onMoneyOff">抹零，收 ¥{{ Math.floor(form.paidAmount) }}</a>
+							<a v-if="moneyOff > 0" class="qe-money-off" @click="onMoneyOff"
+								>抹零，收 ¥{{ Math.floor(form.paidAmount) }}</a
+							>
 						</a-form-item>
 					</a-col>
 				</template>
@@ -174,12 +181,24 @@
 				</div>
 			</div>
 			<div class="qe-summary">
-				<div class="qe-summary-row"><span>报名课包</span><b>{{ selectedPackage ? selectedPackage.name : '-' }}</b></div>
-				<div class="qe-summary-row"><span>报读班级</span><b>{{ classLabel || '未分班' }}</b></div>
-				<div class="qe-summary-row"><span>授课老师</span><b>{{ classTeacherName || '未指定' }}</b></div>
-				<div class="qe-summary-row"><span>应收</span><b>¥{{ fmt(packagePrice) }}</b></div>
-				<div class="qe-summary-row"><span>优惠</span><b class="qe-discount">-¥{{ fmt(discount) }}</b></div>
-				<div class="qe-summary-row qe-payable"><span>实收</span><b>¥{{ fmt(form.paidAmount) }}</b></div>
+				<div class="qe-summary-row">
+					<span>报名课包</span><b>{{ selectedPackage ? selectedPackage.name : '-' }}</b>
+				</div>
+				<div class="qe-summary-row">
+					<span>报读班级</span><b>{{ classLabel || '未分班' }}</b>
+				</div>
+				<div class="qe-summary-row">
+					<span>授课老师</span><b>{{ classTeacherName || '未指定' }}</b>
+				</div>
+				<div class="qe-summary-row">
+					<span>应收</span><b>¥{{ fmt(packagePrice) }}</b>
+				</div>
+				<div class="qe-summary-row">
+					<span>优惠</span><b class="qe-discount">-¥{{ fmt(discount) }}</b>
+				</div>
+				<div class="qe-summary-row qe-payable">
+					<span>实收</span><b>¥{{ fmt(form.paidAmount) }}</b>
+				</div>
 			</div>
 			<div class="qe-section-title">收款方式</div>
 			<div class="qe-channels">
@@ -216,14 +235,30 @@
 			<a-spin :spinning="detailLoading">
 				<div class="qe-detail-section">学员信息</div>
 				<div class="qe-detail-grid">
-					<div class="qe-detail-row"><span>学员</span><b>{{ successStudent?.name || form.name }}</b></div>
-					<div class="qe-detail-row"><span>家长</span><b>{{ successStudent?.parentName || form.parentName || '-' }}</b></div>
-					<div class="qe-detail-row"><span>手机</span><b>{{ successStudent?.parentPhone || form.parentPhone || '-' }}</b></div>
-					<div class="qe-detail-row"><span>校区</span><b>{{ campusLabel || '-' }}</b></div>
-					<div class="qe-detail-row"><span>班级</span><b>{{ classLabel || successStudent?.classNames || '未分班' }}</b></div>
-					<div class="qe-detail-row"><span>授课老师</span><b>{{ classTeacherName || successStudent?.teacherNames || '-' }}</b></div>
-					<div class="qe-detail-row"><span>剩余课时</span><b>{{ successRemainText }}</b></div>
-					<div class="qe-detail-row"><span>课包到期</span><b>{{ formatDate(successStudent?.accountExpireTime) }}</b></div>
+					<div class="qe-detail-row">
+						<span>学员</span><b>{{ successStudent?.name || form.name }}</b>
+					</div>
+					<div class="qe-detail-row">
+						<span>家长</span><b>{{ successStudent?.parentName || form.parentName || '-' }}</b>
+					</div>
+					<div class="qe-detail-row">
+						<span>手机</span><b>{{ successStudent?.parentPhone || form.parentPhone || '-' }}</b>
+					</div>
+					<div class="qe-detail-row">
+						<span>校区</span><b>{{ campusLabel || '-' }}</b>
+					</div>
+					<div class="qe-detail-row">
+						<span>班级</span><b>{{ classLabel || successStudent?.classNames || '未分班' }}</b>
+					</div>
+					<div class="qe-detail-row">
+						<span>授课老师</span><b>{{ classTeacherName || successStudent?.teacherNames || '-' }}</b>
+					</div>
+					<div class="qe-detail-row">
+						<span>剩余课时</span><b>{{ successRemainText }}</b>
+					</div>
+					<div class="qe-detail-row">
+						<span>课包到期</span><b>{{ formatDate(successStudent?.accountExpireTime) }}</b>
+					</div>
 				</div>
 
 				<template v-if="successOrder">
@@ -233,19 +268,49 @@
 							<span>订单号</span>
 							<b class="qe-order-no">{{ successOrder.id }}</b>
 						</div>
-						<div class="qe-detail-row"><span>课包</span><b>{{ successOrder.packageName || '-' }}</b></div>
-						<div class="qe-detail-row"><span>正课课时</span><b>{{ formatLessons(successOrder.packageLessons) }}</b></div>
-						<div class="qe-detail-row"><span>赠课课时</span><b>{{ formatLessons(successOrder.packageGiftLessons) }}</b></div>
-						<div class="qe-detail-row"><span>合计课时</span><b>{{ totalLessons }}</b></div>
-						<div class="qe-detail-row"><span>有效期</span><b>{{ successOrder.packageValidityDays ? successOrder.packageValidityDays + ' 天' : '-' }}</b></div>
-						<div class="qe-detail-row"><span>应收</span><b>¥{{ fmt(successOrder.amount) }}</b></div>
-						<div class="qe-detail-row"><span>优惠</span><b class="qe-discount">{{ orderDiscount > 0 ? '-¥' + fmt(orderDiscount) : '-' }}</b></div>
-						<div class="qe-detail-row"><span>实收</span><b class="qe-payable-text">¥{{ fmt(successOrder.paidAmount) }}</b></div>
-						<div class="qe-detail-row"><span>收款渠道</span><b>{{ channelText(successOrder.payChannel) }}</b></div>
-						<div class="qe-detail-row"><span>订单状态</span><b><a-tag :color="orderStatusColor">{{ orderStatusText }}</a-tag></b></div>
-						<div class="qe-detail-row"><span>收款时间</span><b>{{ formatDate(successOrder.payTime) }}</b></div>
-						<div class="qe-detail-row"><span>经办人</span><b>{{ successOrder.operatorName || operatorName }}</b></div>
-						<div class="qe-detail-row qe-detail-wide"><span>备注</span><b>{{ successOrder.remark || form.payRemark || '-' }}</b></div>
+						<div class="qe-detail-row">
+							<span>课包</span><b>{{ successOrder.packageName || '-' }}</b>
+						</div>
+						<div class="qe-detail-row">
+							<span>正课课时</span><b>{{ formatLessons(successOrder.packageLessons) }}</b>
+						</div>
+						<div class="qe-detail-row">
+							<span>赠课课时</span><b>{{ formatLessons(successOrder.packageGiftLessons) }}</b>
+						</div>
+						<div class="qe-detail-row">
+							<span>合计课时</span><b>{{ totalLessons }}</b>
+						</div>
+						<div class="qe-detail-row">
+							<span>有效期</span
+							><b>{{ successOrder.packageValidityDays ? successOrder.packageValidityDays + ' 天' : '-' }}</b>
+						</div>
+						<div class="qe-detail-row">
+							<span>应收</span><b>¥{{ fmt(successOrder.amount) }}</b>
+						</div>
+						<div class="qe-detail-row">
+							<span>优惠</span><b class="qe-discount">{{ orderDiscount > 0 ? '-¥' + fmt(orderDiscount) : '-' }}</b>
+						</div>
+						<div class="qe-detail-row">
+							<span>实收</span><b class="qe-payable-text">¥{{ fmt(successOrder.paidAmount) }}</b>
+						</div>
+						<div class="qe-detail-row">
+							<span>收款渠道</span><b>{{ channelText(successOrder.payChannel) }}</b>
+						</div>
+						<div class="qe-detail-row">
+							<span>订单状态</span
+							><b
+								><a-tag :color="orderStatusColor">{{ orderStatusText }}</a-tag></b
+							>
+						</div>
+						<div class="qe-detail-row">
+							<span>收款时间</span><b>{{ formatDate(successOrder.payTime) }}</b>
+						</div>
+						<div class="qe-detail-row">
+							<span>经办人</span><b>{{ successOrder.operatorName || operatorName }}</b>
+						</div>
+						<div class="qe-detail-row qe-detail-wide">
+							<span>备注</span><b>{{ successOrder.remark || form.payRemark || '-' }}</b>
+						</div>
 					</div>
 				</template>
 				<a-alert
@@ -370,7 +435,9 @@
 	})
 	const totalLessons = computed(() => {
 		if (!successOrder.value) return '-'
-		return formatLessons(Number(successOrder.value.packageLessons || 0) + Number(successOrder.value.packageGiftLessons || 0))
+		return formatLessons(
+			Number(successOrder.value.packageLessons || 0) + Number(successOrder.value.packageGiftLessons || 0)
+		)
 	})
 	const orderDiscount = computed(() => {
 		if (!successOrder.value) return 0
@@ -381,7 +448,7 @@
 	})
 	const orderStatusText = computed(() => {
 		const status = successOrder.value?.status
-		return ({ UNPAID: '待支付', PAID: '已支付', REFUNDED: '已退费', CANCELED: '已取消' })[status] || status || '-'
+		return { UNPAID: '待支付', PAID: '已支付', REFUNDED: '已退费', CANCELED: '已取消' }[status] || status || '-'
 	})
 	const orderStatusColor = computed(() => {
 		const status = successOrder.value?.status
@@ -470,7 +537,9 @@
 
 	const selectedPackage = computed(() => packageRaw.value.find((p) => p.id === form.value.coursePackageId) || null)
 	const classLabel = computed(() => classOptions.value.find((c) => c.value === form.value.classId)?.className || '')
-	const classTeacherName = computed(() => classOptions.value.find((c) => c.value === form.value.classId)?.teacherName || '')
+	const classTeacherName = computed(
+		() => classOptions.value.find((c) => c.value === form.value.classId)?.teacherName || ''
+	)
 	const currentStudentId = computed(() => props.student?.id || null)
 	// 校区改变后只展示本校区的班级；一对一班只展示绑定当前学员的班级
 	const visibleClassOptions = computed(() => {
@@ -538,7 +607,10 @@
 		}
 	}
 
-	watch(() => form.value.campusId, () => applyDefaultClass())
+	watch(
+		() => form.value.campusId,
+		() => applyDefaultClass()
+	)
 	watch(packageRaw, () => {
 		applyDefaultPackage()
 		applyDefaultClass()

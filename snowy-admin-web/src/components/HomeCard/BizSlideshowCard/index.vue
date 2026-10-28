@@ -43,7 +43,9 @@
 	const slideshowList = ref([])
 	// 后端在未配置轮播图时会返回一张固定占位图，这里过滤掉，只展示真实配置的图
 	const PLACEHOLDER_IMAGE_PREFIX = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAfQAAADcCAIAAAAJPMQyAAAAGXRFWHRTb2Z0'
-	const bannerList = computed(() => (slideshowList.value || []).filter((item) => item.image && !item.image.startsWith(PLACEHOLDER_IMAGE_PREFIX)))
+	const bannerList = computed(() =>
+		(slideshowList.value || []).filter((item) => item.image && !item.image.startsWith(PLACEHOLDER_IMAGE_PREFIX))
+	)
 	// 有轮播图时沿用原标题（空标题），没有时给出「快捷入口」标题，避免出现空卡片头
 	const title = computed(() => (bannerList.value.length ? '' : '快捷入口'))
 	// 外部传来的参数

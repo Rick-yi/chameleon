@@ -25,10 +25,22 @@
 				<a-tab-pane key="order" tab="订单">
 					<a-form layout="inline" style="margin-bottom: 12px">
 						<a-form-item label="学员">
-							<a-input v-model:value="queryForm.searchKey" placeholder="姓名/家长手机/订单号" allow-clear style="width: 220px" @pressEnter="reload" />
+							<a-input
+								v-model:value="queryForm.searchKey"
+								placeholder="姓名/家长手机/订单号"
+								allow-clear
+								style="width: 220px"
+								@pressEnter="reload"
+							/>
 						</a-form-item>
 						<a-form-item label="状态">
-							<a-select v-model:value="queryForm.status" placeholder="全部状态" :options="orderStatusOptions" allow-clear style="width: 140px" />
+							<a-select
+								v-model:value="queryForm.status"
+								placeholder="全部状态"
+								:options="orderStatusOptions"
+								allow-clear
+								style="width: 140px"
+							/>
 						</a-form-item>
 						<a-form-item label="时间">
 							<a-range-picker v-model:value="queryForm.dateRange" show-time value-format="YYYY-MM-DD HH:mm:ss" />
@@ -48,7 +60,12 @@
 						bordered
 						size="middle"
 						:scroll="{ x: 1800 }"
-						:pagination="{ current: orderPage.current, pageSize: orderPage.size, total: orderPage.total, onChange: onOrderPageChange }"
+						:pagination="{
+							current: orderPage.current,
+							pageSize: orderPage.size,
+							total: orderPage.total,
+							onChange: onOrderPageChange
+						}"
 					>
 						<template #bodyCell="{ column, record }">
 							<template v-if="column.dataIndex === 'id'">
@@ -80,9 +97,27 @@
 							<template v-if="column.dataIndex === 'action'">
 								<a-space>
 									<a-button type="link" size="small" @click="openOrderDetail(record)">详情</a-button>
-									<a-button v-if="record.status === 'UNPAID' && hasPerm('/student/order/offlinePay')" type="link" size="small" @click="onOpenPay(record)">收款</a-button>
-									<a-button v-if="record.status === 'UNPAID' && hasPerm('/student/order/cancel')" type="link" size="small" @click="onCancelOrder(record)">取消</a-button>
-									<a-button v-if="record.status === 'PAID' && hasPerm('/student/refund/apply')" type="link" size="small" @click="onOpenRefund(record)">退费</a-button>
+									<a-button
+										v-if="record.status === 'UNPAID' && hasPerm('/student/order/offlinePay')"
+										type="link"
+										size="small"
+										@click="onOpenPay(record)"
+										>收款</a-button
+									>
+									<a-button
+										v-if="record.status === 'UNPAID' && hasPerm('/student/order/cancel')"
+										type="link"
+										size="small"
+										@click="onCancelOrder(record)"
+										>取消</a-button
+									>
+									<a-button
+										v-if="record.status === 'PAID' && hasPerm('/student/refund/apply')"
+										type="link"
+										size="small"
+										@click="onOpenRefund(record)"
+										>退费</a-button
+									>
 								</a-space>
 							</template>
 						</template>
@@ -93,10 +128,22 @@
 				<a-tab-pane key="refund" tab="退费单">
 					<a-form layout="inline" style="margin-bottom: 12px">
 						<a-form-item label="学员">
-							<a-input v-model:value="refundQuery.searchKey" placeholder="姓名或家长手机" allow-clear style="width: 200px" @pressEnter="loadRefund" />
+							<a-input
+								v-model:value="refundQuery.searchKey"
+								placeholder="姓名或家长手机"
+								allow-clear
+								style="width: 200px"
+								@pressEnter="loadRefund"
+							/>
 						</a-form-item>
 						<a-form-item label="状态">
-							<a-select v-model:value="refundQuery.status" placeholder="全部状态" :options="refundStatusOptions" allow-clear style="width: 140px" />
+							<a-select
+								v-model:value="refundQuery.status"
+								placeholder="全部状态"
+								:options="refundStatusOptions"
+								allow-clear
+								style="width: 140px"
+							/>
 						</a-form-item>
 						<a-form-item>
 							<a-space>
@@ -111,29 +158,50 @@
 						:row-key="(r) => r.id"
 						:loading="loading"
 						bordered
-							size="middle"
-							:scroll="{ x: 1180 }"
-							:pagination="{ current: refundPage.current, pageSize: refundPage.size, total: refundPage.total, onChange: onRefundPageChange }"
-						>
-							<template #bodyCell="{ column, record }">
-								<template v-if="column.dataIndex === 'status'">
-									<a-tag :color="refundStatusColor(record.status)">{{ refundStatusText(record.status) }}</a-tag>
-								</template>
-								<template v-if="column.dataIndex === 'refundAmount'">¥{{ record.refundAmount }}</template>
-								<template v-if="column.dataIndex === 'applyRemark'">
-									<span :title="record.applyRemark">{{ record.applyRemark || '-' }}</span>
-								</template>
-								<template v-if="column.dataIndex === 'opinion'">
-									<span :title="record.opinion">{{ record.opinion || '-' }}</span>
-								</template>
-								<template v-if="column.dataIndex === 'studentName'">
-									<a @click="goStudent(record)">{{ record.studentName || record.studentId }}</a>
-								</template>
+						size="middle"
+						:scroll="{ x: 1180 }"
+						:pagination="{
+							current: refundPage.current,
+							pageSize: refundPage.size,
+							total: refundPage.total,
+							onChange: onRefundPageChange
+						}"
+					>
+						<template #bodyCell="{ column, record }">
+							<template v-if="column.dataIndex === 'status'">
+								<a-tag :color="refundStatusColor(record.status)">{{ refundStatusText(record.status) }}</a-tag>
+							</template>
+							<template v-if="column.dataIndex === 'refundAmount'">¥{{ record.refundAmount }}</template>
+							<template v-if="column.dataIndex === 'applyRemark'">
+								<span :title="record.applyRemark">{{ record.applyRemark || '-' }}</span>
+							</template>
+							<template v-if="column.dataIndex === 'opinion'">
+								<span :title="record.opinion">{{ record.opinion || '-' }}</span>
+							</template>
+							<template v-if="column.dataIndex === 'studentName'">
+								<a @click="goStudent(record)">{{ record.studentName || record.studentId }}</a>
+							</template>
 							<template v-if="column.dataIndex === 'action'">
 								<a-space>
-									<a-button v-if="record.status === 'PENDING' && hasPerm('/student/refund/approve')" type="link" size="small" @click="onOpenApprove(record)">审批</a-button>
-									<a-button v-if="record.status === 'TO_REFUND' && hasPerm('/student/refund/confirm')" type="link" size="small" @click="onConfirmRefund(record)">确认退款</a-button>
-									<a-popconfirm v-if="record.status === 'PENDING' || record.status === 'TO_REFUND'" title="确定撤销该退费单吗？" @confirm="onCancelRefund(record)">
+									<a-button
+										v-if="record.status === 'PENDING' && hasPerm('/student/refund/approve')"
+										type="link"
+										size="small"
+										@click="onOpenApprove(record)"
+										>审批</a-button
+									>
+									<a-button
+										v-if="record.status === 'TO_REFUND' && hasPerm('/student/refund/confirm')"
+										type="link"
+										size="small"
+										@click="onConfirmRefund(record)"
+										>确认退款</a-button
+									>
+									<a-popconfirm
+										v-if="record.status === 'PENDING' || record.status === 'TO_REFUND'"
+										title="确定撤销该退费单吗？"
+										@confirm="onCancelRefund(record)"
+									>
 										<a-button type="link" danger size="small">撤销</a-button>
 									</a-popconfirm>
 								</a-space>
@@ -177,23 +245,62 @@
 		@ok="onSubmitRefund"
 	>
 		<a-form ref="refundFormRef" :model="refundFormData" layout="vertical">
-			<a-alert type="warning" show-icon message="退费只退该订单已购买但未消耗的课时，赠课随订单作废" style="margin-bottom: 16px" />
+			<a-alert
+				type="warning"
+				show-icon
+				message="退费只退该订单已购买但未消耗的课时，赠课随订单作废"
+				style="margin-bottom: 16px"
+			/>
 			<a-form-item label="订单">
 				<a-input :value="`${refundFormData.studentName || ''} · ${refundFormData.packageName || ''}`" disabled />
 			</a-form-item>
 			<a-spin :spinning="refundPreviewLoading">
 				<div v-if="refundPreview" class="refund-preview">
-					<div class="refund-preview-row"><span>课包课时</span><b>{{ lessons(refundPreview.packageLessons) }} 正课 + {{ lessons(refundPreview.packageGiftLessons) }} 赠课</b></div>
-					<div class="refund-preview-row"><span>已消耗</span><b>{{ lessons(refundPreview.consumedLessons) }} 课时</b></div>
-					<div class="refund-preview-row"><span>可退正课</span><b>{{ lessons(refundPreview.refundLessons) }} 课时</b></div>
-					<div class="refund-preview-row"><span>赠课作废</span><b>{{ lessons(refundPreview.giftLessons) }} 课时</b></div>
-					<div class="refund-preview-row"><span>实付 / 折算单价</span><b>¥{{ money(refundPreview.paidAmount) }} / ¥{{ money(refundPreview.unitPrice) }}</b></div>
-					<div class="refund-preview-row refund-preview-total"><span>预计退款</span><b>¥{{ money(refundPreview.refundAmount) }}</b></div>
-					<a-alert v-if="refundPreview.inflight" type="error" show-icon message="该订单已有在途退费单，不能重复申请" style="margin-top: 8px" />
-					<a-alert v-else-if="refundPreview.refundable === false" type="error" show-icon message="该订单课时已消耗完毕，无可退课时" style="margin-top: 8px" />
+					<div class="refund-preview-row">
+						<span>课包课时</span
+						><b
+							>{{ lessons(refundPreview.packageLessons) }} 正课 +
+							{{ lessons(refundPreview.packageGiftLessons) }} 赠课</b
+						>
+					</div>
+					<div class="refund-preview-row">
+						<span>已消耗</span><b>{{ lessons(refundPreview.consumedLessons) }} 课时</b>
+					</div>
+					<div class="refund-preview-row">
+						<span>可退正课</span><b>{{ lessons(refundPreview.refundLessons) }} 课时</b>
+					</div>
+					<div class="refund-preview-row">
+						<span>赠课作废</span><b>{{ lessons(refundPreview.giftLessons) }} 课时</b>
+					</div>
+					<div class="refund-preview-row">
+						<span>实付 / 折算单价</span
+						><b>¥{{ money(refundPreview.paidAmount) }} / ¥{{ money(refundPreview.unitPrice) }}</b>
+					</div>
+					<div class="refund-preview-row refund-preview-total">
+						<span>预计退款</span><b>¥{{ money(refundPreview.refundAmount) }}</b>
+					</div>
+					<a-alert
+						v-if="refundPreview.inflight"
+						type="error"
+						show-icon
+						message="该订单已有在途退费单，不能重复申请"
+						style="margin-top: 8px"
+					/>
+					<a-alert
+						v-else-if="refundPreview.refundable === false"
+						type="error"
+						show-icon
+						message="该订单课时已消耗完毕，无可退课时"
+						style="margin-top: 8px"
+					/>
 				</div>
 			</a-spin>
-			<a-form-item label="退费原因" name="remark" :rules="[{ required: true, message: '请输入退费原因' }]" style="margin-top: 12px">
+			<a-form-item
+				label="退费原因"
+				name="remark"
+				:rules="[{ required: true, message: '请输入退费原因' }]"
+				style="margin-top: 12px"
+			>
 				<a-input v-model:value="refundFormData.remark" placeholder="请输入退费原因" allow-clear />
 			</a-form-item>
 		</a-form>
@@ -203,11 +310,23 @@
 	<a-modal v-model:open="approveOpen" title="退费审批" :width="520" :destroy-on-close="true" :footer="null">
 		<a-form ref="approveFormRef" :model="approveFormData" layout="vertical">
 			<div class="refund-approve-summary">
-				<div><span>学员</span><b>{{ approveFormData.studentName || '-' }}</b></div>
-				<div><span>可退</span><b>{{ lessons(approveFormData.refundLessons) }} 课时</b></div>
-				<div><span>预计退款</span><b>¥{{ money(approveFormData.refundAmount) }}</b></div>
+				<div>
+					<span>学员</span><b>{{ approveFormData.studentName || '-' }}</b>
+				</div>
+				<div>
+					<span>可退</span><b>{{ lessons(approveFormData.refundLessons) }} 课时</b>
+				</div>
+				<div>
+					<span>预计退款</span><b>¥{{ money(approveFormData.refundAmount) }}</b>
+				</div>
 			</div>
-			<a-alert v-if="approveFormData.applyRemark" type="info" show-icon :message="`申请原因：${approveFormData.applyRemark}`" style="margin-bottom: 12px" />
+			<a-alert
+				v-if="approveFormData.applyRemark"
+				type="info"
+				show-icon
+				:message="`申请原因：${approveFormData.applyRemark}`"
+				style="margin-bottom: 12px"
+			/>
 			<a-form-item label="审批意见" name="opinion">
 				<a-input v-model:value="approveFormData.opinion" placeholder="请输入审批意见" allow-clear />
 			</a-form-item>
@@ -303,8 +422,9 @@
 		{ scope: 'refund', value: 'REFUNDED', label: '已退费单', color: 'var(--text-color-tertiary)', count: null }
 	])
 
-	const orderStatusText = (s) => ({ UNPAID: '待支付', PAID: '已支付', REFUNDED: '已退费', CANCELED: '已取消' }[s] || s)
-	const orderStatusColor = (s) => (s === 'PAID' ? 'green' : s === 'UNPAID' ? 'orange' : s === 'REFUNDED' ? 'red' : 'default')
+	const orderStatusText = (s) => ({ UNPAID: '待支付', PAID: '已支付', REFUNDED: '已退费', CANCELED: '已取消' })[s] || s
+	const orderStatusColor = (s) =>
+		s === 'PAID' ? 'green' : s === 'UNPAID' ? 'orange' : s === 'REFUNDED' ? 'red' : 'default'
 	// 优惠 = 应收 - 实收，仅已收款订单有意义；待支付订单不能把未收金额误显示为优惠
 	const discountAmount = (record) => {
 		if (record.status !== 'PAID' && record.status !== 'REFUNDED') return 0
@@ -312,7 +432,7 @@
 		return diff > 0 ? diff.toFixed(2) : 0
 	}
 	const refundStatusText = (s) =>
-		({ PENDING: '待审批', TO_REFUND: '待退款', REFUNDED: '已退款', REJECTED: '已驳回', CANCELLED: '已撤销' }[s] || s)
+		({ PENDING: '待审批', TO_REFUND: '待退款', REFUNDED: '已退款', REJECTED: '已驳回', CANCELLED: '已撤销' })[s] || s
 	const refundStatusColor = (s) =>
 		s === 'REFUNDED' ? 'green' : s === 'PENDING' ? 'orange' : s === 'REJECTED' || s === 'CANCELLED' ? 'red' : 'blue'
 
@@ -469,7 +589,12 @@
 		return Number.isInteger(number) ? String(number) : number.toFixed(2)
 	}
 	const onOpenRefund = (record) => {
-		refundFormData.value = { orderId: record.id, studentName: record.studentName, packageName: record.packageName, remark: '' }
+		refundFormData.value = {
+			orderId: record.id,
+			studentName: record.studentName,
+			packageName: record.packageName,
+			remark: ''
+		}
 		refundPreview.value = null
 		refundPreviewLoading.value = true
 		refundOpen.value = true
@@ -481,11 +606,13 @@
 	}
 	const onSubmitRefund = () => {
 		refundFormRef.value.validate().then(() => {
-			studentApi.refundApply({ orderId: refundFormData.value.orderId, remark: refundFormData.value.remark }).then(() => {
-				refundOpen.value = false
-				loadRefund()
-				loadStatusCount()
-			})
+			studentApi
+				.refundApply({ orderId: refundFormData.value.orderId, remark: refundFormData.value.remark })
+				.then(() => {
+					refundOpen.value = false
+					loadRefund()
+					loadStatusCount()
+				})
 		})
 	}
 	const approveOpen = ref(false)

@@ -40,7 +40,7 @@
 				:class="displayLayout ? 'main-content-wrapper' : 'main-content-wrapper main-content-wrapper-max'"
 			>
 				<div id="admin-ui-main" class="admin-ui-main">
-						<a-result
+					<a-result
 						v-if="forbidden"
 						status="403"
 						title="无权访问"

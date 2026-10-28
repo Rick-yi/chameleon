@@ -6,9 +6,7 @@
 			</a-avatar>
 			<div class="m-profile-main">
 				<div class="m-profile-name">{{ userInfo?.name || '未登录' }}</div>
-				<div class="m-profile-sub">
-					{{ userInfo?.account || '' }} · {{ appStore.orgName }}
-				</div>
+				<div class="m-profile-sub">{{ userInfo?.account || '' }} · {{ appStore.orgName }}</div>
 			</div>
 		</div>
 

@@ -18,15 +18,23 @@
 		<!-- 经营指标（随日/月/年切换） -->
 		<a-row :gutter="12" class="wb-kpi">
 			<a-col :xs="12" :sm="8" :md="8" :xl="4">
-				<div class="ent-stat kpi-link" @click="go({ path: '/report/finance', query: { tab: 'payment', range: period.toLowerCase() } })">
+				<div
+					class="ent-stat kpi-link"
+					@click="go({ path: '/report/finance', query: { tab: 'payment', range: period.toLowerCase() } })"
+				>
 					<div class="ent-stat-label">{{ periodScopeLabel }}收款</div>
 					<div class="ent-stat-value">¥{{ fmtMoney(periodSummary.paidAmount) }}</div>
 				</div>
 			</a-col>
 			<a-col :xs="12" :sm="8" :md="8" :xl="4">
-				<div class="ent-stat kpi-link" @click="go({ path: '/report/finance', query: { tab: 'refund', range: period.toLowerCase() } })">
+				<div
+					class="ent-stat kpi-link"
+					@click="go({ path: '/report/finance', query: { tab: 'refund', range: period.toLowerCase() } })"
+				>
 					<div class="ent-stat-label">{{ periodScopeLabel }}退费</div>
-					<div class="ent-stat-value" style="color: var(--danger-text)">¥{{ fmtMoney(periodSummary.refundAmount) }}</div>
+					<div class="ent-stat-value" style="color: var(--danger-text)">
+						¥{{ fmtMoney(periodSummary.refundAmount) }}
+					</div>
 				</div>
 			</a-col>
 			<a-col :xs="12" :sm="8" :md="8" :xl="4">
@@ -117,7 +125,12 @@
 						</template>
 						<div v-if="!unpaid.list.length" class="ent-empty">没有待收款订单</div>
 						<ul v-else class="ent-list">
-							<li v-for="item in unpaid.list" :key="item.id" class="ent-list-item" @click="go({ path: '/student/order', query: { status: 'UNPAID' } })">
+							<li
+								v-for="item in unpaid.list"
+								:key="item.id"
+								class="ent-list-item"
+								@click="go({ path: '/student/order', query: { status: 'UNPAID' } })"
+							>
 								<div>
 									<div class="ent-list-title">{{ item.studentName || '学员' }}</div>
 									<div class="ent-list-sub">{{ item.packageName }}</div>
@@ -126,8 +139,16 @@
 									<span class="ent-list-amount">¥{{ item.amount }}</span>
 									<span class="ent-list-time">{{ formatTime(item.createTime) }}</span>
 									<div class="ent-list-actions">
-										<a-tag v-if="overdueDays(item.createTime) > 0" color="red">逾期 {{ overdueDays(item.createTime) }} 天</a-tag>
-										<a-button v-if="hasPerm('/student/order/offlinePay')" type="link" size="small" @click.stop="openPay(item)">收款</a-button>
+										<a-tag v-if="overdueDays(item.createTime) > 0" color="red"
+											>逾期 {{ overdueDays(item.createTime) }} 天</a-tag
+										>
+										<a-button
+											v-if="hasPerm('/student/order/offlinePay')"
+											type="link"
+											size="small"
+											@click.stop="openPay(item)"
+											>收款</a-button
+										>
 									</div>
 								</div>
 							</li>
@@ -168,7 +189,9 @@
 								</div>
 								<div class="ent-list-extra">
 									<a-tag :color="attendColor(item.attendStatus)">{{ attendText(item.attendStatus) }}</a-tag>
-									<span class="ent-list-time">应到 {{ item.studentCount || 0 }} · 已点 {{ item.attendCount || 0 }}</span>
+									<span class="ent-list-time"
+										>应到 {{ item.studentCount || 0 }} · 已点 {{ item.attendCount || 0 }}</span
+									>
 								</div>
 							</li>
 						</ul>
@@ -189,7 +212,12 @@
 						</template>
 						<div v-if="!pendingRefund.list.length" class="ent-empty">没有待审批退费</div>
 						<ul v-else class="ent-list">
-							<li v-for="item in pendingRefund.list" :key="item.id" class="ent-list-item" @click="go({ path: '/student/order', query: { tab: 'refund', status: 'PENDING' } })">
+							<li
+								v-for="item in pendingRefund.list"
+								:key="item.id"
+								class="ent-list-item"
+								@click="go({ path: '/student/order', query: { tab: 'refund', status: 'PENDING' } })"
+							>
 								<div>
 									<div class="ent-list-title">{{ item.studentName || '学员' }}</div>
 									<div class="ent-list-sub">可退 {{ item.refundLessons }} 课时</div>
@@ -198,8 +226,16 @@
 									<span class="ent-list-amount">¥{{ item.refundAmount }}</span>
 									<span class="ent-list-time">{{ formatTime(item.createTime) }}</span>
 									<div class="ent-list-actions">
-										<a-tag v-if="overdueDays(item.createTime) > 0" color="red">逾期 {{ overdueDays(item.createTime) }} 天</a-tag>
-										<a-button v-if="hasPerm('/student/refund/approve')" type="link" size="small" @click.stop="openApprove(item)">审批</a-button>
+										<a-tag v-if="overdueDays(item.createTime) > 0" color="red"
+											>逾期 {{ overdueDays(item.createTime) }} 天</a-tag
+										>
+										<a-button
+											v-if="hasPerm('/student/refund/approve')"
+											type="link"
+											size="small"
+											@click.stop="openApprove(item)"
+											>审批</a-button
+										>
 									</div>
 								</div>
 							</li>
@@ -221,7 +257,12 @@
 						</template>
 						<div v-if="!leadFollow.list.length" class="ent-empty">没有待跟进线索</div>
 						<ul v-else class="ent-list">
-							<li v-for="item in leadFollow.list" :key="item.id" class="ent-list-item" @click="go({ path: '/crm', query: { todo: '1' } })">
+							<li
+								v-for="item in leadFollow.list"
+								:key="item.id"
+								class="ent-list-item"
+								@click="go({ path: '/crm', query: { todo: '1' } })"
+							>
 								<div>
 									<div class="ent-list-title">{{ item.name }}</div>
 									<div class="ent-list-sub">{{ item.parentPhone }} · 跟进人 {{ item.followUserName || '-' }}</div>
@@ -232,7 +273,9 @@
 											逾期 {{ followOverdueDays(item.nextFollowTime) }} 天
 										</a-tag>
 										<a-tag v-else-if="followOverdueDays(item.nextFollowTime) === 0" color="orange">今日跟进</a-tag>
-										<a-button v-if="hasPerm('/crm/follow/add')" type="link" size="small" @click.stop="openFollow(item)">跟进</a-button>
+										<a-button v-if="hasPerm('/crm/follow/add')" type="link" size="small" @click.stop="openFollow(item)"
+											>跟进</a-button
+										>
 									</div>
 									<span class="ent-list-time">{{ formatTime(item.nextFollowTime) }}</span>
 								</div>
@@ -255,11 +298,17 @@
 						</template>
 						<div v-if="!renewWarn.list.length" class="ent-empty">没有续费预警</div>
 						<ul v-else class="ent-list">
-							<li v-for="item in renewWarn.list" :key="item.id" class="ent-list-item" @click="go({ path: '/student/renewWarn' })">
+							<li
+								v-for="item in renewWarn.list"
+								:key="item.id"
+								class="ent-list-item"
+								@click="go({ path: '/student/renewWarn' })"
+							>
 								<div>
 									<div class="ent-list-title">{{ item.studentName || '学员' }}</div>
 									<div class="ent-list-sub">
-										{{ item.warnReason === 'LESSON_LOW' ? '课时不足' : '课包即将到期' }} · 剩余 {{ item.remainLessons }} 课时
+										{{ item.warnReason === 'LESSON_LOW' ? '课时不足' : '课包即将到期' }} · 剩余
+										{{ item.remainLessons }} 课时
 									</div>
 								</div>
 								<div class="ent-list-extra">
@@ -284,7 +333,12 @@
 						</template>
 						<div v-if="!todayPaidList.length" class="ent-empty">今天还没有收款</div>
 						<ul v-else class="ent-list">
-							<li v-for="item in todayPaidList" :key="item.id" class="ent-list-item" @click="go({ path: '/student/order' })">
+							<li
+								v-for="item in todayPaidList"
+								:key="item.id"
+								class="ent-list-item"
+								@click="go({ path: '/student/order' })"
+							>
 								<div>
 									<div class="ent-list-title">{{ item.studentName || '学员' }}</div>
 									<div class="ent-list-sub">{{ item.packageName }}</div>
@@ -322,11 +376,23 @@
 		<!-- 工作台内直接审批退费，处理完立即刷新待办 -->
 		<a-modal v-model:open="approveOpen" title="退费审批" :width="520" :destroy-on-close="true" :footer="null">
 			<div class="wb-refund-summary">
-				<div><span>学员</span><b>{{ approveForm.studentName || '-' }}</b></div>
-				<div><span>可退课时</span><b>{{ approveForm.refundLessons || 0 }} 课时</b></div>
-				<div><span>预计退款</span><b>¥{{ Number(approveForm.refundAmount || 0).toFixed(2) }}</b></div>
+				<div>
+					<span>学员</span><b>{{ approveForm.studentName || '-' }}</b>
+				</div>
+				<div>
+					<span>可退课时</span><b>{{ approveForm.refundLessons || 0 }} 课时</b>
+				</div>
+				<div>
+					<span>预计退款</span><b>¥{{ Number(approveForm.refundAmount || 0).toFixed(2) }}</b>
+				</div>
 			</div>
-			<a-alert v-if="approveForm.applyRemark" type="info" show-icon :message="`申请原因：${approveForm.applyRemark}`" style="margin-bottom: 12px" />
+			<a-alert
+				v-if="approveForm.applyRemark"
+				type="info"
+				show-icon
+				:message="`申请原因：${approveForm.applyRemark}`"
+				style="margin-bottom: 12px"
+			/>
 			<a-form layout="vertical">
 				<a-form-item label="审批意见">
 					<a-input v-model:value="approveForm.opinion" placeholder="请输入审批意见" allow-clear />
@@ -339,19 +405,39 @@
 		</a-modal>
 
 		<!-- 工作台内直接写跟进，保存后刷新待办 -->
-		<a-modal v-model:open="followOpen" :title="`跟进 · ${followForm.name || ''}`" :width="520" :destroy-on-close="true" @ok="onSubmitFollow">
+		<a-modal
+			v-model:open="followOpen"
+			:title="`跟进 · ${followForm.name || ''}`"
+			:width="520"
+			:destroy-on-close="true"
+			@ok="onSubmitFollow"
+		>
 			<a-form ref="followFormRef" :model="followForm" layout="vertical">
 				<a-form-item label="跟进方式">
 					<a-select v-model:value="followForm.followType" :options="followTypeOptions" />
 				</a-form-item>
 				<a-form-item label="跟进内容" name="content" :rules="[{ required: true, message: '请输入跟进内容' }]">
-					<a-textarea v-model:value="followForm.content" :auto-size="{ minRows: 3, maxRows: 5 }" placeholder="沟通内容、家长反馈、下一步计划" />
+					<a-textarea
+						v-model:value="followForm.content"
+						:auto-size="{ minRows: 3, maxRows: 5 }"
+						placeholder="沟通内容、家长反馈、下一步计划"
+					/>
 				</a-form-item>
 				<a-form-item label="下次跟进时间">
-					<a-date-picker v-model:value="followForm.nextFollowTime" show-time value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" />
+					<a-date-picker
+						v-model:value="followForm.nextFollowTime"
+						show-time
+						value-format="YYYY-MM-DD HH:mm:ss"
+						style="width: 100%"
+					/>
 				</a-form-item>
 				<a-form-item label="更新线索状态">
-					<a-select v-model:value="followForm.status" placeholder="默认置为已跟进" :options="leadStatusOptions" allow-clear />
+					<a-select
+						v-model:value="followForm.status"
+						placeholder="默认置为已跟进"
+						:options="leadStatusOptions"
+						allow-clear
+					/>
 				</a-form-item>
 			</a-form>
 		</a-modal>
@@ -426,7 +512,14 @@
 		{ value: 'LOST', label: '已流失' }
 	]
 	const shortcuts = [
-		{ key: 'quickEnroll', text: '录入学员', icon: UserAddOutlined, color: '#fff1e6', action: 'quickEnroll', perm: '/student/add' },
+		{
+			key: 'quickEnroll',
+			text: '录入学员',
+			icon: UserAddOutlined,
+			color: '#fff1e6',
+			action: 'quickEnroll',
+			perm: '/student/add'
+		},
 		{ key: 'order', text: '报名购课', icon: ShoppingCartOutlined, path: '/student', color: '#eaf2fd' },
 		{ key: 'pay', text: '收款台', icon: WalletOutlined, path: '/student/order', color: '#e8f7f0' },
 		{ key: 'schedule', text: '排课表', icon: CalendarOutlined, path: '/course/schedule', color: '#f3edfd' },
@@ -471,8 +564,8 @@
 		const num = Number(value || 0)
 		return num.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 	}
-	const attendText = (status) => ({ NONE: '待点名', PARTIAL: '部分点名', DONE: '已点名' }[status] || '待点名')
-	const attendColor = (status) => ({ NONE: 'orange', PARTIAL: 'gold', DONE: 'green' }[status] || 'default')
+	const attendText = (status) => ({ NONE: '待点名', PARTIAL: '部分点名', DONE: '已点名' })[status] || '待点名'
+	const attendColor = (status) => ({ NONE: 'orange', PARTIAL: 'gold', DONE: 'green' })[status] || 'default'
 
 	// 今日教学汇总：应到/已点名/未点名课节/点名进度
 	const teaching = computed(() => {
@@ -630,7 +723,9 @@
 				renewWarn.value = { total: warn.total || 0, list: warn.records || [] }
 				leadFollow.value = { total: lead.total || 0, list: lead.records || [] }
 				todaySchedule.value = schedule || []
-				todayPaidList.value = (paid.records || []).filter((item) => item.payTime && String(item.payTime).slice(0, 10) === todayStr)
+				todayPaidList.value = (paid.records || []).filter(
+					(item) => item.payTime && String(item.payTime).slice(0, 10) === todayStr
+				)
 				const paidFromList = todayPaidList.value.reduce((sum, item) => sum + Number(item.paidAmount || 0), 0)
 				// 今日收款以报表日汇总为准，避免只统计到前几条订单；取不到时退回列表合计
 				todayPaid.value = Number(todayDashboard?.summary?.paidAmount ?? paidFromList)

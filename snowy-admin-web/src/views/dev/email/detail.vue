@@ -3,7 +3,9 @@
 		<a-descriptions :column="1" size="middle" bordered class="mb-2">
 			<a-descriptions-item label="邮件主题">{{ formData.subject }}</a-descriptions-item>
 			<a-descriptions-item label="邮件引擎">
-				<a-tag :color="$TOOL.dictTypeColor('FILE_ENGINE', formData.engine)">{{ $TOOL.dictTypeData('FILE_ENGINE', formData.engine) }}</a-tag>
+				<a-tag :color="$TOOL.dictTypeColor('FILE_ENGINE', formData.engine)">{{
+					$TOOL.dictTypeData('FILE_ENGINE', formData.engine)
+				}}</a-tag>
 			</a-descriptions-item>
 			<a-descriptions-item label="发送账户">{{ formData.sendAccount }}</a-descriptions-item>
 			<a-descriptions-item label="发送时间">{{ formData.createTime }}</a-descriptions-item>

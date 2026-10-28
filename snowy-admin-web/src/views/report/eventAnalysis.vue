@@ -9,9 +9,7 @@
 					<div class="funnel-item">
 						<div class="funnel-name">{{ node.name }}</div>
 						<div class="funnel-count">{{ node.count }}</div>
-						<div v-if="node.rate !== null && node.rate !== undefined" class="funnel-rate">
-							转化 {{ node.rate }}%
-						</div>
+						<div v-if="node.rate !== null && node.rate !== undefined" class="funnel-rate">转化 {{ node.rate }}%</div>
 						<div v-else class="funnel-rate">起点</div>
 						<div class="funnel-bar">
 							<span :style="{ width: funnelWidth(index) }"></span>
@@ -55,7 +53,14 @@
 		<a-card :bordered="false" title="埋点流水">
 			<template #extra>
 				<a-space>
-					<a-select v-model:value="queryForm.eventCode" placeholder="全部事件" :options="codeOptions" allow-clear style="width: 180px" @change="loadStream" />
+					<a-select
+						v-model:value="queryForm.eventCode"
+						placeholder="全部事件"
+						:options="codeOptions"
+						allow-clear
+						style="width: 180px"
+						@change="loadStream"
+					/>
 					<a-button @click="loadStream">
 						<template #icon><reload-outlined /></template>
 						刷新
@@ -78,7 +83,7 @@
 						{{ (record.eventTime || '').slice(0, 19).replace('T', ' ') }}
 					</template>
 					<template v-if="column.dataIndex === 'props'">
-						<span style="font-size: 12px; color: rgba(0,0,0,.55)">{{ record.props || '-' }}</span>
+						<span style="font-size: 12px; color: rgba(0, 0, 0, 0.55)">{{ record.props || '-' }}</span>
 					</template>
 				</template>
 			</a-table>
@@ -113,7 +118,16 @@
 	]
 
 	// 关键事件（趋势图只画这几条，避免噪声）
-	const TREND_EVENTS = ['LEAD_CREATE', 'LEAD_FOLLOW', 'LEAD_CONVERT', 'ORDER_CREATE', 'ORDER_PAY', 'ATTEND_CONFIRM', 'CLASS_ENROLL', 'SCHEDULE_GENERATE']
+	const TREND_EVENTS = [
+		'LEAD_CREATE',
+		'LEAD_FOLLOW',
+		'LEAD_CONVERT',
+		'ORDER_CREATE',
+		'ORDER_PAY',
+		'ATTEND_CONFIRM',
+		'CLASS_ENROLL',
+		'SCHEDULE_GENERATE'
+	]
 
 	const loadSummary = () => {
 		eventApi

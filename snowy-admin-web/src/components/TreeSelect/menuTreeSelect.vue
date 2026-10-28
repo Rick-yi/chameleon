@@ -1,6 +1,6 @@
 <template>
 	<a-tree-select
-		v-model:value="defaultSelectKeys"
+		v-model:value="selectedKeys"
 		show-search
 		class="xn-wd"
 		:dropdown-style="{ maxHeight: '400px', overflow: 'auto' }"
@@ -17,7 +17,7 @@
 <script setup name="menuTreeSelect">
 	import tool from '@/utils/tool'
 	import { onMounted } from 'vue'
-	const defaultSelectKeys = ref([])
+	const selectedKeys = ref([])
 	const menu = ref([])
 
 	const props = defineProps({
@@ -42,11 +42,11 @@
 	onMounted(() => {
 		// 设置选中项目，调用的地方可传纯id数组，或者是对象型数组
 		if (!props.defaultSelectKeys) {
-			defaultSelectKeys.value = props.defaultSelectData.map((m) => {
+			selectedKeys.value = props.defaultSelectData.map((m) => {
 				return m.id
 			})
 		} else {
-			defaultSelectKeys.value = props.defaultSelectKeys
+			selectedKeys.value = props.defaultSelectKeys
 		}
 		menu.value = traverseChildren(tool.data.get('MENU'))
 	})
@@ -96,13 +96,13 @@
 	// 获取选择的数据
 	const getSelectData = () => {
 		if (props.resultData) {
-			return traverseResultDataList(menu.value, defaultSelectKeys.value)
+			return traverseResultDataList(menu.value, selectedKeys.value)
 		}
-		return defaultSelectKeys.value
+		return selectedKeys.value
 	}
 	// 设置回显的数据
 	const setSelectData = (data) => {
-		defaultSelectKeys.value = data.map((m) => {
+		selectedKeys.value = data.map((m) => {
 			return m.id
 		})
 	}

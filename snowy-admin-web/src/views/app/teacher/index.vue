@@ -42,8 +42,12 @@
 					<span>{{ campusName(item) }}</span>
 				</div>
 				<div class="m-teacher-grid">
-					<div><span>带班</span><b>{{ item.classCount || 0 }} 个</b></div>
-					<div><span>学员</span><b>{{ item.studentCount || 0 }} 人</b></div>
+					<div>
+						<span>带班</span><b>{{ item.classCount || 0 }} 个</b>
+					</div>
+					<div>
+						<span>学员</span><b>{{ item.studentCount || 0 }} 人</b>
+					</div>
 				</div>
 				<div v-if="canManage" class="m-teacher-actions">
 					<a-button size="small" @click="onOpenEdit(item)">编辑</a-button>
@@ -52,7 +56,13 @@
 				</div>
 			</div>
 			<div v-if="page.total > page.size" class="m-teacher-pager">
-				<a-pagination simple :current="page.current" :page-size="page.size" :total="page.total" @change="onPageChange" />
+				<a-pagination
+					simple
+					:current="page.current"
+					:page-size="page.size"
+					:total="page.total"
+					@change="onPageChange"
+				/>
 			</div>
 		</a-spin>
 
@@ -68,13 +78,24 @@
 					<a-input v-model:value="formData.name" placeholder="如：王老师" allow-clear />
 				</a-form-item>
 				<a-form-item label="账号" name="account" :rules="[{ required: true, message: '请输入登录账号' }]">
-					<a-input v-model:value="formData.account" placeholder="用于登录 APP/后台" :disabled="!!formData.id" allow-clear />
+					<a-input
+						v-model:value="formData.account"
+						placeholder="用于登录 APP/后台"
+						:disabled="!!formData.id"
+						allow-clear
+					/>
 				</a-form-item>
 				<a-form-item label="手机号" name="phone">
 					<a-input v-model:value="formData.phone" placeholder="选填" allow-clear />
 				</a-form-item>
 				<a-form-item label="所属校区" name="orgId" :rules="[{ required: true, message: '请选择校区' }]">
-					<a-select v-model:value="formData.orgId" :options="campusOptions" placeholder="请选择校区" show-search option-filter-prop="label" />
+					<a-select
+						v-model:value="formData.orgId"
+						:options="campusOptions"
+						placeholder="请选择校区"
+						show-search
+						option-filter-prop="label"
+					/>
 				</a-form-item>
 				<a-form-item v-if="!formData.id" label="初始密码" name="password">
 					<a-input-password v-model:value="formData.password" placeholder="留空则使用系统默认密码" />

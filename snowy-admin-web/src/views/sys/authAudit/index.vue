@@ -5,13 +5,31 @@
 		<div class="ent-toolbar">
 			<a-form layout="inline" :model="searchFormState">
 				<a-form-item label="动作">
-					<a-select v-model:value="searchFormState.action" placeholder="全部动作" :options="actionOptions" allow-clear style="width: 160px" />
+					<a-select
+						v-model:value="searchFormState.action"
+						placeholder="全部动作"
+						:options="actionOptions"
+						allow-clear
+						style="width: 160px"
+					/>
 				</a-form-item>
 				<a-form-item label="对象">
-					<a-select v-model:value="searchFormState.targetType" placeholder="全部对象" :options="targetOptions" allow-clear style="width: 140px" />
+					<a-select
+						v-model:value="searchFormState.targetType"
+						placeholder="全部对象"
+						:options="targetOptions"
+						allow-clear
+						style="width: 140px"
+					/>
 				</a-form-item>
 				<a-form-item label="关键词">
-					<a-input v-model:value="searchFormState.searchKey" placeholder="角色/用户/操作人" allow-clear style="width: 180px" @pressEnter="tableRef.refresh(true)" />
+					<a-input
+						v-model:value="searchFormState.searchKey"
+						placeholder="角色/用户/操作人"
+						allow-clear
+						style="width: 180px"
+						@pressEnter="tableRef.refresh(true)"
+					/>
 				</a-form-item>
 				<a-form-item>
 					<a-space>
@@ -29,7 +47,13 @@
 		</div>
 
 		<div class="ent-body">
-			<s-table ref="tableRef" :columns="columns" :data="loadData" :scroll="{ x: 'max-content' }" :row-key="(record) => record.id">
+			<s-table
+				ref="tableRef"
+				:columns="columns"
+				:data="loadData"
+				:scroll="{ x: 'max-content' }"
+				:row-key="(record) => record.id"
+			>
 				<template #bodyCell="{ column, record }">
 					<template v-if="column.dataIndex === 'action'">
 						<a-tag :color="actionColor(record.action)">{{ actionText(record.action) }}</a-tag>
@@ -74,8 +98,8 @@
 	]
 
 	const actionText = (v) =>
-		({ ROLE_RESOURCE: '角色菜单授权', ROLE_PERMISSION: '角色接口授权', USER_ROLE: '用户分配角色' }[v] || v)
-	const actionColor = (v) => ({ ROLE_RESOURCE: 'blue', ROLE_PERMISSION: 'purple', USER_ROLE: 'orange' }[v] || 'default')
+		({ ROLE_RESOURCE: '角色菜单授权', ROLE_PERMISSION: '角色接口授权', USER_ROLE: '用户分配角色' })[v] || v
+	const actionColor = (v) => ({ ROLE_RESOURCE: 'blue', ROLE_PERMISSION: 'purple', USER_ROLE: 'orange' })[v] || 'default'
 
 	const columns = [
 		{ title: '时间', dataIndex: 'createTime', width: 170 },

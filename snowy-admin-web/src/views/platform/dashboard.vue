@@ -30,43 +30,87 @@
 					<a-card :bordered="false"><a-statistic title="租户总数" :value="overview.tenantTotal" suffix="家" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="本月新增" :value="overview.newTenantCount" suffix="家" /></a-card>
+					<a-card :bordered="false"
+						><a-statistic title="本月新增" :value="overview.newTenantCount" suffix="家"
+					/></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="活跃租户(30天登录)" :value="overview.activeTenantCount" suffix="家" :value-style="{ color: '#52c41a' }" /></a-card>
+					<a-card :bordered="false"
+						><a-statistic
+							title="活跃租户(30天登录)"
+							:value="overview.activeTenantCount"
+							suffix="家"
+							:value-style="{ color: '#52c41a' }"
+					/></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="订单活跃租户" :value="overview.orderActiveTenantCount" suffix="家" /></a-card>
+					<a-card :bordered="false"
+						><a-statistic title="订单活跃租户" :value="overview.orderActiveTenantCount" suffix="家"
+					/></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="30 天内到期" :value="overview.expiringTenantCount" suffix="家" :value-style="{ color: '#faad14' }" /></a-card>
+					<a-card :bordered="false"
+						><a-statistic
+							title="30 天内到期"
+							:value="overview.expiringTenantCount"
+							suffix="家"
+							:value-style="{ color: '#faad14' }"
+					/></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
 					<a-card :bordered="false"><a-statistic title="学员总数" :value="overview.studentTotal" suffix="人" /></a-card>
 				</a-col>
 				<a-col :xs="24" :sm="12" :md="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="预估 ARR" :value="overview.estimatedArr" :precision="2" prefix="¥" /></a-card>
+					<a-card :bordered="false"
+						><a-statistic title="预估 ARR" :value="overview.estimatedArr" :precision="2" prefix="¥"
+					/></a-card>
 				</a-col>
 			</a-row>
 
 			<a-row :gutter="16" style="margin-top: 16px">
 				<a-col :xs="12" :sm="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="MRR" :value="metrics.mrr || 0" prefix="¥" :precision="2" /></a-card>
+					<a-card :bordered="false"
+						><a-statistic title="MRR" :value="metrics.mrr || 0" prefix="¥" :precision="2"
+					/></a-card>
 				</a-col>
 				<a-col :xs="12" :sm="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="ARR" :value="metrics.arr || 0" prefix="¥" :precision="2" /></a-card>
+					<a-card :bordered="false"
+						><a-statistic title="ARR" :value="metrics.arr || 0" prefix="¥" :precision="2"
+					/></a-card>
 				</a-col>
 				<a-col :xs="12" :sm="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="续费率" :value="metrics.renewalRate || 0" suffix="%" :precision="1" :value-style="{ color: '#2ba471' }" /></a-card>
+					<a-card :bordered="false"
+						><a-statistic
+							title="续费率"
+							:value="metrics.renewalRate || 0"
+							suffix="%"
+							:precision="1"
+							:value-style="{ color: '#2ba471' }"
+					/></a-card>
 				</a-col>
 				<a-col :xs="12" :sm="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="流失率" :value="metrics.churnRate || 0" suffix="%" :precision="1" :value-style="{ color: '#e5484d' }" /></a-card>
+					<a-card :bordered="false"
+						><a-statistic
+							title="流失率"
+							:value="metrics.churnRate || 0"
+							suffix="%"
+							:precision="1"
+							:value-style="{ color: '#e5484d' }"
+					/></a-card>
 				</a-col>
 				<a-col :xs="12" :sm="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="试用转化率" :value="metrics.trialConversionRate || 0" suffix="%" :precision="1" /></a-card>
+					<a-card :bordered="false"
+						><a-statistic title="试用转化率" :value="metrics.trialConversionRate || 0" suffix="%" :precision="1"
+					/></a-card>
 				</a-col>
 				<a-col :xs="12" :sm="8" :xl="4">
-					<a-card :bordered="false"><a-statistic title="30 天内到期" :value="metrics.expiring30Count || 0" suffix="家" :value-style="{ color: '#faad14' }" /></a-card>
+					<a-card :bordered="false"
+						><a-statistic
+							title="30 天内到期"
+							:value="metrics.expiring30Count || 0"
+							suffix="家"
+							:value-style="{ color: '#faad14' }"
+					/></a-card>
 				</a-col>
 			</a-row>
 
@@ -287,13 +331,18 @@
 		{ title: '机构名称', dataIndex: 'tenantName' },
 		{ title: '套餐', dataIndex: 'packageName', width: 130 },
 		{ title: '健康度', dataIndex: 'score', width: 90 },
-		{ title: '到期剩余', dataIndex: 'daysLeft', width: 100, customRender: ({ text }) => (Number(text) < 0 ? `已过期 ${Math.abs(text)} 天` : `${text ?? 0} 天`) },
+		{
+			title: '到期剩余',
+			dataIndex: 'daysLeft',
+			width: 100,
+			customRender: ({ text }) => (Number(text) < 0 ? `已过期 ${Math.abs(text)} 天` : `${text ?? 0} 天`)
+		},
 		{ title: '近30天登录', dataIndex: 'loginCount30d', width: 110 },
 		{ title: '近30天课消', dataIndex: 'consumeCount30d', width: 110 },
 		{ title: '流失风险', dataIndex: 'churnWarning', width: 100 },
 		{ title: '扣分原因', dataIndex: 'reasons' }
 	]
-	const healthColor = (level) => ({ HEALTHY: 'green', WARNING: 'orange', RISK: 'red' }[level] || 'default')
+	const healthColor = (level) => ({ HEALTHY: 'green', WARNING: 'orange', RISK: 'red' })[level] || 'default'
 
 	onMounted(loadAll)
 </script>

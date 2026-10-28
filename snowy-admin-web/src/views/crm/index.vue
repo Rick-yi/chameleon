@@ -69,13 +69,30 @@
 				</div>
 				<a-form layout="inline" :model="searchFormState">
 					<a-form-item label="姓名/手机">
-						<a-input v-model:value="searchFormState.searchKey" placeholder="请输入姓名或家长手机" allow-clear style="width: 220px" />
+						<a-input
+							v-model:value="searchFormState.searchKey"
+							placeholder="请输入姓名或家长手机"
+							allow-clear
+							style="width: 220px"
+						/>
 					</a-form-item>
 					<a-form-item label="状态">
-						<a-select v-model:value="searchFormState.status" placeholder="全部状态" :options="statusOptions" allow-clear style="width: 140px" />
+						<a-select
+							v-model:value="searchFormState.status"
+							placeholder="全部状态"
+							:options="statusOptions"
+							allow-clear
+							style="width: 140px"
+						/>
 					</a-form-item>
 					<a-form-item label="来源">
-						<a-select v-model:value="searchFormState.source" placeholder="全部来源" :options="sourceOptions" allow-clear style="width: 140px" />
+						<a-select
+							v-model:value="searchFormState.source"
+							placeholder="全部来源"
+							:options="sourceOptions"
+							allow-clear
+							style="width: 140px"
+						/>
 					</a-form-item>
 					<a-form-item>
 						<a-space>
@@ -95,7 +112,13 @@
 			<template v-else>
 				<a-form layout="inline" :model="trialSearchFormState">
 					<a-form-item label="试听状态">
-						<a-select v-model:value="trialSearchFormState.status" placeholder="全部状态" :options="trialStatusOptions" allow-clear style="width: 140px" />
+						<a-select
+							v-model:value="trialSearchFormState.status"
+							placeholder="全部状态"
+							:options="trialStatusOptions"
+							allow-clear
+							style="width: 140px"
+						/>
 					</a-form-item>
 					<a-form-item>
 						<a-space>
@@ -180,7 +203,11 @@
 					<template v-if="column.dataIndex === 'action'">
 						<a-space>
 							<a @click="onOpenTrialResult(record)">{{ record.status === 'PENDING' ? '记录结果' : '修改结果' }}</a>
-							<a-popconfirm v-if="record.status === 'PENDING'" title="确定取消该试听预约吗？" @confirm="onCancelTrial(record)">
+							<a-popconfirm
+								v-if="record.status === 'PENDING'"
+								title="确定取消该试听预约吗？"
+								@confirm="onCancelTrial(record)"
+							>
 								<a>取消</a>
 							</a-popconfirm>
 							<a v-if="record.leadStatus !== 'ENROLLED'" @click="onOpenConvertFromTrial(record)">转学员</a>
@@ -192,7 +219,13 @@
 	</div>
 
 	<!-- 线索表单 -->
-	<a-modal v-model:open="open" :title="formData.id ? '编辑线索' : '新增线索'" :width="600" :destroy-on-close="true" @ok="onSubmit">
+	<a-modal
+		v-model:open="open"
+		:title="formData.id ? '编辑线索' : '新增线索'"
+		:width="600"
+		:destroy-on-close="true"
+		@ok="onSubmit"
+	>
 		<a-form ref="formRef" :model="formData" layout="vertical">
 			<a-row :gutter="16">
 				<a-col :span="12">
@@ -202,12 +235,22 @@
 				</a-col>
 				<a-col :span="12">
 					<a-form-item label="家长手机（选填）" name="parentPhone">
-						<a-input v-model:value="formData.parentPhone" placeholder="用于查重，可留空" allow-clear @blur="checkDuplicatePhone" />
+						<a-input
+							v-model:value="formData.parentPhone"
+							placeholder="用于查重，可留空"
+							allow-clear
+							@blur="checkDuplicatePhone"
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
 					<a-form-item label="意向课程" name="intentCourseId">
-						<a-select v-model:value="formData.intentCourseId" placeholder="请选择意向课程" :options="courseOptions" allow-clear />
+						<a-select
+							v-model:value="formData.intentCourseId"
+							placeholder="请选择意向课程"
+							:options="courseOptions"
+							allow-clear
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
@@ -236,7 +279,9 @@
 				<template #action>
 					<a-space direction="vertical">
 						<a-button v-if="!formData.id" size="small" @click="duplicateDismissed = true">继续新建</a-button>
-						<a-button size="small" type="primary" @click="onViewDuplicate(duplicateLeads[0].parentPhone)">查看已有线索</a-button>
+						<a-button size="small" type="primary" @click="onViewDuplicate(duplicateLeads[0].parentPhone)"
+							>查看已有线索</a-button
+						>
 					</a-space>
 				</template>
 			</a-alert>
@@ -244,7 +289,13 @@
 	</a-modal>
 
 	<!-- 跟进 -->
-	<a-modal v-model:open="followOpen" :title="`跟进记录 · ${currentLead.name || ''}`" :width="820" :destroy-on-close="true" :footer="null">
+	<a-modal
+		v-model:open="followOpen"
+		:title="`跟进记录 · ${currentLead.name || ''}`"
+		:width="820"
+		:destroy-on-close="true"
+		:footer="null"
+	>
 		<div class="crm-follow-filter">
 			<a-radio-group v-model:value="followFilterType" size="small" button-style="solid" @change="onFollowFilterChange">
 				<a-radio-button value="">全部</a-radio-button>
@@ -280,17 +331,31 @@
 				</a-col>
 				<a-col :span="12">
 					<a-form-item label="下次跟进时间" name="nextFollowTime">
-						<a-date-picker v-model:value="followFormData.nextFollowTime" show-time value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" />
+						<a-date-picker
+							v-model:value="followFormData.nextFollowTime"
+							show-time
+							value-format="YYYY-MM-DD HH:mm:ss"
+							style="width: 100%"
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :span="24">
 					<a-form-item label="跟进内容" name="content" :rules="[{ required: true, message: '请输入跟进内容' }]">
-						<a-textarea v-model:value="followFormData.content" :auto-size="{ minRows: 2, maxRows: 4 }" placeholder="沟通内容、家长反馈、下一步计划" />
+						<a-textarea
+							v-model:value="followFormData.content"
+							:auto-size="{ minRows: 2, maxRows: 4 }"
+							placeholder="沟通内容、家长反馈、下一步计划"
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
 					<a-form-item label="更新线索状态" name="status">
-						<a-select v-model:value="followFormData.status" placeholder="默认置为已跟进" :options="statusOptions" allow-clear />
+						<a-select
+							v-model:value="followFormData.status"
+							placeholder="默认置为已跟进"
+							:options="statusOptions"
+							allow-clear
+						/>
 					</a-form-item>
 				</a-col>
 			</a-row>
@@ -301,13 +366,29 @@
 	</a-modal>
 
 	<!-- 试听预约 -->
-	<a-modal v-model:open="trialOpen" :title="`预约试听 · ${currentLead.name || ''}`" :width="480" :destroy-on-close="true" @ok="onSubmitTrial">
+	<a-modal
+		v-model:open="trialOpen"
+		:title="`预约试听 · ${currentLead.name || ''}`"
+		:width="480"
+		:destroy-on-close="true"
+		@ok="onSubmitTrial"
+	>
 		<a-form ref="trialFormRef" :model="trialFormData" layout="vertical">
 			<a-form-item label="试听课程" name="courseId">
-				<a-select v-model:value="trialFormData.courseId" placeholder="请选择试听课程" :options="courseOptions" allow-clear />
+				<a-select
+					v-model:value="trialFormData.courseId"
+					placeholder="请选择试听课程"
+					:options="courseOptions"
+					allow-clear
+				/>
 			</a-form-item>
 			<a-form-item label="试听时间" name="trialTime" :rules="[{ required: true, message: '请选择试听时间' }]">
-				<a-date-picker v-model:value="trialFormData.trialTime" show-time value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" />
+				<a-date-picker
+					v-model:value="trialFormData.trialTime"
+					show-time
+					value-format="YYYY-MM-DD HH:mm:ss"
+					style="width: 100%"
+				/>
 			</a-form-item>
 			<a-form-item label="备注" name="remark">
 				<a-input v-model:value="trialFormData.remark" placeholder="请输入备注" allow-clear />
@@ -316,7 +397,13 @@
 	</a-modal>
 
 	<!-- 试听结果 -->
-	<a-modal v-model:open="trialResultOpen" :title="`试听结果 · ${trialResultLeadName || ''}`" :width="480" :destroy-on-close="true" @ok="onSubmitTrialResult">
+	<a-modal
+		v-model:open="trialResultOpen"
+		:title="`试听结果 · ${trialResultLeadName || ''}`"
+		:width="480"
+		:destroy-on-close="true"
+		@ok="onSubmitTrialResult"
+	>
 		<a-form ref="trialResultFormRef" :model="trialResultFormData" layout="vertical">
 			<a-form-item label="试听状态">
 				<a-select v-model:value="trialResultFormData.status" :options="trialStatusOptions" />
@@ -331,7 +418,13 @@
 	</a-modal>
 
 	<!-- 转学员 -->
-	<a-modal v-model:open="convertOpen" :title="`转学员 · ${currentLead.name || ''}`" :width="480" :destroy-on-close="true" @ok="onSubmitConvert">
+	<a-modal
+		v-model:open="convertOpen"
+		:title="`转学员 · ${currentLead.name || ''}`"
+		:width="480"
+		:destroy-on-close="true"
+		@ok="onSubmitConvert"
+	>
 		<a-form ref="convertFormRef" :model="convertFormData" layout="vertical">
 			<a-form-item label="学员姓名" name="name" :rules="[{ required: true, message: '请输入姓名' }]">
 				<a-input v-model:value="convertFormData.name" />
@@ -352,7 +445,7 @@
 					option-filter-prop="label"
 				/>
 			</a-form-item>
-			<div style="color: rgba(0,0,0,.45); font-size: 12px">
+			<div style="color: rgba(0, 0, 0, 0.45); font-size: 12px">
 				转入后自动创建学员档案并将线索置为「已报名」；选了课包会直接开单并弹出收款登记
 			</div>
 		</a-form>
@@ -557,14 +650,15 @@
 	}
 	const fmtDateTime = (value) => (value ? String(value).slice(0, 16).replace('T', ' ') : '-')
 	const statusText = (s) => (statusOptions.find((i) => i.value === s) || {}).label || s
-	const statusColor = (s) => ({ NEW: 'blue', FOLLOWED: 'cyan', TRIALED: 'orange', ENROLLED: 'green', LOST: 'red' }[s] || 'default')
+	const statusColor = (s) =>
+		({ NEW: 'blue', FOLLOWED: 'cyan', TRIALED: 'orange', ENROLLED: 'green', LOST: 'red' })[s] || 'default'
 	const sourceText = crmSourceText
 	const sourceColor = crmSourceColor
 	const followTypeText = (t) => (followTypeOptions.find((i) => i.value === t) || {}).label || t
 	const trialStatusText = (s) => (trialStatusOptions.find((i) => i.value === s) || {}).label || s || '-'
-	const trialStatusColor = (s) => ({ PENDING: 'blue', DONE: 'green', CANCELED: 'default' }[s] || 'default')
+	const trialStatusColor = (s) => ({ PENDING: 'blue', DONE: 'green', CANCELED: 'default' })[s] || 'default'
 	const trialResultText = (r) => (trialResultOptions.find((i) => i.value === r) || {}).label || r || '-'
-	const trialResultColor = (r) => ({ PENDING: 'default', INTERESTED: 'green', NOT_INTERESTED: 'red' }[r] || 'default')
+	const trialResultColor = (r) => ({ PENDING: 'default', INTERESTED: 'green', NOT_INTERESTED: 'red' })[r] || 'default'
 	// 下次跟进已过期：标红提示今天必须跟进
 	const overdueStyle = (nextFollowTime) => {
 		if (!nextFollowTime) return {}
@@ -645,7 +739,13 @@
 		{ key: 'trial', label: '安排试听' },
 		{ key: 'convert', label: '转为学员' },
 		{ key: 'edit', label: '编辑' },
-		{ key: 'delete', label: '删除', danger: true, confirmTitle: '确定删除该线索吗？', confirmContent: '删除后线索及其跟进记录将不再展示。' }
+		{
+			key: 'delete',
+			label: '删除',
+			danger: true,
+			confirmTitle: '确定删除该线索吗？',
+			confirmContent: '删除后线索及其跟进记录将不再展示。'
+		}
 	]
 	const onLeadMore = (action, record) => {
 		if (action.key === 'trial') {

@@ -144,9 +144,9 @@
 	]
 
 	const refundText = (s) =>
-		({ PENDING: '待审批', TO_REFUND: '待退款', REFUNDED: '已退款', REJECTED: '已驳回', CANCELLED: '已撤销' }[s] || s)
+		({ PENDING: '待审批', TO_REFUND: '待退款', REFUNDED: '已退款', REJECTED: '已驳回', CANCELLED: '已撤销' })[s] || s
 	const refundColor = (s) =>
-		({ PENDING: 'orange', TO_REFUND: 'blue', REFUNDED: 'green', REJECTED: 'red', CANCELLED: 'default' }[s] || 'default')
+		({ PENDING: 'orange', TO_REFUND: 'blue', REFUNDED: 'green', REJECTED: 'red', CANCELLED: 'default' })[s] || 'default'
 	const orderAmount = (item) => Number((item.status === 'PAID' ? item.paidAmount : item.amount) || 0)
 	const shortTime = (value) => (value ? String(value).slice(5, 16) : '')
 

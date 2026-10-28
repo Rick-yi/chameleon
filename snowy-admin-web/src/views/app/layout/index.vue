@@ -23,13 +23,7 @@
 		</main>
 
 		<nav class="m-tabbar">
-			<div
-				v-for="tab in tabs"
-				:key="tab.path"
-				class="m-tab"
-				:class="{ active: isActive(tab) }"
-				@click="go(tab.path)"
-			>
+			<div v-for="tab in tabs" :key="tab.path" class="m-tab" :class="{ active: isActive(tab) }" @click="go(tab.path)">
 				<component :is="tab.icon" class="m-tab-icon" />
 				<span>{{ tab.text }}</span>
 			</div>

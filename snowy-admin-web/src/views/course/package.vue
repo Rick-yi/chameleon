@@ -11,10 +11,21 @@
 		<div class="ent-toolbar">
 			<a-form layout="inline" :model="searchFormState">
 				<a-form-item label="课包名称">
-					<a-input v-model:value="searchFormState.searchKey" placeholder="请输入课包名称" allow-clear style="width: 220px" />
+					<a-input
+						v-model:value="searchFormState.searchKey"
+						placeholder="请输入课包名称"
+						allow-clear
+						style="width: 220px"
+					/>
 				</a-form-item>
 				<a-form-item label="课程">
-					<a-select v-model:value="searchFormState.courseId" placeholder="全部课程" :options="courseOptions" allow-clear style="width: 200px" />
+					<a-select
+						v-model:value="searchFormState.courseId"
+						placeholder="全部课程"
+						:options="courseOptions"
+						allow-clear
+						style="width: 200px"
+					/>
 				</a-form-item>
 				<a-form-item>
 					<a-space>
@@ -31,44 +42,50 @@
 			</a-form>
 		</div>
 		<div class="ent-body">
-		<s-table
-			ref="tableRef"
-			:columns="columns"
-			:data="loadData"
-			bordered
-			:row-key="(record) => record.id"
-			:scroll="{ x: 'max-content' }"
-		>
-			<template #operator>
-				<a-button type="primary" @click="onOpenAdd">
-					<template #icon><plus-outlined /></template>
-					新增课包
-				</a-button>
-			</template>
-			<template #bodyCell="{ column, record }">
-				<template v-if="column.dataIndex === 'courseId'">
-					{{ courseName(record.courseId) }}
+			<s-table
+				ref="tableRef"
+				:columns="columns"
+				:data="loadData"
+				bordered
+				:row-key="(record) => record.id"
+				:scroll="{ x: 'max-content' }"
+			>
+				<template #operator>
+					<a-button type="primary" @click="onOpenAdd">
+						<template #icon><plus-outlined /></template>
+						新增课包
+					</a-button>
 				</template>
-				<template v-if="column.dataIndex === 'status'">
-					<a-tag :color="record.status === 'ENABLE' ? 'green' : 'default'">
-						{{ record.status === 'ENABLE' ? '上架' : '下架' }}
-					</a-tag>
+				<template #bodyCell="{ column, record }">
+					<template v-if="column.dataIndex === 'courseId'">
+						{{ courseName(record.courseId) }}
+					</template>
+					<template v-if="column.dataIndex === 'status'">
+						<a-tag :color="record.status === 'ENABLE' ? 'green' : 'default'">
+							{{ record.status === 'ENABLE' ? '上架' : '下架' }}
+						</a-tag>
+					</template>
+					<template v-if="column.dataIndex === 'action'">
+						<a-space>
+							<a v-if="hasPerm('/course/package/edit')" @click="onOpenEdit(record)">编辑</a>
+							<a-divider type="vertical" />
+							<a-popconfirm title="确定要删除吗？" @confirm="onDelete(record)">
+								<a-button type="link" danger size="small">删除</a-button>
+							</a-popconfirm>
+						</a-space>
+					</template>
 				</template>
-				<template v-if="column.dataIndex === 'action'">
-					<a-space>
-						<a v-if="hasPerm('/course/package/edit')" @click="onOpenEdit(record)">编辑</a>
-						<a-divider type="vertical" />
-						<a-popconfirm title="确定要删除吗？" @confirm="onDelete(record)">
-							<a-button type="link" danger size="small">删除</a-button>
-						</a-popconfirm>
-					</a-space>
-				</template>
-			</template>
-		</s-table>
+			</s-table>
 		</div>
 	</div>
 
-	<a-modal v-model:open="open" :title="formData.id ? '编辑课包' : '新增课包'" :width="600" :destroy-on-close="true" @ok="onSubmit">
+	<a-modal
+		v-model:open="open"
+		:title="formData.id ? '编辑课包' : '新增课包'"
+		:width="600"
+		:destroy-on-close="true"
+		@ok="onSubmit"
+	>
 		<a-form ref="formRef" :model="formData" layout="vertical">
 			<a-row :gutter="16">
 				<a-col :span="12">
@@ -108,7 +125,13 @@
 				</a-col>
 				<a-col :span="12">
 					<a-form-item label="每课扣课时数" name="lessonsPerClass">
-						<a-input-number v-model:value="formData.lessonsPerClass" :min="0.5" :step="0.5" placeholder="沿用课程配置" style="width: 100%" />
+						<a-input-number
+							v-model:value="formData.lessonsPerClass"
+							:min="0.5"
+							:step="0.5"
+							placeholder="沿用课程配置"
+							style="width: 100%"
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">

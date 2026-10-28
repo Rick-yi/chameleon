@@ -53,7 +53,10 @@
 						<span>{{ formData.remark }}</span>
 					</div>
 					<div v-if="formData.updateUserName && formData.updateTime" class="info-row meta-secondary">
-						<span>最后更新：{{ formData.updateUserName }} · {{ $TOOL.parseTime(formData.updateTime, '{y}-{m}-{d} {h}:{i}') }}</span>
+						<span
+							>最后更新：{{ formData.updateUserName }} ·
+							{{ $TOOL.parseTime(formData.updateTime, '{y}-{m}-{d} {h}:{i}') }}</span
+						>
 					</div>
 				</div>
 			</div>

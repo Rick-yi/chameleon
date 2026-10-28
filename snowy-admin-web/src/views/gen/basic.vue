@@ -4,7 +4,9 @@
 			<a-row :gutter="16">
 				<a-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
 					<a-form-item label="生成类型：">
-						<a-tag :color="genTypeMap[formData.genType]?.color || 'blue'">{{ genTypeMap[formData.genType]?.label || formData.genType }}</a-tag>
+						<a-tag :color="genTypeMap[formData.genType]?.color || 'blue'">{{
+							genTypeMap[formData.genType]?.label || formData.genType
+						}}</a-tag>
 					</a-form-item>
 				</a-col>
 				<a-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
@@ -181,15 +183,39 @@
 				<a-divider>{{ formData.genType === 'LEFT_TREE_TABLE' ? '左树配置' : '树配置' }}</a-divider>
 				<a-row :gutter="16">
 					<a-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
-						<a-form-item label="树父级字段" name="treeParentField" :rules="[{ required: true, message: '请选择树父级字段' }]">
-							<a-select v-model:value="formData.treeParentField" placeholder="请选择树父级字段"
-								:options="tableColumnList.map(c => ({label: c.columnName + '(' + c.columnRemark + ')', value: c.columnName}))" />
+						<a-form-item
+							label="树父级字段"
+							name="treeParentField"
+							:rules="[{ required: true, message: '请选择树父级字段' }]"
+						>
+							<a-select
+								v-model:value="formData.treeParentField"
+								placeholder="请选择树父级字段"
+								:options="
+									tableColumnList.map((c) => ({
+										label: c.columnName + '(' + c.columnRemark + ')',
+										value: c.columnName
+									}))
+								"
+							/>
 						</a-form-item>
 					</a-col>
 					<a-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
-						<a-form-item label="树显示字段" name="treeNameField" :rules="[{ required: true, message: '请选择树显示字段' }]">
-							<a-select v-model:value="formData.treeNameField" placeholder="请选择树显示名称字段"
-								:options="tableColumnList.map(c => ({label: c.columnName + '(' + c.columnRemark + ')', value: c.columnName}))" />
+						<a-form-item
+							label="树显示字段"
+							name="treeNameField"
+							:rules="[{ required: true, message: '请选择树显示字段' }]"
+						>
+							<a-select
+								v-model:value="formData.treeNameField"
+								placeholder="请选择树显示名称字段"
+								:options="
+									tableColumnList.map((c) => ({
+										label: c.columnName + '(' + c.columnRemark + ')',
+										value: c.columnName
+									}))
+								"
+							/>
 						</a-form-item>
 					</a-col>
 				</a-row>
@@ -200,29 +226,59 @@
 				<a-row :gutter="16">
 					<a-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
 						<a-form-item label="子表" name="subDbTable" :rules="[{ required: true, message: '请选择子表' }]">
-							<a-select v-model:value="formData.subDbTable" placeholder="请选择子表" show-search option-filter-prop="label" @change="subTableChange"
-								:options="tableList.map(t => ({label: t.label, value: t.value}))" />
+							<a-select
+								v-model:value="formData.subDbTable"
+								placeholder="请选择子表"
+								show-search
+								option-filter-prop="label"
+								@change="subTableChange"
+								:options="tableList.map((t) => ({ label: t.label, value: t.value }))"
+							/>
 						</a-form-item>
 					</a-col>
 					<a-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
 						<a-form-item label="子表主键" name="subDbTableKey" :rules="[{ required: true, message: '请选择子表主键' }]">
-							<a-select v-model:value="formData.subDbTableKey" placeholder="请选择子表主键"
-								:options="subTableColumnList.map(c => ({label: c.columnName + '(' + c.columnRemark + ')', value: c.columnName}))" />
+							<a-select
+								v-model:value="formData.subDbTableKey"
+								placeholder="请选择子表主键"
+								:options="
+									subTableColumnList.map((c) => ({
+										label: c.columnName + '(' + c.columnRemark + ')',
+										value: c.columnName
+									}))
+								"
+							/>
 						</a-form-item>
 					</a-col>
 					<a-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
 						<a-form-item label="关联外键" name="subForeignKey" :rules="[{ required: true, message: '请选择关联外键' }]">
-							<a-select v-model:value="formData.subForeignKey" placeholder="请选择子表中关联主表的外键字段"
-								:options="subTableColumnList.map(c => ({label: c.columnName + '(' + c.columnRemark + ')', value: c.columnName}))" />
+							<a-select
+								v-model:value="formData.subForeignKey"
+								placeholder="请选择子表中关联主表的外键字段"
+								:options="
+									subTableColumnList.map((c) => ({
+										label: c.columnName + '(' + c.columnRemark + ')',
+										value: c.columnName
+									}))
+								"
+							/>
 						</a-form-item>
 					</a-col>
 					<a-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
-						<a-form-item label="子表功能名" name="subFunctionName" :rules="[{ required: true, message: '请输入子表功能名' }]">
+						<a-form-item
+							label="子表功能名"
+							name="subFunctionName"
+							:rules="[{ required: true, message: '请输入子表功能名' }]"
+						>
 							<a-input v-model:value="formData.subFunctionName" placeholder="请输入子表功能名" />
 						</a-form-item>
 					</a-col>
 					<a-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
-						<a-form-item label="子表业务名" name="subBusName" :rules="[{ required: true, message: '请输入子表业务名' }]">
+						<a-form-item
+							label="子表业务名"
+							name="subBusName"
+							:rules="[{ required: true, message: '请输入子表业务名' }]"
+						>
 							<a-input v-model:value="formData.subBusName" placeholder="请输入子表业务名（英文小写）" />
 						</a-form-item>
 					</a-col>
@@ -473,7 +529,7 @@
 			formData.value.subFunctionName = formData.value.subFunctionName || subData.tableRemark
 			const subTableNameHump = getTableNameToHump(subData.value)
 			formData.value.subBusName = formData.value.subBusName || subTableNameHump.toLowerCase()
-			formData.value.subClassName = formData.value.subClassName || ('Sub' + getClassName(subData.value))
+			formData.value.subClassName = formData.value.subClassName || 'Sub' + getClassName(subData.value)
 		}
 		genBasicApi.basicTableColumns({ tableName }).then((res) => {
 			subTableColumnList.value = res

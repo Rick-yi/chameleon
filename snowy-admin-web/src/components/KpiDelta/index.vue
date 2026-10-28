@@ -26,9 +26,7 @@
 		return ((current - previous) / previous) * 100
 	})
 
-	const text = computed(() =>
-		pct.value === null ? '' : `较上期 ${pct.value > 0 ? '+' : ''}${pct.value.toFixed(1)}%`
-	)
+	const text = computed(() => (pct.value === null ? '' : `较上期 ${pct.value > 0 ? '+' : ''}${pct.value.toFixed(1)}%`))
 
 	const tone = computed(() => {
 		if (pct.value === null || Math.abs(pct.value) < 0.05) return 'flat'

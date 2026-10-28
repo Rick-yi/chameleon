@@ -1,7 +1,7 @@
 <template>
 	<a-form :model="formData" ref="formRef" name="basic" autocomplete="off">
 		<a-table :columns="columns" :dataSource="formData" size="middle">
-			<template #bodyCell="{ text, record, index, column }">
+			<template #bodyCell="{ record, index, column }">
 				<template v-if="column.dataIndex === 'label'">
 					<a-form-item :validate-status="validateStatus(record, 'whetherToClick')">
 						{{ record.label }}
@@ -50,11 +50,11 @@
 	const props = defineProps({
 		dataArray: {
 			type: Object,
-			default: []
+			default: () => ({})
 		},
 		place: {
 			type: Object,
-			default: []
+			default: () => ({})
 		}
 	})
 	const columns = ref([

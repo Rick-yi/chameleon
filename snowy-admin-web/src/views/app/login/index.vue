@@ -15,7 +15,12 @@
 					<a-input v-model:value="formState.account" placeholder="登录账号" size="large" autocomplete="username" />
 				</a-form-item>
 				<a-form-item label="密码" name="password">
-					<a-input-password v-model:value="formState.password" placeholder="登录密码" size="large" @pressEnter="onSubmit" />
+					<a-input-password
+						v-model:value="formState.password"
+						placeholder="登录密码"
+						size="large"
+						@pressEnter="onSubmit"
+					/>
 				</a-form-item>
 				<a-button type="primary" size="large" block :loading="loading" @click="onSubmit">登 录</a-button>
 			</a-form>

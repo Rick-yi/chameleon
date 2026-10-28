@@ -18,7 +18,7 @@
 						</div>
 					</template>
 					<template #description>
-						<a-tooltip placement="top" v-for="description in item.descriptions">
+						<a-tooltip placement="top" v-for="description in item.descriptions" :key="description.title">
 							<template #title>
 								<span>{{ description.title }}</span>
 							</template>
@@ -27,7 +27,7 @@
 					</template>
 				</a-list-item-meta>
 				<div class="xn-content" v-if="item.contents">
-					<div class="xn-statistics" v-for="content in item.contents">
+					<div class="xn-statistics" v-for="content in item.contents" :key="content.title">
 						<div class="xn-statistic-title">
 							{{ content.title }}
 						</div>
@@ -47,7 +47,12 @@
 					</div>
 				</template>
 				<template #actions>
-					<a-button type="link" @click="doAction(key, item)" v-for="{ key, label, icon, color } in props.actions">
+					<a-button
+						type="link"
+						@click="doAction(key, item)"
+						v-for="{ key, label, icon, color } in props.actions"
+						:key="key"
+					>
 						<template #icon>
 							<component :is="icon" :style="{ color: color }" />
 						</template>

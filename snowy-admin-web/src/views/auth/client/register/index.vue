@@ -238,9 +238,7 @@
 							</a-button>
 						</a-form-item>
 
-						<div class="register-footer">
-							已有账号？ <a href="/front/client/login">立即登录</a>
-						</div>
+						<div class="register-footer">已有账号？ <a href="/front/client/login">立即登录</a></div>
 					</a-form>
 				</div>
 			</div>

@@ -82,18 +82,18 @@
 					<div :class="displayLayout ? 'main-content-wrapper' : 'main-content-wrapper main-content-wrapper-max'">
 						<div id="admin-ui-main" class="admin-ui-main">
 							<page-bar />
-								<a-result
-						v-if="forbidden"
-						status="403"
-						title="无权访问"
-						sub-title="当前账号没有该功能的访问权限，请联系管理员分配角色或切换账号"
-						class="ent-forbidden"
-					>
-						<template #extra>
-							<a-button type="primary" @click="backHome">返回首页</a-button>
-						</template>
-					</a-result>
-					<router-view v-else v-slot="{ Component }">
+							<a-result
+								v-if="forbidden"
+								status="403"
+								title="无权访问"
+								sub-title="当前账号没有该功能的访问权限，请联系管理员分配角色或切换账号"
+								class="ent-forbidden"
+							>
+								<template #extra>
+									<a-button type="primary" @click="backHome">返回首页</a-button>
+								</template>
+							</a-result>
+							<router-view v-else v-slot="{ Component }">
 								<keep-alive :include="kStore.keepLiveRoute">
 									<component :is="Component" v-if="kStore.routeShow" :key="route.name" />
 								</keep-alive>

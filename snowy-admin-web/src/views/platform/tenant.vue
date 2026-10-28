@@ -9,7 +9,12 @@
 				</a-col>
 				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
 					<a-form-item label="状态" name="status">
-						<a-select v-model:value="searchFormState.status" placeholder="请选择状态" :options="statusOptions" allow-clear />
+						<a-select
+							v-model:value="searchFormState.status"
+							placeholder="请选择状态"
+							:options="statusOptions"
+							allow-clear
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
@@ -78,7 +83,13 @@
 		</s-table>
 	</xn-panel>
 
-	<a-modal v-model:open="open" :title="formData.id ? '编辑租户' : '开通租户'" :width="640" :destroy-on-close="true" @ok="onSubmit">
+	<a-modal
+		v-model:open="open"
+		:title="formData.id ? '编辑租户' : '开通租户'"
+		:width="640"
+		:destroy-on-close="true"
+		@ok="onSubmit"
+	>
 		<a-form ref="formRef" :model="formData" layout="vertical">
 			<a-row :gutter="16">
 				<a-col :span="12">
@@ -103,7 +114,12 @@
 				</a-col>
 				<a-col :span="12">
 					<a-form-item label="套餐" name="packageId">
-						<a-select v-model:value="formData.packageId" placeholder="请选择套餐" :options="packageOptions" allow-clear />
+						<a-select
+							v-model:value="formData.packageId"
+							placeholder="请选择套餐"
+							:options="packageOptions"
+							allow-clear
+						/>
 					</a-form-item>
 				</a-col>
 				<a-col :span="12">
@@ -153,111 +169,123 @@
 				</a-col>
 			</a-row>
 		</a-form>
-		</a-modal>
+	</a-modal>
 
-		<!-- 续费 -->
-		<a-modal
-			v-model:open="renewOpen"
-			title="租户续费"
-			:width="520"
-			:confirm-loading="renewSubmitting"
-			:destroy-on-close="true"
-			@ok="onSubmitRenew"
-		>
-			<a-alert
-				type="info"
-				show-icon
-				style="margin-bottom: 16px"
-				:message="`当前到期：${renewData.expireTime || '未设置'}；续费后预计至 ${renewPreview}`"
-			/>
-			<a-form ref="renewFormRef" :model="renewData" layout="vertical">
-				<a-form-item label="续费时长" name="days" :rules="[{ required: true, message: '请填写续费天数' }]">
-					<a-input-number v-model:value="renewData.days" :min="1" :max="3650" :precision="0" style="width: 100%" addon-after="天" />
-					<div class="renew-presets">
-						<a v-for="item in renewPresets" :key="item.days" @click="renewData.days = item.days">{{ item.label }}</a>
-					</div>
-				</a-form-item>
-				<a-form-item label="续费套餐" name="packageId">
-					<a-select v-model:value="renewData.packageId" :options="packageOptions" placeholder="不选则沿用当前套餐" allow-clear />
-				</a-form-item>
-				<a-form-item label="续费金额（元）" name="amount">
-					<a-input-number v-model:value="renewData.amount" :min="0" :precision="2" style="width: 100%" />
-				</a-form-item>
-				<a-form-item label="备注" name="remark">
-					<a-input v-model:value="renewData.remark" placeholder="选填，如合同号、收款方式" allow-clear />
-				</a-form-item>
-			</a-form>
-		</a-modal>
+	<!-- 续费 -->
+	<a-modal
+		v-model:open="renewOpen"
+		title="租户续费"
+		:width="520"
+		:confirm-loading="renewSubmitting"
+		:destroy-on-close="true"
+		@ok="onSubmitRenew"
+	>
+		<a-alert
+			type="info"
+			show-icon
+			style="margin-bottom: 16px"
+			:message="`当前到期：${renewData.expireTime || '未设置'}；续费后预计至 ${renewPreview}`"
+		/>
+		<a-form ref="renewFormRef" :model="renewData" layout="vertical">
+			<a-form-item label="续费时长" name="days" :rules="[{ required: true, message: '请填写续费天数' }]">
+				<a-input-number
+					v-model:value="renewData.days"
+					:min="1"
+					:max="3650"
+					:precision="0"
+					style="width: 100%"
+					addon-after="天"
+				/>
+				<div class="renew-presets">
+					<a v-for="item in renewPresets" :key="item.days" @click="renewData.days = item.days">{{ item.label }}</a>
+				</div>
+			</a-form-item>
+			<a-form-item label="续费套餐" name="packageId">
+				<a-select
+					v-model:value="renewData.packageId"
+					:options="packageOptions"
+					placeholder="不选则沿用当前套餐"
+					allow-clear
+				/>
+			</a-form-item>
+			<a-form-item label="续费金额（元）" name="amount">
+				<a-input-number v-model:value="renewData.amount" :min="0" :precision="2" style="width: 100%" />
+			</a-form-item>
+			<a-form-item label="备注" name="remark">
+				<a-input v-model:value="renewData.remark" placeholder="选填，如合同号、收款方式" allow-clear />
+			</a-form-item>
+		</a-form>
+	</a-modal>
 
-		<!-- 停用 -->
-		<a-modal
-			v-model:open="stopOpen"
-			title="停用租户"
-			:width="480"
-			:confirm-loading="stopSubmitting"
-			:destroy-on-close="true"
-			@ok="onSubmitStop"
-		>
-			<a-alert
-				type="warning"
-				show-icon
-				style="margin-bottom: 16px"
-				message="停用后该机构所有账号立即下线，且无法再登录。"
-			/>
-			<a-form layout="vertical">
-				<a-form-item label="停用原因" required>
-					<a-textarea v-model:value="stopReason" :rows="3" placeholder="如：欠费、合同到期、客户申请停用" />
-				</a-form-item>
-			</a-form>
-		</a-modal>
+	<!-- 停用 -->
+	<a-modal
+		v-model:open="stopOpen"
+		title="停用租户"
+		:width="480"
+		:confirm-loading="stopSubmitting"
+		:destroy-on-close="true"
+		@ok="onSubmitStop"
+	>
+		<a-alert
+			type="warning"
+			show-icon
+			style="margin-bottom: 16px"
+			message="停用后该机构所有账号立即下线，且无法再登录。"
+		/>
+		<a-form layout="vertical">
+			<a-form-item label="停用原因" required>
+				<a-textarea v-model:value="stopReason" :rows="3" placeholder="如：欠费、合同到期、客户申请停用" />
+			</a-form-item>
+		</a-form>
+	</a-modal>
 
-		<!-- 重置密码结果 -->
-		<a-modal v-model:open="resetOpen" title="管理员密码已重置" :width="460" :footer="null">
-			<a-alert
-				type="warning"
-				show-icon
-				style="margin-bottom: 16px"
-				message="此密码只显示一次，请立即复制并通知机构管理员；原密码和已登录会话均已失效。"
-			/>
-			<div class="reset-row">
-				<span>机构编码</span>
-				<b>{{ resetResult.tenantCode }}</b>
-			</div>
-			<div class="reset-row">
-				<span>管理员账号</span>
-				<b>{{ resetResult.account }}</b>
-			</div>
-			<div class="reset-row">
-				<span>新密码</span>
-				<b class="reset-password">{{ resetResult.password }}</b>
-				<a-button size="small" type="link" @click="copyText(resetResult.password)">复制</a-button>
-			</div>
-		</a-modal>
+	<!-- 重置密码结果 -->
+	<a-modal v-model:open="resetOpen" title="管理员密码已重置" :width="460" :footer="null">
+		<a-alert
+			type="warning"
+			show-icon
+			style="margin-bottom: 16px"
+			message="此密码只显示一次，请立即复制并通知机构管理员；原密码和已登录会话均已失效。"
+		/>
+		<div class="reset-row">
+			<span>机构编码</span>
+			<b>{{ resetResult.tenantCode }}</b>
+		</div>
+		<div class="reset-row">
+			<span>管理员账号</span>
+			<b>{{ resetResult.account }}</b>
+		</div>
+		<div class="reset-row">
+			<span>新密码</span>
+			<b class="reset-password">{{ resetResult.password }}</b>
+			<a-button size="small" type="link" @click="copyText(resetResult.password)">复制</a-button>
+		</div>
+	</a-modal>
 
-		<!-- 登录记录 -->
-		<a-drawer v-model:open="loginOpen" title="最近登录记录" :width="520">
-			<a-table
-				size="small"
-				:columns="loginColumns"
-				:data-source="loginList"
-				:loading="loginLoading"
-				:pagination="false"
-				:row-key="(row) => row.account + '-' + row.loginTime"
-			/>
-		</a-drawer>
+	<!-- 登录记录 -->
+	<a-drawer v-model:open="loginOpen" title="最近登录记录" :width="520">
+		<a-table
+			size="small"
+			:columns="loginColumns"
+			:data-source="loginList"
+			:loading="loginLoading"
+			:pagination="false"
+			:row-key="(row) => row.account + '-' + row.loginTime"
+		/>
+	</a-drawer>
 
-		<!-- 续费记录 -->
-		<a-drawer v-model:open="renewRecordsOpen" title="续费记录" :width="720">
-			<a-table
-				size="small"
-				:columns="renewColumns"
-				:data-source="renewList"
-				:loading="renewLoading"
-				:pagination="false"
-				:row-key="(row) => row.createTime + '-' + row.newExpireTime"
-			/>
-		</a-drawer>
-	</template>
+	<!-- 续费记录 -->
+	<a-drawer v-model:open="renewRecordsOpen" title="续费记录" :width="720">
+		<a-table
+			size="small"
+			:columns="renewColumns"
+			:data-source="renewList"
+			:loading="renewLoading"
+			:pagination="false"
+			:row-key="(row) => row.createTime + '-' + row.newExpireTime"
+		/>
+	</a-drawer>
+</template>
 
 <script setup name="platformTenant">
 	import { message, Modal } from 'ant-design-vue'
@@ -345,7 +373,10 @@
 	const packageOptions = ref([])
 	const loadPackages = () => {
 		tenantApi.packagePage({ current: 1, size: 100 }).then((data) => {
-			packageOptions.value = (data.records || []).map((p) => ({ value: p.id, label: `${p.name}（${p.validityDays || 365}天）` }))
+			packageOptions.value = (data.records || []).map((p) => ({
+				value: p.id,
+				label: `${p.name}（${p.validityDays || 365}天）`
+			}))
 		})
 	}
 	const onCheckExpired = () => {
@@ -397,7 +428,7 @@
 		searchFormState.value = {}
 		tableRef.value.refresh(true)
 	}
-	const statusText = (s) => ({ TRIAL: '试用', NORMAL: '正常', STOP: '停用' }[s] || s)
+	const statusText = (s) => ({ TRIAL: '试用', NORMAL: '正常', STOP: '停用' })[s] || s
 	const statusColor = (s) => (s === 'NORMAL' ? 'green' : s === 'TRIAL' ? 'orange' : 'red')
 	const onOpenAdd = () => {
 		formData.value = { status: 'TRIAL', adminAccount: 'admin', adminName: '机构管理员', campusName: '默认校区' }
