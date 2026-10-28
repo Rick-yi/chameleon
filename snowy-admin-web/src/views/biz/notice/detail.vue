@@ -31,8 +31,8 @@
 				<a-image :src="formData.image" :preview="true" />
 			</div>
 
-			<!-- 正文内容 -->
-			<div class="notice-content" v-html="formData.content"></div>
+			<!-- 正文内容：来自编辑器，必须净化后渲染，避免存储型 XSS -->
+			<div class="notice-content" v-html="safeContent"></div>
 
 			<!-- 附加信息 -->
 			<div class="notice-footer">
@@ -71,11 +71,14 @@
 	import { UserOutlined, ClockCircleOutlined } from '@ant-design/icons-vue'
 	import bizNoticeApi from '@/api/biz/bizNoticeApi'
 	import { message } from 'ant-design-vue'
+	import { sanitizeHtml } from '@/utils/sanitize'
 	// 抽屉状态
 	const open = ref(false)
 	const emit = defineEmits({ successful: null })
 	// 表单数据
 	const formData = ref({})
+	// 正文净化后再交给 v-html
+	const safeContent = computed(() => sanitizeHtml(formData.value.content))
 	// 打开抽屉
 	const onOpen = (id) => {
 		open.value = true

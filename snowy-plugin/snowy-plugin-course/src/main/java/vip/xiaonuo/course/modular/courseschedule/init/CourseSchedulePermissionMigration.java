@@ -91,6 +91,8 @@ public class CourseSchedulePermissionMigration implements ApplicationListener<Ap
                         resourceAdded, menuGranted, roleGranted);
             }
         } catch (Exception e) {
+            vip.xiaonuo.common.context.StartupMigrationRegistry.record("排课权限升级",
+                    "请手工执行 docs/_streams/sched.md 中的权限 SQL：" + e.getMessage());
             log.error(">>> 排课权限升级失败，请手工执行 docs/_streams/sched.md 中的权限 SQL", e);
         }
     }

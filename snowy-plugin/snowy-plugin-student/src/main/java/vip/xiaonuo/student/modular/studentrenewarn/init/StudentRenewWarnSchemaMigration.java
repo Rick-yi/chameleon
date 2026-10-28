@@ -110,6 +110,8 @@ public class StudentRenewWarnSchemaMigration implements ApplicationListener<Appl
                 log.info(">>> 续费闭环结构升级：已补续费预警状态索引");
             }
         } catch (Exception e) {
+            vip.xiaonuo.common.context.StartupMigrationRegistry.record("续费闭环结构升级",
+                    "请手工执行 docs/_streams/renew.md 中的迁移 SQL：" + e.getMessage());
             log.error(">>> 续费闭环结构升级失败，请手工执行 docs/_streams/renew.md 中的迁移 SQL", e);
         }
     }

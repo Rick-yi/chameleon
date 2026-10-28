@@ -72,6 +72,8 @@ public class CourseClassTypeSchemaMigration implements ApplicationListener<Appli
                 log.info(">>> 班级班型结构升级完成");
             }
         } catch (Exception e) {
+            vip.xiaonuo.common.context.StartupMigrationRegistry.record("班级班型结构升级",
+                    "请手工执行 docs/_streams/sched.md 中的迁移 SQL：" + e.getMessage());
             log.error(">>> 班级班型结构升级失败，请手工执行 docs/_streams/sched.md 中的迁移 SQL", e);
         }
     }

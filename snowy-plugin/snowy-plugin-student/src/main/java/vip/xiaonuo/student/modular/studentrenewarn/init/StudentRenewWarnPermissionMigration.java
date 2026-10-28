@@ -119,6 +119,8 @@ public class StudentRenewWarnPermissionMigration implements ApplicationListener<
                         resourceAdded, menuGranted, roleGranted, adminGranted);
             }
         } catch (Exception e) {
+            vip.xiaonuo.common.context.StartupMigrationRegistry.record("续费闭环权限升级",
+                    "请手工执行 docs/_streams/renew.md 中的权限 SQL：" + e.getMessage());
             log.error(">>> 续费闭环权限升级失败，请手工执行 docs/_streams/renew.md 中的权限 SQL", e);
         }
     }

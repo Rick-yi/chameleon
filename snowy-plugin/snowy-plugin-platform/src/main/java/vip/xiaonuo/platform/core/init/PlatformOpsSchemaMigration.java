@@ -115,6 +115,8 @@ public class PlatformOpsSchemaMigration implements ApplicationListener<Applicati
                 log.info(">>> 平台结构升级：平台租户密码有效期默认配置已补充");
             }
         } catch (Exception e) {
+            vip.xiaonuo.common.context.StartupMigrationRegistry.record("平台运营结构升级",
+                    "请手工执行 docs/_streams/platform.md 中的迁移 SQL：" + e.getMessage());
             log.error(">>> 平台运营结构升级失败，请手工执行 docs/_streams/platform.md 中的迁移 SQL", e);
         }
     }

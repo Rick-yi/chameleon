@@ -209,10 +209,13 @@ public class StudentTagServiceImpl implements StudentTagService {
     }
 
     /**
-     * 当前租户id（该表未纳入全局租户拦截器，必须显式使用）
+     * 当前租户id
+     * <p>
+     * 标签表现已纳入全局租户拦截器，这里的显式条件作为双保险保留；
+     * 取值统一委托给 TenantContext，避免兜底值在多处各写一份。
+     * </p>
      */
-    public static String currentTenantId() {
-        String tenantId = TenantContext.getTenantId();
-        return StrUtil.blankToDefault(tenantId, "0");
+    private static String currentTenantId() {
+        return TenantContext.currentTenantId();
     }
 }

@@ -852,6 +852,9 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
                 log.info(">>> 结构升级：退费试算接口权限已授权 {} 个角色", refundPreviewPermissionAdded);
             }
         } catch (Exception e) {
+            // 登记失败：应用仍会启动，但必须让运维在启动汇总中看到结构未升级
+            vip.xiaonuo.common.context.StartupMigrationRegistry.record("P0 结构升级",
+                    "请手工执行 chameleon_p0_migration.sql：" + e.getMessage());
             log.error(">>> P0 结构升级失败，请手工执行 chameleon_p0_migration.sql", e);
         }
     }

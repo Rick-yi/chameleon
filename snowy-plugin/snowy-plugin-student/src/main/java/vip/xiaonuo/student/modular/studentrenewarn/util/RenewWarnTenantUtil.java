@@ -12,14 +12,14 @@
  */
 package vip.xiaonuo.student.modular.studentrenewarn.util;
 
-import cn.hutool.core.util.StrUtil;
 import vip.xiaonuo.common.context.TenantContext;
 
 /**
  * 续费闭环租户工具
  * <p>
- * 新增的续费配置/回访记录表未登记到 GlobalConfigure.TENANT_TABLES（避免改动共享配置），
- * 由本域的查询显式拼接租户条件，保证租户隔离。
+ * 续费配置/回访记录表现已登记到 {@code GlobalConfigure.TENANT_TABLES}，由拦截器自动拼接租户条件。
+ * 本类保留是为了兼容存量调用点，实际取值统一委托给 {@link TenantContext#currentTenantId()}，
+ * 避免兜底值在多处各写一份。
  * </p>
  *
  * @author 会飞的猪
@@ -28,15 +28,18 @@ import vip.xiaonuo.common.context.TenantContext;
 public final class RenewWarnTenantUtil {
 
     /** 平台/未识别租户的兜底值 */
-    public static final String DEFAULT_TENANT_ID = "0";
+    public static final String DEFAULT_TENANT_ID = TenantContext.DEFAULT_TENANT_ID;
 
     private RenewWarnTenantUtil() {
     }
 
     /**
      * 当前租户id
+     *
+     * @deprecated 统一使用 {@link TenantContext#currentTenantId()}
      */
+    @Deprecated
     public static String currentTenantId() {
-        return StrUtil.blankToDefault(TenantContext.getTenantId(), DEFAULT_TENANT_ID);
+        return TenantContext.currentTenantId();
     }
 }

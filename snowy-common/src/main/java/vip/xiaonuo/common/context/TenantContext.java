@@ -24,6 +24,9 @@ package vip.xiaonuo.common.context;
  **/
 public class TenantContext {
 
+    /** 平台/未识别租户的兜底值（定时任务、平台侧调用时无租户上下文） */
+    public static final String DEFAULT_TENANT_ID = "0";
+
     /** 租户id持有器 */
     private static final ThreadLocal<String> TENANT_ID_HOLDER = new ThreadLocal<>();
 
@@ -48,6 +51,20 @@ public class TenantContext {
      **/
     public static String getTenantId() {
         return TENANT_ID_HOLDER.get();
+    }
+
+    /**
+     * 获取当前租户id，为空时返回平台兜底值 "0"
+     * <p>
+     * 需要显式拼租户条件的查询统一用本方法，避免各处自己写
+     * {@code blankToDefault(getTenantId(), "0")} 导致兜底值不一致。
+     * </p>
+     *
+     * @author 会飞的猪
+     * @date 2026/10/28
+     **/
+    public static String currentTenantId() {
+        return cn.hutool.core.util.StrUtil.blankToDefault(getTenantId(), DEFAULT_TENANT_ID);
     }
 
     /**

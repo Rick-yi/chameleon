@@ -200,29 +200,9 @@ public class StudentRenewWarnConfigServiceImpl
     @Override
     public ResolvedWarnConfig resolve(StudentLessonAccount account, List<StudentRenewWarnConfig> configList,
                                       Map<String, StudentRenewWarnConfig> classConfigMap) {
-        StudentRenewWarnConfig selected = null;
-        if (ObjectUtil.isNotEmpty(classConfigMap)) {
-            selected = classConfigMap.get(account.getStudentId() + "|" + account.getCourseId());
-        }
-        if (ObjectUtil.isEmpty(selected) && ObjectUtil.isNotEmpty(configList)) {
-            for (StudentRenewWarnConfig config : configList) {
-                if (StudentRenewWarnStatusEnum.SCOPE_COURSE.equals(config.getScopeType())
-                        && StrUtil.equals(config.getScopeId(), account.getCourseId())
-                        && isEnabled(config)) {
-                    selected = config;
-                    break;
-                }
-            }
-        }
-        if (ObjectUtil.isEmpty(selected) && ObjectUtil.isNotEmpty(configList)) {
-            for (StudentRenewWarnConfig config : configList) {
-                if (StudentRenewWarnStatusEnum.SCOPE_DEFAULT.equals(config.getScopeType())
-                        && isEnabled(config)) {
-                    selected = config;
-                    break;
-                }
-            }
-        }
+        // 优先级：班级 > 课程 > 默认；都未命中时回落到系统参数
+        StudentRenewWarnConfig selected = pickByPriority(account.getStudentId(), account.getCourseId(),
+                configList, classConfigMap);
         ResolvedWarnConfig resolved = new ResolvedWarnConfig();
         if (ObjectUtil.isNotEmpty(selected)) {
             resolved.setLessonThreshold(ObjectUtil.defaultIfNull(selected.getLessonThreshold(),
@@ -242,6 +222,50 @@ public class StudentRenewWarnConfigServiceImpl
         resolved.setSource("SYSTEM");
         resolved.setSourceId("0");
         return resolved;
+    }
+
+    /**
+     * 按「班级 > 课程 > 默认」优先级挑选生效配置
+     * <p>
+     * 抽成静态方法便于单测直接覆盖优先级规则：这是续费预警的核心口径，
+     * 一旦顺序或启用判断被改错，会让整个机构的预警阈值静默失效。
+     * </p>
+     *
+     * @param studentId      学员id
+     * @param courseId       课程id
+     * @param configList     当前租户启用中的配置
+     * @param classConfigMap 班级配置映射（key 为 "学员id|课程id"）
+     * @return 命中的配置，均未命中返回 null
+     */
+    static StudentRenewWarnConfig pickByPriority(String studentId, String courseId,
+                                                List<StudentRenewWarnConfig> configList,
+                                                Map<String, StudentRenewWarnConfig> classConfigMap) {
+        // 1) 班级级：按学员+课程定位
+        if (ObjectUtil.isNotEmpty(classConfigMap)) {
+            StudentRenewWarnConfig classConfig = classConfigMap.get(studentId + "|" + courseId);
+            if (ObjectUtil.isNotEmpty(classConfig) && isEnabled(classConfig)) {
+                return classConfig;
+            }
+        }
+        if (ObjectUtil.isEmpty(configList)) {
+            return null;
+        }
+        // 2) 课程级
+        for (StudentRenewWarnConfig config : configList) {
+            if (StudentRenewWarnStatusEnum.SCOPE_COURSE.equals(config.getScopeType())
+                    && StrUtil.equals(config.getScopeId(), courseId)
+                    && isEnabled(config)) {
+                return config;
+            }
+        }
+        // 3) 默认级
+        for (StudentRenewWarnConfig config : configList) {
+            if (StudentRenewWarnStatusEnum.SCOPE_DEFAULT.equals(config.getScopeType())
+                    && isEnabled(config)) {
+                return config;
+            }
+        }
+        return null;
     }
 
     /**
@@ -298,7 +322,7 @@ public class StudentRenewWarnConfigServiceImpl
         config.setScopeName(classInfo == null ? config.getScopeId() : classInfo.getStr("name"));
     }
 
-    private boolean isEnabled(StudentRenewWarnConfig config) {
+    private static boolean isEnabled(StudentRenewWarnConfig config) {
         return !"NO".equalsIgnoreCase(config.getEnabled());
     }
 

@@ -35,5 +35,18 @@ module.exports = {
 		'vue/v-on-event-hyphenation': 'off',
 		'vue/multi-word-component-names': 'off',
 		'prettier/prettier': ['error', { endOfLine: 'auto' }]
-	}
+	},
+	overrides: [
+		{
+			// v-html 已显式净化：正文经 @/utils/sanitize 处理后再渲染，故关闭该规则提示
+			files: ['src/views/biz/notice/detail.vue', 'src/components/HomeCard/BizNoticeCard/detail.vue'],
+			rules: { 'vue/no-v-html': 'off' }
+		},
+		{
+			// 邮件模板预览：内容为当前管理员正在编辑的模板本身，输入者即查看者，无存储型 XSS 链路；
+			// 净化会破坏预览与真实发信的一致性。若改为预览他人模板，须改为 sanitizeHtml 并移除本豁免。
+			files: ['src/views/dev/config/emailTemplateConfig/preview.vue'],
+			rules: { 'vue/no-v-html': 'off' }
+		}
+	]
 }

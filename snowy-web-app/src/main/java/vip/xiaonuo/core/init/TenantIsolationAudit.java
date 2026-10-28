@@ -19,10 +19,12 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.core.Ordered;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import vip.xiaonuo.common.context.StartupMigrationRegistry;
 import vip.xiaonuo.core.config.GlobalConfigure;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -68,6 +70,28 @@ public class TenantIsolationAudit implements ApplicationListener<ApplicationStar
             // 自检失败不影响启动
             log.warn(">>> 租户隔离自检未执行：{}", e.getMessage());
         }
+        reportMigrationFailures();
+    }
+
+    /**
+     * 汇总启动期迁移失败
+     * <p>
+     * 各迁移监听器失败时只登记不抛出，应用会照常启动。这里集中输出，
+     * 避免「行为静默降级、日志散落各处」导致运维漏看。
+     * </p>
+     */
+    private void reportMigrationFailures() {
+        if (!StartupMigrationRegistry.hasFailure()) {
+            log.info(">>> 启动期结构/权限迁移全部成功");
+            return;
+        }
+        Map<String, String> failures = StartupMigrationRegistry.failures();
+        StringBuilder detail = new StringBuilder();
+        failures.forEach((name, reason) -> detail.append("\n>>>   - ").append(name).append("：").append(reason));
+        log.error("""
+                >>> 启动期结构/权限迁移有 {} 项失败，应用已启动但这些变更未生效，相关功能可能异常。{}
+                >>> 请按上方提示手工补跑对应 SQL 后重启。""",
+                failures.size(), detail);
     }
 
     /**

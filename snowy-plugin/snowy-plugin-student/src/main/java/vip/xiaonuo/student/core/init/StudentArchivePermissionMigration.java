@@ -119,6 +119,8 @@ public class StudentArchivePermissionMigration implements ApplicationListener<Ap
                         resourceAdded, menuGranted, roleGranted);
             }
         } catch (Exception e) {
+            vip.xiaonuo.common.context.StartupMigrationRegistry.record("学员档案权限升级",
+                    "请手工执行 docs/_streams/student.md 中的权限 SQL：" + e.getMessage());
             log.error(">>> 学员档案权限升级失败，请手工执行 docs/_streams/student.md 中的权限 SQL", e);
         }
     }

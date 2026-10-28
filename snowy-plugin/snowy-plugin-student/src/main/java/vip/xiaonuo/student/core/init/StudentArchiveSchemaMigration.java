@@ -139,6 +139,8 @@ public class StudentArchiveSchemaMigration implements ApplicationListener<Applic
             log.info(">>> 学员档案增强结构升级检查完成");
         } catch (Exception e) {
             // 结构升级失败不阻塞应用启动，但必须留下明确日志由运维处理
+            vip.xiaonuo.common.context.StartupMigrationRegistry.record("学员档案增强结构升级",
+                    "请手工执行 docs/_streams/student.md 中的迁移 SQL：" + e.getMessage());
             log.error(">>> 学员档案增强结构升级失败，请手工执行 docs/_streams/student.md 中的迁移 SQL：", e);
         }
     }

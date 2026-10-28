@@ -96,6 +96,8 @@ public class CrmPermissionMigration implements ApplicationListener<ApplicationSt
                         buttonGranted, permissionGranted, superAdminGranted);
             }
         } catch (Exception e) {
+            vip.xiaonuo.common.context.StartupMigrationRegistry.record("CRM 权限升级",
+                    "请手工执行 docs/_streams/crm.md 中的权限 SQL：" + e.getMessage());
             log.error(">>> CRM 权限升级失败，请手工执行 docs/_streams/crm.md 中的权限 SQL", e);
         }
     }
