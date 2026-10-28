@@ -50,25 +50,41 @@
 			</template>
 		</page-header>
 		<!-- 工具栏 -->
-		<div class="ent-toolbar">
-			<a-radio-group v-model:value="viewMode" button-style="solid">
-				<a-radio-button value="week">周视图</a-radio-button>
-				<a-radio-button value="day">日视图</a-radio-button>
-				<a-radio-button value="teacher">教师视图</a-radio-button>
-			</a-radio-group>
-			<template v-if="viewMode === 'week'">
-				<a-button @click="shiftWeek(-1)">‹ 上一周</a-button>
-				<span style="font-weight: 500">{{ weekLabel }}</span>
-				<a-button @click="shiftWeek(1)">下一周 ›</a-button>
-				<a-button @click="shiftWeek(0)">本周</a-button>
-			</template>
-			<template v-else-if="viewMode === 'day'">
-				<a-date-picker v-model:value="dayDate" value-format="YYYY-MM-DD" style="width: 160px" />
-				<span style="font-weight: 500">{{ dayLabel }}</span>
-			</template>
-			<a-select v-model:value="searchFormState.classId" placeholder="全部班级" :options="classOptions" allow-clear style="width: 200px" @change="loadWeek" />
-			<a-select v-model:value="searchFormState.teacherId" placeholder="全部教师" :options="teacherOptions" allow-clear style="width: 160px" show-search option-filter-prop="label" @change="loadWeek" />
-			<a-input v-model:value="searchFormState.classroom" placeholder="教室" allow-clear style="width: 120px" @pressEnter="loadWeek" />
+		<div class="ent-toolbar sched-toolbar">
+			<div class="sched-view-row">
+				<a-radio-group v-model:value="viewMode" button-style="solid" @change="onViewModeChange">
+					<a-radio-button value="week">周视图</a-radio-button>
+					<a-radio-button value="day">日视图</a-radio-button>
+					<a-radio-button value="teacher">教师视图</a-radio-button>
+					<a-radio-button value="split">分屏查看</a-radio-button>
+				</a-radio-group>
+				<template v-if="viewMode === 'week' || viewMode === 'teacher' || viewMode === 'split'">
+					<a-button @click="shiftWeek(-1)">‹ 上一周</a-button>
+					<span style="font-weight: 500">{{ weekLabel }}</span>
+					<a-button @click="shiftWeek(1)">下一周 ›</a-button>
+					<a-button @click="shiftWeek(0)">本周</a-button>
+				</template>
+				<template v-else-if="viewMode === 'day'">
+					<a-date-picker v-model:value="dayDate" value-format="YYYY-MM-DD" style="width: 160px" />
+					<span style="font-weight: 500">{{ dayLabel }}</span>
+				</template>
+				<template v-if="viewMode === 'split'">
+					<a-button :disabled="splitPanels.length >= 4" @click="addSplitPanel">
+						<template #icon><plus-outlined /></template>
+						添加窗口
+					</a-button>
+					<a-button :disabled="splitPanels.length === 1" @click="removeSplitPanel">移除窗口</a-button>
+				</template>
+			</div>
+			<div v-if="viewMode !== 'split'" class="sched-filter-row">
+				<a-select v-model:value="searchFormState.campusId" placeholder="全部校区" :options="campusOptions" allow-clear style="width: 140px" @change="loadWeek" />
+				<a-select v-model:value="searchFormState.courseId" placeholder="全部课程" :options="courseOptions" allow-clear style="width: 160px" @change="loadWeek" />
+				<a-select v-model:value="searchFormState.classId" placeholder="全部班级" :options="classOptions" allow-clear show-search option-filter-prop="label" style="width: 180px" @change="loadWeek" />
+				<a-select v-model:value="searchFormState.teacherId" placeholder="全部教师" :options="teacherOptions" allow-clear style="width: 150px" show-search option-filter-prop="label" @change="loadWeek" />
+				<a-input v-model:value="searchFormState.classroom" placeholder="教室" allow-clear style="width: 110px" @pressEnter="loadWeek" />
+				<a-select v-model:value="searchFormState.attendStatus" placeholder="点名状态" :options="attendStatusOptions" allow-clear style="width: 120px" @change="loadWeek" />
+				<a class="sched-filter-reset" @click="resetScheduleFilters">重置</a>
+			</div>
 		</div>
 
 		<div class="ent-body" style="padding: 0">
@@ -180,7 +196,7 @@
 		</div>
 
 		<!-- 教师视图 -->
-		<div v-else style="padding: 16px">
+		<div v-else-if="viewMode === 'teacher'" style="padding: 16px">
 			<div v-if="!teacherGroups.length" class="ent-empty">本周没有排课</div>
 			<a-row v-else :gutter="12">
 				<a-col v-for="group in teacherGroups" :key="group.key" :xs="24" :sm="12" :xl="8">
@@ -210,6 +226,69 @@
 					</a-card>
 				</a-col>
 			</a-row>
+		</div>
+
+		<!-- 分屏查看：每个窗口独立筛选，同一周并排对比 -->
+		<div v-else-if="viewMode === 'split'" class="sched-split-wrap">
+			<div v-for="panel in splitPanels" :key="panel.key" class="sched-split-panel">
+				<div class="sched-split-head">
+					<span class="sched-split-title">窗口 {{ panel.key }}</span>
+					<a-select
+						v-model:value="panel.teacherId"
+						placeholder="全部教师"
+						:options="teacherOptions"
+						allow-clear
+						show-search
+						option-filter-prop="label"
+						size="small"
+						style="width: 130px"
+						@change="loadSplitPanel(panel)"
+					/>
+					<a-select
+						v-model:value="panel.classId"
+						placeholder="全部班级"
+						:options="classOptions"
+						allow-clear
+						show-search
+						option-filter-prop="label"
+						size="small"
+						style="width: 140px"
+						@change="loadSplitPanel(panel)"
+					/>
+					<a-input
+						v-model:value="panel.classroom"
+						placeholder="教室"
+						allow-clear
+						size="small"
+						style="width: 90px"
+						@pressEnter="loadSplitPanel(panel)"
+					/>
+				</div>
+				<a-spin :spinning="panel.loading">
+					<div class="sched-split-body">
+						<div v-if="!panel.list.length" class="ent-empty">本周没有排课</div>
+						<div v-for="day in splitPanelDays(panel)" :key="day.date" class="sched-split-day">
+							<div class="sched-split-day-label">{{ day.label }}</div>
+							<div
+								v-for="s in day.list"
+								:key="s.id"
+								class="ent-schedule-card sched-split-card"
+								:class="{ 'is-conflict': conflictIdSet.has(s.id) }"
+								@click="goAttend(s)"
+							>
+								<div class="sched-split-card-top">
+									<span class="sched-split-time">{{ startOf(s) }}-{{ endOf(s) }}</span>
+									<a-tag :color="attendColor(s.attendStatus)" class="sched-split-tag">{{ attendText(s.attendStatus) }}</a-tag>
+								</div>
+								<div class="sched-split-class">{{ s.className || className(s.classId) }}</div>
+								<div class="sched-split-meta">
+									{{ s.teacherName || '未指定教师' }} · {{ s.classroom || '未设教室' }}
+								</div>
+							</div>
+						</div>
+					</div>
+				</a-spin>
+			</div>
 		</div>
 		</div>
 	</div>
@@ -598,7 +677,14 @@
 	const attendText = (status) => ({ NONE: '待点名', PARTIAL: '部分点名', DONE: '已点名' }[status] || '待点名')
 	const attendColor = (status) => ({ NONE: 'orange', PARTIAL: 'gold', DONE: 'green' }[status] || 'default')
 	const goAttend = (record) => {
-		router.push({ path: '/course/attend', query: { classId: record.classId, scheduleId: record.id } })
+		router.push({
+			path: '/course/attend',
+			query: {
+				classId: record.classId,
+				scheduleId: record.id,
+				date: record.scheduleDate ? String(record.scheduleDate).slice(0, 10) : undefined
+			}
+		})
 	}
 
 	const canSchedule = computed(
@@ -659,6 +745,83 @@
 	const timeSlots = ref([])
 	const viewMode = ref('week')
 	const dayDate = ref(fmtToday())
+	const campusOptions = ref([])
+	const attendStatusOptions = [
+		{ value: 'NONE', label: '未点名' },
+		{ value: 'PARTIAL', label: '部分点名' },
+		{ value: 'DONE', label: '已点名' }
+	]
+	const onViewModeChange = (mode) => {
+		if (mode === 'split') {
+			loadAllSplitPanels()
+			return
+		}
+		loadWeek()
+	}
+	const resetScheduleFilters = () => {
+		searchFormState.value = {}
+		loadWeek()
+	}
+	// 分屏窗口：每个窗口独立筛选，共用当前周
+	const splitPanels = ref([])
+	let splitSeq = 0
+	const newSplitPanel = () => ({
+		key: ++splitSeq,
+		teacherId: undefined,
+		classId: undefined,
+		classroom: undefined,
+		list: [],
+		loading: false
+	})
+	const addSplitPanel = () => {
+		if (splitPanels.value.length >= 4) return
+		const panel = newSplitPanel()
+		splitPanels.value.push(panel)
+		loadSplitPanel(panel)
+	}
+	const removeSplitPanel = () => {
+		if (splitPanels.value.length <= 1) return
+		splitPanels.value.pop()
+	}
+	const splitPanelDays = (panel) => {
+		return weekDays.value
+			.map((day) => ({
+				...day,
+				list: panel.list
+					.filter((s) => dateOf(s) === day.date)
+					.sort((a, b) => String(a.startTime || '').localeCompare(String(b.startTime || '')))
+			}))
+			.filter((day) => day.list.length)
+	}
+	const loadSplitPanel = (panel) => {
+		if (!panel) return
+		panel.loading = true
+		const end = new Date(monday.value)
+		end.setDate(monday.value.getDate() + 6)
+		courseApi
+			.scheduleWeek({
+				classId: panel.classId,
+				teacherId: panel.teacherId,
+				classroom: panel.classroom,
+				startDate: fmtDate(monday.value),
+				endDate: fmtDate(end)
+			})
+			.then((data) => {
+				panel.list = data || []
+			})
+			.finally(() => {
+				panel.loading = false
+			})
+	}
+	const loadAllSplitPanels = () => {
+		if (!splitPanels.value.length) {
+			const panel = newSplitPanel()
+			splitPanels.value = [panel]
+			loadSplitPanel(panel)
+			return
+		}
+		splitPanels.value.forEach(loadSplitPanel)
+	}
 	const addOpen = ref(false)
 	const addFormRef = ref()
 	const addFormData = ref({})
@@ -818,6 +981,11 @@
 				label: item.classType === 'ONE2ONE' && item.studentName ? `${item.name} · ${item.studentName}` : item.name
 			}))
 		})
+	}
+	const loadFilterOptions = () => {
+		courseApi.campusOptions().then((data) => {
+			campusOptions.value = (data || []).map((item) => ({ value: item.value ?? item.id, label: item.label ?? item.name }))
+		}).catch(() => {})
 	}
 	const loadTeachers = () => {
 		courseApi.teacherOptions({}).then((data) => {
@@ -1149,6 +1317,9 @@
 				classId: searchFormState.value.classId,
 				teacherId: searchFormState.value.teacherId,
 				classroom: searchFormState.value.classroom,
+				campusId: searchFormState.value.campusId,
+				courseId: searchFormState.value.courseId,
+				attendStatus: searchFormState.value.attendStatus,
 				startDate: fmtDate(monday.value),
 				endDate: fmtDate(end)
 			})
@@ -1156,6 +1327,7 @@
 				scheduleList.value = data || []
 				renderSchedule()
 				loadWeekClosures()
+				if (viewMode.value === 'split') loadAllSplitPanels()
 			})
 			.finally(() => {
 				loading.value = false
@@ -1537,6 +1709,7 @@
 	}
 	loadClasses()
 	loadTeachers()
+	loadFilterOptions()
 	loadAdhocOptions()
 	buildWeek()
 </script>
@@ -1623,5 +1796,88 @@
 		overflow-y: auto;
 		font-size: 12px;
 		color: var(--text-color-secondary);
+	}
+
+	.sched-toolbar {
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 10px;
+	}
+	.sched-view-row,
+	.sched-filter-row {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+	}
+	.sched-filter-reset {
+		color: var(--text-color-secondary);
+		font-size: 13px;
+	}
+	.sched-split-wrap {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 12px;
+		padding: 16px;
+	}
+	.sched-split-panel {
+		border: 1px solid var(--border-color-base);
+		border-radius: var(--radius-card);
+		background: #fff;
+		padding: 12px;
+		min-width: 0;
+	}
+	.sched-split-head {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		flex-wrap: wrap;
+		margin-bottom: 10px;
+	}
+	.sched-split-title {
+		font-size: 13px;
+		font-weight: 600;
+	}
+	.sched-split-body {
+		max-height: 520px;
+		overflow-y: auto;
+	}
+	.sched-split-day {
+		margin-bottom: 10px;
+	}
+	.sched-split-day-label {
+		font-size: 12px;
+		color: var(--text-color-tertiary);
+		margin-bottom: 4px;
+	}
+	.sched-split-card {
+		margin-bottom: 6px;
+		padding: 8px;
+	}
+	.sched-split-card-top {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+	}
+	.sched-split-time {
+		font-size: 12px;
+		color: var(--text-color-secondary);
+	}
+	.sched-split-class {
+		margin-top: 2px;
+		font-size: 13px;
+		font-weight: 500;
+	}
+	.sched-split-meta {
+		margin-top: 2px;
+		font-size: 12px;
+		color: var(--text-color-tertiary);
+	}
+	@media (max-width: 1100px) {
+		.sched-split-wrap {
+			grid-template-columns: minmax(0, 1fr);
+		}
 	}
 </style>

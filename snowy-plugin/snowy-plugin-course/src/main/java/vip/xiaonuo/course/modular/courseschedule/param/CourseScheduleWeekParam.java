@@ -38,6 +38,18 @@ public class CourseScheduleWeekParam {
     @Schema(description = "教室")
     private String classroom;
 
+    /** 校区id */
+    @Schema(description = "校区id")
+    private String campusId;
+
+    /** 课程id */
+    @Schema(description = "课程id")
+    private String courseId;
+
+    /** 点名状态：NONE未点名 / PARTIAL部分点名 / DONE已点名 */
+    @Schema(description = "点名状态")
+    private String attendStatus;
+
     /** 开始日期（yyyy-MM-dd） */
     @Schema(description = "开始日期")
     private String startDate;

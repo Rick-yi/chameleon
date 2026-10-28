@@ -1459,6 +1459,22 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
             }
             resultList.add(dto);
         }
+        // 课程/校区/点名状态依赖填充后的字段或点名统计，放在组装完成后过滤
+        if (StrUtil.isNotBlank(courseScheduleWeekParam.getCourseId())) {
+            resultList = resultList.stream()
+                    .filter(item -> courseScheduleWeekParam.getCourseId().equals(item.getCourseId()))
+                    .collect(Collectors.toList());
+        }
+        if (StrUtil.isNotBlank(courseScheduleWeekParam.getCampusId())) {
+            resultList = resultList.stream()
+                    .filter(item -> courseScheduleWeekParam.getCampusId().equals(item.getCampusId()))
+                    .collect(Collectors.toList());
+        }
+        if (StrUtil.isNotBlank(courseScheduleWeekParam.getAttendStatus())) {
+            resultList = resultList.stream()
+                    .filter(item -> courseScheduleWeekParam.getAttendStatus().equals(item.getAttendStatus()))
+                    .collect(Collectors.toList());
+        }
         return resultList;
     }
 
