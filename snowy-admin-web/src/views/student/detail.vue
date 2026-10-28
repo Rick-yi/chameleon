@@ -114,7 +114,9 @@
 						:columns="accountColumns"
 						:data-source="accounts"
 						:row-key="(r) => r.id"
-						:pagination="false"
+						:loading="tabLoading.account"
+						:pagination="pageProps('account')"
+						@change="(p) => onTabPageChange('account', p)"
 						bordered
 						size="middle"
 					>
@@ -138,7 +140,9 @@
 						:columns="flowColumns"
 						:data-source="flows"
 						:row-key="(r) => r.id"
-						:pagination="false"
+						:loading="tabLoading.flow"
+						:pagination="pageProps('flow')"
+						@change="(p) => onTabPageChange('flow', p)"
 						bordered
 						size="middle"
 					>
@@ -157,7 +161,9 @@
 						:columns="orderColumns"
 						:data-source="orders"
 						:row-key="(r) => r.id"
-						:pagination="false"
+						:loading="tabLoading.order"
+						:pagination="pageProps('order')"
+						@change="(p) => onTabPageChange('order', p)"
 						bordered
 						size="middle"
 					>
@@ -186,7 +192,9 @@
 						:columns="attendColumns"
 						:data-source="attends"
 						:row-key="(r) => r.id"
-						:pagination="false"
+						:loading="tabLoading.attend"
+						:pagination="pageProps('attend')"
+						@change="(p) => onTabPageChange('attend', p)"
 						bordered
 						size="middle"
 					>
@@ -223,7 +231,9 @@
 						:columns="sundryColumns"
 						:data-source="sundries"
 						:row-key="(r) => r.id"
-						:pagination="false"
+						:loading="tabLoading.sundry"
+						:pagination="pageProps('sundry')"
+						@change="(p) => onTabPageChange('sundry', p)"
 						bordered
 						size="middle"
 					>
@@ -271,7 +281,9 @@
 						:columns="refundColumns"
 						:data-source="refunds"
 						:row-key="(r) => r.id"
-						:pagination="false"
+						:loading="tabLoading.refund"
+						:pagination="pageProps('refund')"
+						@change="(p) => onTabPageChange('refund', p)"
 						bordered
 						size="middle"
 					>
@@ -534,6 +546,161 @@
 	const courseMap = ref({})
 	const enrollOpen = ref(false)
 
+	// ---------- 页签分页与懒加载 ----------
+	// 详情页原先打开就并发拉 10 个请求（含全量课程列表与时间线聚合），
+	// 且各页签固定 50 条、无分页，超出部分静默看不到。
+	// 改为：只加载基础信息 + 当前页签；每个页签独立服务端分页。
+	const tabPage = reactive({
+		account: { current: 1, size: 10, total: 0 },
+		flow: { current: 1, size: 10, total: 0 },
+		order: { current: 1, size: 10, total: 0 },
+		attend: { current: 1, size: 10, total: 0 },
+		sundry: { current: 1, size: 10, total: 0 },
+		refund: { current: 1, size: 10, total: 0 }
+	})
+	const tabLoaded = reactive({
+		timeline: false,
+		account: false,
+		flow: false,
+		order: false,
+		attend: false,
+		sundry: false,
+		refund: false
+	})
+	const tabLoading = reactive({
+		account: false,
+		flow: false,
+		order: false,
+		attend: false,
+		sundry: false,
+		refund: false
+	})
+	const courseMapLoaded = ref(false)
+
+	// 课程名映射按需加载一次（用于课时账户/流水/订单页签展示课程名）
+	const ensureCourseMap = () => {
+		if (courseMapLoaded.value) return Promise.resolve()
+		return courseApi.coursePage({ current: 1, size: 200 }).then((data) => {
+			const cmap = {}
+			for (const c of data.records || []) cmap[c.id] = c.name
+			courseMap.value = cmap
+			courseMapLoaded.value = true
+		})
+	}
+	const pageProps = (key) => ({
+		current: tabPage[key].current,
+		pageSize: tabPage[key].size,
+		total: tabPage[key].total,
+		showSizeChanger: true,
+		pageSizeOptions: ['10', '20', '50'],
+		showTotal: (total) => `共 ${total} 条`
+	})
+	const onTabPageChange = (key, pagination) => {
+		tabPage[key].current = pagination.current
+		tabPage[key].size = pagination.pageSize
+		loadTab(key)
+	}
+
+	// 各页签的数据加载器
+	const tabLoaders = {
+		account: () =>
+			studentApi
+				.lessonAccountPage({
+					current: tabPage.account.current,
+					size: tabPage.account.size,
+					studentId: currentStudentId.value
+				})
+				.then((d) => {
+					accounts.value = d.records || []
+					tabPage.account.total = d.total || 0
+				}),
+		flow: () =>
+			studentApi
+				.lessonFlowPage({ current: tabPage.flow.current, size: tabPage.flow.size, studentId: currentStudentId.value })
+				.then((d) => {
+					flows.value = (d.records || []).map((f) => ({ ...f, flowType: flowTypeText(f.flowType) }))
+					tabPage.flow.total = d.total || 0
+				}),
+		order: () =>
+			studentApi
+				.orderPage({ current: tabPage.order.current, size: tabPage.order.size, studentId: currentStudentId.value })
+				.then((d) => {
+					orders.value = d.records || []
+					tabPage.order.total = d.total || 0
+				}),
+		attend: () =>
+			courseApi
+				.studentAttendPage({
+					current: tabPage.attend.current,
+					size: tabPage.attend.size,
+					studentId: currentStudentId.value
+				})
+				.then((d) => {
+					attends.value = (d.records || []).map((a) => ({ ...a }))
+					tabPage.attend.total = d.total || 0
+				}),
+		sundry: () =>
+			sundryApi
+				.page({ current: tabPage.sundry.current, size: tabPage.sundry.size, studentId: currentStudentId.value })
+				.then((d) => {
+					sundries.value = d.records || []
+					tabPage.sundry.total = d.total || 0
+				}),
+		refund: () =>
+			studentApi
+				.refundPage({ current: tabPage.refund.current, size: tabPage.refund.size, studentId: currentStudentId.value })
+				.then((d) => {
+					refunds.value = d.records || []
+					tabPage.refund.total = d.total || 0
+				})
+	}
+	const loadTab = (key) => {
+		// 依赖课程名的页签先确保映射就绪
+		if (['account', 'flow', 'order'].includes(key)) {
+			ensureCourseMap().catch(() => {})
+		}
+		if (!tabLoaders[key]) return Promise.resolve()
+		tabLoading[key] = true
+		return (
+			tabLoaders[key]()
+				.then(() => {
+					tabLoaded[key] = true
+				})
+				// 加载失败要把 Promise 错误接住：页签是切换时自动触发的，
+				// 不处理会变成未捕获的 rejection（控制台报 Uncaught (in promise)）
+				.catch((err) => {
+					message.error(err?.msg || '页签数据加载失败，请重试')
+				})
+				.finally(() => {
+					tabLoading[key] = false
+				})
+		)
+	}
+	const loadTimeline = () => {
+		if (tabLoaded.timeline) return Promise.resolve()
+		timelineLoading.value = true
+		return studentApi
+			.studentTimeline({ studentId: currentStudentId.value })
+			.then((data) => {
+				timeline.value = data || []
+				tabLoaded.timeline = true
+			})
+			.catch((err) => {
+				message.error(err?.msg || '动态加载失败，请重试')
+			})
+			.finally(() => {
+				timelineLoading.value = false
+			})
+	}
+	// 切换页签时才加载该页签数据
+	watch(activeTab, (key) => {
+		if (key === 'timeline') {
+			loadTimeline()
+		} else if (!tabLoaded[key]) {
+			loadTab(key)
+		}
+	})
+
 	const payOpen = ref(false)
 	const payFormRef = ref()
 	const payFormData = ref({})
@@ -694,42 +861,58 @@
 	const refundStatusColor = (s) =>
 		s === 'REFUNDED' ? 'green' : s === 'PENDING' ? 'orange' : s === 'REJECTED' || s === 'CANCELLED' ? 'red' : 'blue'
 
-	const loadAll = () => {
+	// 只加载学员基础信息与标签；页签数据由 onOpen 后的 watch 按需加载
+	const loadStudent = () => {
 		loading.value = true
-		timelineLoading.value = true
-		Promise.all([
-			studentApi.studentDetail({ id: currentStudentId.value }),
-			studentApi.lessonAccountPage({ current: 1, size: 50, studentId: currentStudentId.value }),
-			studentApi.lessonFlowPage({ current: 1, size: 50, studentId: currentStudentId.value }),
-			studentApi.orderPage({ current: 1, size: 50, studentId: currentStudentId.value }),
-			studentApi.refundPage({ current: 1, size: 50, studentId: currentStudentId.value }),
-			courseApi.coursePage({ current: 1, size: 100 }),
-			courseApi.studentAttendPage({ current: 1, size: 50, studentId: currentStudentId.value }),
-			studentApi.studentTimeline({ studentId: currentStudentId.value }),
-			studentApi.tagList(),
-			sundryApi.listByStudent(currentStudentId.value)
-		])
-			.then(([stu, acc, flow, order, refund, course, attend, timelineData, tags, sundryData]) => {
+		return Promise.all([studentApi.studentDetail({ id: currentStudentId.value }), studentApi.tagList()])
+			.then(([stu, tags]) => {
 				student.value = stu
-				accounts.value = acc.records || []
-				flows.value = (flow.records || []).map((f) => ({ ...f, flowType: flowTypeText(f.flowType) }))
-				orders.value = order.records || []
-				attends.value = (attend?.records || []).map((a) => ({ ...a }))
-				refunds.value = refund.records || []
-				timeline.value = timelineData || []
 				tagList.value = tags || []
-				sundries.value = sundryData || []
-				const cmap = {}
-				for (const c of course.records || []) cmap[c.id] = c.name
-				courseMap.value = cmap
 			})
 			.catch((err) => {
 				message.error(err?.msg || '学员详情加载失败，请重试')
 			})
 			.finally(() => {
 				loading.value = false
-				timelineLoading.value = false
 			})
+	}
+
+	// 打开详情：重置分页与懒加载状态，加载基础信息与当前页签
+	const loadAll = () => {
+		Object.keys(tabPage).forEach((key) => {
+			tabPage[key].current = 1
+			tabPage[key].total = 0
+			tabLoaded[key] = false
+		})
+		tabLoaded.timeline = false
+		timeline.value = []
+		accounts.value = []
+		flows.value = []
+		orders.value = []
+		attends.value = []
+		refunds.value = []
+		sundries.value = []
+		return loadStudent().then(() => {
+			if (activeTab.value === 'timeline') {
+				loadTimeline()
+			} else {
+				loadTab(activeTab.value)
+			}
+		})
+	}
+
+	// 操作后只刷新相关页签 + 基础信息（原来每次都全量重拉 10 个请求）
+	const refreshAfterAction = (tabKeys) => {
+		const keys = Array.isArray(tabKeys) ? tabKeys : [tabKeys]
+		return loadStudent().then(() => {
+			const tasks = keys.filter(Boolean).map((key) => loadTab(key))
+			// 时间线是默认页签，已加载过就一并刷新，保证操作记录能立即看到
+			if (tabLoaded.timeline) {
+				tabLoaded.timeline = false
+				tasks.push(loadTimeline())
+			}
+			return Promise.all(tasks)
+		})
 	}
 
 	const onOpenPay = (record) => {
@@ -747,12 +930,12 @@
 		payFormRef.value.validate().then(() => {
 			studentApi.orderOfflinePay(payFormData.value).then(() => {
 				payOpen.value = false
-				loadAll()
+				refreshAfterAction(['order', 'account', 'flow'])
 			})
 		})
 	}
 	const onCancelOrder = (record) => {
-		studentApi.orderCancel({ id: record.id }).then(() => loadAll())
+		studentApi.orderCancel({ id: record.id }).then(() => refreshAfterAction('order'))
 	}
 
 	// ---------- 学杂费 ----------
@@ -802,7 +985,7 @@
 				})
 				.then(() => {
 					sundryOpen.value = false
-					loadAll()
+					refreshAfterAction('sundry')
 				})
 		})
 	}
@@ -813,16 +996,16 @@
 	const onSubmitSundryPay = () => {
 		sundryApi.pay(sundryPayForm.value).then(() => {
 			sundryPayOpen.value = false
-			loadAll()
+			refreshAfterAction('sundry')
 		})
 	}
 	const onRefundSundry = (record) => {
 		sundryApi
 			.refund({ id: record.id, refundAmount: Number(record.paidAmount || 0), reason: '学杂费退费' })
-			.then(() => loadAll())
+			.then(() => refreshAfterAction('sundry'))
 	}
 	const onDeleteSundry = (record) => {
-		sundryApi.del(record.id).then(() => loadAll())
+		sundryApi.del(record.id).then(() => refreshAfterAction('sundry'))
 	}
 	const onOpenRefund = (record) => {
 		refundFormData.value = { orderId: record.id }
@@ -849,7 +1032,7 @@
 				})
 				.then(() => {
 					adjustOpen.value = false
-					loadAll()
+					refreshAfterAction(['account', 'flow'])
 				})
 		})
 	}
@@ -857,7 +1040,7 @@
 		refundFormRef.value.validate().then(() => {
 			studentApi.refundApply(refundFormData.value).then(() => {
 				refundOpen.value = false
-				loadAll()
+				refreshAfterAction(['refund', 'order'])
 			})
 		})
 	}
@@ -869,14 +1052,14 @@
 	const onApprove = (pass) => {
 		studentApi.refundApprove({ ...approveFormData.value, pass }).then(() => {
 			approveOpen.value = false
-			loadAll()
+			refreshAfterAction(['refund', 'account'])
 		})
 	}
 	const onConfirmRefund = (record) => {
-		studentApi.refundConfirm({ id: record.id }).then(() => loadAll())
+		studentApi.refundConfirm({ id: record.id }).then(() => refreshAfterAction(['refund', 'account', 'flow', 'order']))
 	}
 	const onCancelRefund = (record) => {
-		studentApi.refundCancel({ id: record.id }).then(() => loadAll())
+		studentApi.refundCancel({ id: record.id }).then(() => refreshAfterAction(['refund', 'account']))
 	}
 	const formatDateTime = (value) => {
 		if (!value) return '-'
@@ -909,7 +1092,7 @@
 		}
 		studentApi.studentStatusChange(form).then(() => {
 			statusOpen.value = false
-			loadAll()
+			refreshAfterAction()
 		})
 	}
 	const openTagBind = () => {
@@ -922,7 +1105,7 @@
 	const onSubmitTags = () => {
 		studentApi.tagBind(tagBindForm.value).then(() => {
 			tagBindOpen.value = false
-			loadAll()
+			refreshAfterAction()
 		})
 	}
 	watch(currentStudentId, () => loadAll(), { immediate: true })
