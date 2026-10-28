@@ -1,44 +1,68 @@
 <template>
 	<div>
-		<page-header title="班级管理" desc="班级、授课教师与每周固定课表">
-			<template #extra>
+		<page-header title="班级管理" desc="班级、授课教师与每周固定课表" />
+		<div class="class-toolbar">
+			<a-tabs v-model:activeKey="activeClassType" class="class-type-tabs" @change="onClassTabChange">
+				<a-tab-pane key="GROUP" tab="一对多" />
+				<a-tab-pane key="ONE2ONE" tab="一对一" />
+			</a-tabs>
+			<div class="class-status-row">
+				<a-radio-group v-model:value="statusFilter" size="small" button-style="solid" @change="onStatusChange">
+					<a-radio-button value="ENABLE">在课</a-radio-button>
+					<a-radio-button value="DISABLE">已停用</a-radio-button>
+				</a-radio-group>
 				<a-button v-if="hasPerm('/course/class/add')" type="primary" @click="onOpenAdd">
 					<template #icon><plus-outlined /></template>
 					新增班级
 				</a-button>
-			</template>
-		</page-header>
-		<div class="ent-toolbar">
-			<a-form layout="inline" :model="searchFormState">
-				<a-form-item label="班级名称">
-					<a-input v-model:value="searchFormState.searchKey" placeholder="请输入班级名称" allow-clear style="width: 220px" />
-				</a-form-item>
-				<a-form-item label="课程">
-					<a-select v-model:value="searchFormState.courseId" placeholder="全部课程" :options="courseOptions" allow-clear style="width: 200px" />
-				</a-form-item>
-				<a-form-item label="班型">
-					<a-select v-model:value="searchFormState.classType" placeholder="全部班型" :options="classTypeOptions" allow-clear style="width: 140px" />
-				</a-form-item>
-				<a-form-item>
-					<a-space>
-						<a-button type="primary" @click="tableRef.refresh(true)">
-							<template #icon><SearchOutlined /></template>
-							查询
-						</a-button>
-						<a-button @click="reset">
-							<template #icon><redo-outlined /></template>
-							重置
-						</a-button>
-					</a-space>
-				</a-form-item>
-			</a-form>
+			</div>
+			<div class="class-filter-row">
+				<a-input-search
+					v-model:value="searchFormState.searchKey"
+					placeholder="班级名称"
+					allow-clear
+					style="width: 220px"
+					@search="onSearchChange"
+				/>
+				<a class="class-filter-reset" @click="reset">重置</a>
+				<a-select
+					v-model:value="searchFormState.teacherId"
+					placeholder="班级老师"
+					:options="teacherOptions"
+					:bordered="false"
+					allow-clear
+					show-search
+					option-filter-prop="label"
+					style="width: 140px"
+					@change="(value) => onSelectChange('teacherId', value)"
+				/>
+				<a-select
+					v-model:value="searchFormState.courseId"
+					placeholder="关联课程"
+					:options="courseOptions"
+					:bordered="false"
+					allow-clear
+					style="width: 160px"
+					@change="(value) => onSelectChange('courseId', value)"
+				/>
+				<a-select
+					v-model:value="searchFormState.classroom"
+					placeholder="教室"
+					:options="classroomOptions"
+					:bordered="false"
+					allow-clear
+					style="width: 120px"
+					@change="(value) => onSelectChange('classroom', value)"
+				/>
+				<a-checkbox v-model:checked="onlyFull" @change="(event) => onCheckboxChange('full', event)">满班</a-checkbox>
+				<a-checkbox v-model:checked="onlyScheduled" @change="(event) => onCheckboxChange('schedule', event)">已排课</a-checkbox>
+			</div>
 		</div>
 		<div class="ent-body">
 		<s-table
 			ref="tableRef"
 			:columns="columns"
 			:data="loadData"
-			bordered
 			:row-key="(record) => record.id"
 			:scroll="{ x: 'max-content' }"
 		>
@@ -46,10 +70,8 @@
 				<template v-if="column.dataIndex === 'courseId'">
 					{{ courseName(record.courseId) }}
 				</template>
-				<template v-if="column.dataIndex === 'classType'">
-					<a-tag :color="record.classType === 'ONE2ONE' ? 'purple' : 'blue'">
-						{{ record.classType === 'ONE2ONE' ? `一对一${record.studentName ? ' · ' + record.studentName : ''}` : '一对多' }}
-					</a-tag>
+				<template v-if="column.dataIndex === 'studentName'">
+					<span>{{ record.studentName || '未绑定学员' }}</span>
 				</template>
 				<template v-if="column.dataIndex === 'teacherId'">
 					{{ teacherName(record.teacherId) }}
@@ -228,6 +250,36 @@
 	const studentTableRef = ref()
 	const currentClass = ref({})
 	const addStudentIds = ref([])
+	const activeClassType = ref('GROUP')
+	const classTypeCount = ref({ GROUP: 0, ONE2ONE: 0 })
+	const groupCount = computed(() => classTypeCount.value.GROUP)
+	const one2oneCount = computed(() => classTypeCount.value.ONE2ONE)
+	const statusFilter = ref('ENABLE')
+	const onlyFull = ref(false)
+	const onlyScheduled = ref(false)
+	const classroomOptions = ref([])
+	const refreshTable = () => {
+		if (tableRef.value) tableRef.value.refresh(true)
+	}
+	const onClassTabChange = (key) => {
+		activeClassType.value = key
+		refreshTable()
+	}
+	const onStatusChange = (event) => {
+		statusFilter.value = event?.target?.value || 'ENABLE'
+		refreshTable()
+	}
+	const onSearchChange = () => refreshTable()
+	const onSelectChange = (key, value) => {
+		searchFormState.value = { ...searchFormState.value, [key]: value }
+		refreshTable()
+	}
+	const onCheckboxChange = (key, event) => {
+		const checked = !!event?.target?.checked
+		if (key === 'full') onlyFull.value = checked
+		if (key === 'schedule') onlyScheduled.value = checked
+		refreshTable()
+	}
 	const statusOptions = [
 		{ value: 'ENABLE', label: '启用' },
 		{ value: 'DISABLE', label: '停用' }
@@ -240,17 +292,29 @@
 	const selectedCourseIsOne2One = computed(
 		() => courseOptions.value.find((item) => item.value === formData.value.courseId)?.classType === 'ONE2ONE'
 	)
-	const columns = [
-		{ title: '班级名称', dataIndex: 'name' },
-		{ title: '课程', dataIndex: 'courseId' },
-		{ title: '班型', dataIndex: 'classType', width: 150 },
-		{ title: '授课教师', dataIndex: 'teacherId', width: 120 },
-		{ title: '教室', dataIndex: 'classroom', width: 110 },
-		{ title: '在学/容量', dataIndex: 'studentCount', width: 120 },
-		{ title: '固定课表', dataIndex: 'weekTemplateJson' },
-		{ title: '状态', dataIndex: 'status', width: 90 },
-		{ title: '操作', dataIndex: 'action', align: 'center', fixed: 'right' }
-	]
+	const columns = computed(() =>
+		activeClassType.value === 'ONE2ONE'
+			? [
+					{ title: '班级名称', dataIndex: 'name' },
+					{ title: '课程', dataIndex: 'courseId' },
+					{ title: '绑定学员', dataIndex: 'studentName', width: 140 },
+					{ title: '授课教师', dataIndex: 'teacherId', width: 120 },
+					{ title: '教室', dataIndex: 'classroom', width: 110 },
+					{ title: '固定课表', dataIndex: 'weekTemplateJson' },
+					{ title: '状态', dataIndex: 'status', width: 90 },
+					{ title: '操作', dataIndex: 'action', align: 'center', fixed: 'right' }
+				]
+			: [
+					{ title: '班级名称', dataIndex: 'name' },
+					{ title: '课程', dataIndex: 'courseId' },
+					{ title: '授课教师', dataIndex: 'teacherId', width: 120 },
+					{ title: '教室', dataIndex: 'classroom', width: 110 },
+					{ title: '在学/容量', dataIndex: 'studentCount', width: 120 },
+					{ title: '固定课表', dataIndex: 'weekTemplateJson' },
+					{ title: '状态', dataIndex: 'status', width: 90 },
+					{ title: '操作', dataIndex: 'action', align: 'center', fixed: 'right' }
+				]
+	)
 	const studentColumns = [
 		{ title: '学员', dataIndex: 'studentId' },
 		{ title: '剩余课时', dataIndex: 'remain', width: 110 },
@@ -259,10 +323,34 @@
 		{ title: '操作', dataIndex: 'action', align: 'center' }
 	]
 	const loadData = (parameter) => {
-		return courseApi.classPage(Object.assign(parameter, searchFormState.value)).then((data) => data)
+		const params = Object.assign({}, parameter, searchFormState.value, {
+			classType: activeClassType.value,
+			status: statusFilter.value,
+			full: onlyFull.value || undefined,
+			hasSchedule: onlyScheduled.value || undefined
+		})
+		return courseApi.classPage(params).then((data) => data)
+	}
+	const loadTypeCounts = () => {
+		Promise.all([
+			courseApi.classPage({ current: 1, size: 1, classType: 'GROUP' }).catch(() => ({})),
+			courseApi.classPage({ current: 1, size: 1, classType: 'ONE2ONE' }).catch(() => ({}))
+		]).then(([group, one2one]) => {
+			classTypeCount.value = { GROUP: group.total || 0, ONE2ONE: one2one.total || 0 }
+		})
+	}
+	const loadClassrooms = () => {
+		courseApi.classPage({ current: 1, size: 500 }).then((data) => {
+			const values = [...new Set((data.records || []).map((item) => item.classroom).filter(Boolean))]
+			classroomOptions.value = values.map((value) => ({ value, label: value }))
+		})
 	}
 	const reset = () => {
 		searchFormState.value = {}
+		activeClassType.value = 'GROUP'
+		statusFilter.value = 'ENABLE'
+		onlyFull.value = false
+		onlyScheduled.value = false
 		tableRef.value.refresh(true)
 	}
 	const loadCourses = () => {
@@ -390,7 +478,8 @@
 		}
 	}
 	const onOpenAdd = () => {
-		formData.value = { status: 'ENABLE', capacity: 15, classType: 'GROUP' }
+		const classType = activeClassType.value
+		formData.value = { status: 'ENABLE', capacity: classType === 'ONE2ONE' ? 1 : 15, classType }
 		weekTemplate.value = []
 		applyDefaultCampus()
 		loadStudents()
@@ -417,12 +506,19 @@
 			}
 			api(body).then(() => {
 				open.value = false
+				activeClassType.value = body.classType === 'ONE2ONE' ? 'ONE2ONE' : 'GROUP'
+				statusFilter.value = 'ENABLE'
 				tableRef.value.refresh()
+				loadTypeCounts()
+				loadClassrooms()
 			})
 		})
 	}
 	const onDelete = (record) => {
-		courseApi.classDelete([{ id: record.id }]).then(() => tableRef.value.refresh())
+		courseApi.classDelete([{ id: record.id }]).then(() => {
+			tableRef.value.refresh()
+			loadTypeCounts()
+		})
 	}
 	// 操作列：次要操作收进「更多」下拉
 	const classMoreActions = [
@@ -501,4 +597,34 @@
 	}
 	loadCourses()
 	loadOptions()
+	loadTypeCounts()
+	loadClassrooms()
 </script>
+
+<style scoped>
+	.class-toolbar {
+		background: #fff;
+		border-radius: var(--radius-card);
+		padding: 0 16px 12px;
+		margin-bottom: 12px;
+	}
+	.class-type-tabs :deep(.ant-tabs-nav) {
+		margin-bottom: 8px;
+	}
+	.class-status-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 8px;
+	}
+	.class-filter-row {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		flex-wrap: wrap;
+	}
+	.class-filter-reset {
+		color: var(--text-color-secondary);
+		font-size: 13px;
+	}
+</style>

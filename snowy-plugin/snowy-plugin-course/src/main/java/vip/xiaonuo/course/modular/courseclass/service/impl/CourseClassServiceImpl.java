@@ -84,6 +84,31 @@ public class CourseClassServiceImpl extends ServiceImpl<CourseClassMapper, Cours
         if (ObjectUtil.isNotEmpty(courseClassPageParam.getStudentId())) {
             queryWrapper.lambda().eq(CourseClass::getStudentId, courseClassPageParam.getStudentId());
         }
+        if (ObjectUtil.isNotEmpty(courseClassPageParam.getTeacherId())) {
+            queryWrapper.lambda().eq(CourseClass::getTeacherId, courseClassPageParam.getTeacherId());
+        }
+        if (ObjectUtil.isNotEmpty(courseClassPageParam.getClassroom())) {
+            queryWrapper.lambda().like(CourseClass::getClassroom, courseClassPageParam.getClassroom());
+        }
+        if (ObjectUtil.isNotEmpty(courseClassPageParam.getStatus())) {
+            queryWrapper.lambda().eq(CourseClass::getStatus, courseClassPageParam.getStatus());
+        }
+        if (courseClassPageParam.getHasSchedule() != null) {
+            String existsSql = "EXISTS (SELECT 1 FROM `COURSE_SCHEDULE` s WHERE s.`CLASS_ID` = `COURSE_CLASS`.`ID` "
+                    + "AND s.`TENANT_ID` = `COURSE_CLASS`.`TENANT_ID` AND s.`DELETE_FLAG` = 'NOT_DELETE')";
+            queryWrapper.apply(courseClassPageParam.getHasSchedule() ? existsSql : "NOT " + existsSql);
+        }
+        if (courseClassPageParam.getFull() != null) {
+            String countSql = "(SELECT COUNT(*) FROM `COURSE_CLASS_STUDENT` cs WHERE cs.`CLASS_ID` = `COURSE_CLASS`.`ID` "
+                    + "AND cs.`TENANT_ID` = `COURSE_CLASS`.`TENANT_ID` AND cs.`DELETE_FLAG` = 'NOT_DELETE' "
+                    + "AND cs.`STATUS` = 'STUDYING')";
+            String capacitySql = "COALESCE(`COURSE_CLASS`.`CAPACITY`, 0)";
+            if (courseClassPageParam.getFull()) {
+                queryWrapper.apply(capacitySql + " > 0 AND " + countSql + " >= " + capacitySql);
+            } else {
+                queryWrapper.apply("(" + capacitySql + " = 0 OR " + countSql + " < " + capacitySql + ")");
+            }
+        }
         // 数据范围：仅可见校区的班级
         List<String> visibleCampusIds = StpDataScopeUtil.visibleOrgIds();
         if (visibleCampusIds != null) {

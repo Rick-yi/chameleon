@@ -57,4 +57,24 @@ public class CourseClassPageParam {
     /** 一对一班绑定的学员id */
     @Schema(description = "一对一班绑定的学员id")
     private String studentId;
+
+    /** 授课教师id */
+    @Schema(description = "授课教师id")
+    private String teacherId;
+
+    /** 教室 */
+    @Schema(description = "教室")
+    private String classroom;
+
+    /** 状态 */
+    @Schema(description = "状态(启用/停用)")
+    private String status;
+
+    /** 是否已排课 */
+    @Schema(description = "是否已排课")
+    private Boolean hasSchedule;
+
+    /** 是否满班 */
+    @Schema(description = "是否满班")
+    private Boolean full;
 }
