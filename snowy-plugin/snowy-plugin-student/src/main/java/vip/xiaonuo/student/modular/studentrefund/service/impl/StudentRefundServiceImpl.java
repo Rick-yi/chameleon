@@ -51,6 +51,7 @@ import vip.xiaonuo.student.modular.studentrefund.param.StudentRefundApproveParam
 import vip.xiaonuo.student.modular.studentrefund.param.StudentRefundIdParam;
 import vip.xiaonuo.student.modular.studentrefund.param.StudentRefundPageParam;
 import vip.xiaonuo.student.modular.studentrefund.service.StudentRefundService;
+import vip.xiaonuo.student.modular.studentrefund.util.RefundAccountStatusResolver;
 import vip.xiaonuo.student.modular.studentrefund.util.RefundAmountCalculator;
 
 import java.math.BigDecimal;
@@ -329,6 +330,11 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
         if (totalRemove.compareTo(BigDecimal.ZERO) <= 0) {
             throw new CommonException("退费课时异常");
         }
+        // 前置校验余额充足：数据库层虽有 ge 约束，但提前给出明确原因更利于排查
+        if (!RefundAccountStatusResolver.canDeduct(totalRemove, refundGiftLessons,
+                account.getRemainLessons(), account.getGiftLessons())) {
+            throw new CommonException("课时账户余额不足，无法完成退费");
+        }
         // 扣减账户总课时/剩余课时，并作废该订单赠课
         int accountUpdated = studentLessonAccountMapper.update(null, new LambdaUpdateWrapper<StudentLessonAccount>()
                 .eq(StudentLessonAccount::getId, account.getId())
@@ -342,8 +348,8 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
             throw new CommonException("课时账户数据异常，退费失败");
         }
         StudentLessonAccount updatedAccount = studentLessonAccountService.getAccount(order.getStudentId(), order.getCourseId());
-        String accountStatus = updatedAccount.getRemainLessons().compareTo(BigDecimal.ZERO) > 0
-                ? LessonAccountStatusEnum.NORMAL.getValue() : LessonAccountStatusEnum.CLEARED.getValue();
+        // 状态判定统一走 RefundAccountStatusResolver，避免两处各写一份
+        String accountStatus = RefundAccountStatusResolver.resolve(updatedAccount.getRemainLessons());
         studentLessonAccountMapper.update(null, new LambdaUpdateWrapper<StudentLessonAccount>()
                 .eq(StudentLessonAccount::getId, account.getId())
                 .eq(StudentLessonAccount::getStatus, LessonAccountStatusEnum.FROZEN.getValue())
@@ -391,8 +397,7 @@ public class StudentRefundServiceImpl extends ServiceImpl<StudentRefundMapper, S
         if (StudentRefundStatusEnum.TO_REFUND.getValue().equals(refund.getStatus())) {
             StudentOrder order = studentOrderService.queryEntity(refund.getOrderId());
             StudentLessonAccount account = studentLessonAccountService.getAccount(order.getStudentId(), order.getCourseId());
-            String accountStatus = account.getRemainLessons().compareTo(BigDecimal.ZERO) > 0
-                    ? LessonAccountStatusEnum.NORMAL.getValue() : LessonAccountStatusEnum.CLEARED.getValue();
+            String accountStatus = RefundAccountStatusResolver.resolve(account.getRemainLessons());
             studentLessonAccountMapper.update(null, new LambdaUpdateWrapper<StudentLessonAccount>()
                     .eq(StudentLessonAccount::getId, account.getId())
                     .eq(StudentLessonAccount::getStatus, LessonAccountStatusEnum.FROZEN.getValue())

@@ -64,6 +64,7 @@ import vip.xiaonuo.student.modular.studentrenewarn.param.StudentRenewWarnRiskTod
 import vip.xiaonuo.student.modular.studentrenewarn.param.StudentRenewWarnStatsParam;
 import vip.xiaonuo.student.modular.studentrenewarn.service.StudentRenewWarnConfigService;
 import vip.xiaonuo.student.modular.studentrenewarn.service.StudentRenewWarnService;
+import vip.xiaonuo.student.modular.studentrenewarn.util.RenewWarnRules;
 import vip.xiaonuo.student.modular.studentrenewarn.util.RenewWarnTenantUtil;
 import vip.xiaonuo.sys.api.SysUserApi;
 
@@ -152,17 +153,13 @@ public class StudentRenewWarnServiceImpl extends ServiceImpl<StudentRenewWarnMap
         List<StudentLessonAccount> accountList = studentLessonAccountService.listNormalAccounts();
         for (StudentLessonAccount account : accountList) {
             ResolvedWarnConfig config = studentRenewWarnConfigService.resolve(account, configList, classConfigMap);
-            String warnReason = null;
             BigDecimal lessonThreshold = ObjectUtil.defaultIfNull(config.getLessonThreshold(), BigDecimal.ZERO);
             int expireDays = ObjectUtil.defaultIfNull(config.getExpireDays(), 7);
-            DateTime expireDeadline = DateUtil.offsetDay(now, expireDays);
-            if (account.getRemainLessons() != null
-                    && account.getRemainLessons().compareTo(lessonThreshold) <= 0) {
-                warnReason = StudentRenewWarnStatusEnum.REASON_LESSON_LOW;
-            } else if (account.getExpireTime() != null && account.getExpireTime().before(expireDeadline)
-                    && account.getExpireTime().after(now)) {
-                warnReason = StudentRenewWarnStatusEnum.REASON_EXPIRE_SOON;
-            }
+            // 预警判定规则集中在 RenewWarnRules，便于单测覆盖
+            String warnReason = RenewWarnRules.resolveWarnReason(
+                    account.getRemainLessons(),
+                    account.getExpireTime() == null ? null : DateUtil.toLocalDateTime(account.getExpireTime()),
+                    lessonThreshold, expireDays, DateUtil.toLocalDateTime(now));
             if (warnReason == null) {
                 continue;
             }
@@ -174,11 +171,11 @@ public class StudentRenewWarnServiceImpl extends ServiceImpl<StudentRenewWarnMap
                     .orderByDesc(StudentRenewWarn::getCreateTime)
                     .last("limit 1"));
             if (ObjectUtil.isNotEmpty(latest)) {
-                if (StudentRenewWarnStatusEnum.PENDING.equals(latest.getStatus())) {
-                    continue;
-                }
-                if (latest.getCreateTime() != null
-                        && latest.getCreateTime().after(DateUtil.offsetDay(now, -repeatDays))) {
+                boolean shouldCreate = RenewWarnRules.shouldCreateWarn(
+                        latest.getStatus(),
+                        latest.getCreateTime() == null ? null : DateUtil.toLocalDateTime(latest.getCreateTime()),
+                        repeatDays, DateUtil.toLocalDateTime(now));
+                if (!shouldCreate) {
                     continue;
                 }
             }
