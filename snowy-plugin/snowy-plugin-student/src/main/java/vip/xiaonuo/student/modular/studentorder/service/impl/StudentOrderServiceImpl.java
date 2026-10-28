@@ -46,6 +46,7 @@ import vip.xiaonuo.student.modular.studentorder.param.StudentOrderRenewParam;
 import vip.xiaonuo.student.modular.studentorder.service.StudentOrderService;
 import vip.xiaonuo.sys.api.SysUserApi;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -171,36 +172,45 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
     @Override
     public String add(StudentOrderAddParam studentOrderAddParam) {
         Student student = studentService.queryEntity(studentOrderAddParam.getStudentId());
-        JSONObject packageInfo = courseApi.getCoursePackageInfo(studentOrderAddParam.getCoursePackageId());
-        if (ObjectUtil.isEmpty(packageInfo)) {
-            throw new CommonException("课包不存在，id值为：{}", studentOrderAddParam.getCoursePackageId());
-        }
-        // 防重复下单：同学员同课包存在待支付订单则拒绝
-        boolean hasUnpaid = this.count(new LambdaQueryWrapper<StudentOrder>()
-                .eq(StudentOrder::getStudentId, studentOrderAddParam.getStudentId())
-                .eq(StudentOrder::getCoursePackageId, studentOrderAddParam.getCoursePackageId())
-                .eq(StudentOrder::getStatus, StudentOrderStatusEnum.UNPAID.getValue())) > 0;
-        if (hasUnpaid) {
-            throw new CommonException("学员【{}】已有该课包的待支付订单", student.getName());
-        }
-        StudentOrder order = new StudentOrder();
-        order.setStudentId(studentOrderAddParam.getStudentId());
-        order.setCoursePackageId(studentOrderAddParam.getCoursePackageId());
-        order.setCourseId(packageInfo.getStr("courseId"));
         String campusId = cn.hutool.core.util.StrUtil.blankToDefault(student.getCampusId(),
                 studentService.resolveDefaultCampusId());
         if (cn.hutool.core.util.StrUtil.isBlank(campusId)) {
             throw new CommonException("学员【{}】未设置校区，请先在学员档案中选择校区", student.getName());
         }
+
+        StudentOrder order = new StudentOrder();
+        order.setStudentId(studentOrderAddParam.getStudentId());
         order.setCampusId(campusId);
-        // 课包快照（改价不影响已购）
-        order.setPackageName(packageInfo.getStr("name"));
-        order.setPackagePrice(packageInfo.getBigDecimal("price"));
-        order.setPackageLessons(packageInfo.getBigDecimal("lessons"));
-        order.setPackageGiftLessons(packageInfo.getBigDecimal("giftLessons"));
-        order.setPackageValidityDays(packageInfo.getInt("totalValidityDays",
-                packageInfo.getInt("validityDays", 0)));
-        order.setAmount(packageInfo.getBigDecimal("price"));
+
+        if (cn.hutool.core.util.StrUtil.isBlank(studentOrderAddParam.getCoursePackageId())) {
+            // ---------- 自定义课包：不走预设课包，按传入的课时/价格直接快照 ----------
+            fillCustomPackage(studentOrderAddParam, student, order);
+        } else {
+            // ---------- 预设课包：沿用原有快照逻辑 ----------
+            JSONObject packageInfo = courseApi.getCoursePackageInfo(studentOrderAddParam.getCoursePackageId());
+            if (ObjectUtil.isEmpty(packageInfo)) {
+                throw new CommonException("课包不存在，id值为：{}", studentOrderAddParam.getCoursePackageId());
+            }
+            // 防重复下单：同学员同课包存在待支付订单则拒绝
+            boolean hasUnpaid = this.count(new LambdaQueryWrapper<StudentOrder>()
+                    .eq(StudentOrder::getStudentId, studentOrderAddParam.getStudentId())
+                    .eq(StudentOrder::getCoursePackageId, studentOrderAddParam.getCoursePackageId())
+                    .eq(StudentOrder::getStatus, StudentOrderStatusEnum.UNPAID.getValue())) > 0;
+            if (hasUnpaid) {
+                throw new CommonException("学员【{}】已有该课包的待支付订单", student.getName());
+            }
+            order.setCoursePackageId(studentOrderAddParam.getCoursePackageId());
+            order.setCourseId(packageInfo.getStr("courseId"));
+            // 课包快照（改价不影响已购）
+            order.setPackageName(packageInfo.getStr("name"));
+            order.setPackagePrice(packageInfo.getBigDecimal("price"));
+            order.setPackageLessons(packageInfo.getBigDecimal("lessons"));
+            order.setPackageGiftLessons(packageInfo.getBigDecimal("giftLessons"));
+            order.setPackageValidityDays(packageInfo.getInt("totalValidityDays",
+                    packageInfo.getInt("validityDays", 0)));
+            order.setAmount(packageInfo.getBigDecimal("price"));
+        }
+
         order.setPayChannel(ObjectUtil.isNotEmpty(studentOrderAddParam.getPayChannel())
                 ? studentOrderAddParam.getPayChannel() : "WECHAT");
         order.setStatus(StudentOrderStatusEnum.UNPAID.getValue());
@@ -213,6 +223,59 @@ public class StudentOrderServiceImpl extends ServiceImpl<StudentOrderMapper, Stu
         bizEventApi.log(BizEventCodeEnum.ORDER_CREATE.getValue(), "order", order.getId(), student.getName(),
                 Map.of("课包", order.getPackageName(), "金额", String.valueOf(order.getAmount())));
         return order.getId();
+    }
+
+    /**
+     * 填充自定义课包快照
+     * <p>
+     * 自定义课包不依赖 COURSE_PACKAGE 表，直接把课时、赠课、有效期、应收金额写进订单快照。
+     * 收款后的账户累加（recharge）读的正是这些快照字段，因此下游链路无需改动；
+     * 退费也按订单快照核算，不会因为「没有课包记录」而算不出来。
+     * </p>
+     */
+    private void fillCustomPackage(StudentOrderAddParam param, Student student, StudentOrder order) {
+        if (cn.hutool.core.util.StrUtil.isBlank(param.getCourseId())) {
+            throw new CommonException("自定义课包必须选择课程");
+        }
+        String courseName = courseApi.getCourseName(param.getCourseId());
+        if (cn.hutool.core.util.StrUtil.isBlank(courseName)) {
+            throw new CommonException("课程不存在，id值为：{}", param.getCourseId());
+        }
+        BigDecimal lessons = param.getPackageLessons();
+        if (lessons == null || lessons.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new CommonException("自定义课包的课时数必须大于0");
+        }
+        if (param.getAmount() == null || param.getAmount().compareTo(BigDecimal.ZERO) < 0) {
+            throw new CommonException("自定义课包必须填写应收金额，且不能为负");
+        }
+        BigDecimal giftLessons = param.getPackageGiftLessons() == null
+                ? BigDecimal.ZERO : param.getPackageGiftLessons();
+        if (giftLessons.compareTo(BigDecimal.ZERO) < 0) {
+            throw new CommonException("赠送课时不能为负");
+        }
+        Integer validityDays = param.getPackageValidityDays();
+        if (validityDays != null && validityDays < 0) {
+            throw new CommonException("有效期天数不能为负");
+        }
+        // 防重复提交：同学员同课程已有待支付的自定义订单则拒绝
+        boolean hasUnpaidCustom = this.count(new LambdaQueryWrapper<StudentOrder>()
+                .eq(StudentOrder::getStudentId, param.getStudentId())
+                .eq(StudentOrder::getCourseId, param.getCourseId())
+                .isNull(StudentOrder::getCoursePackageId)
+                .eq(StudentOrder::getStatus, StudentOrderStatusEnum.UNPAID.getValue())) > 0;
+        if (hasUnpaidCustom) {
+            throw new CommonException("学员【{}】在该课程下已有待支付的自定义课包订单", student.getName());
+        }
+
+        order.setCourseId(param.getCourseId());
+        order.setPackageName(cn.hutool.core.util.StrUtil.blankToDefault(param.getPackageName(),
+                "自定义课包（" + courseName + "）"));
+        order.setPackagePrice(param.getAmount());
+        order.setPackageLessons(lessons);
+        order.setPackageGiftLessons(giftLessons);
+        order.setPackageValidityDays(validityDays == null ? 0 : validityDays);
+        order.setAmount(param.getAmount());
+        order.setRemark(param.getRemark());
     }
 
     /**

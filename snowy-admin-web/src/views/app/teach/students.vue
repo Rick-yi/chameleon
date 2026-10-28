@@ -78,15 +78,18 @@
 						<span>待收款</span><b>¥{{ Number(currentStudent.unpaidAmount || 0).toFixed(2) }}</b>
 					</div>
 				</div>
-				<a-button
-					v-if="hasPerm('/student/order/add')"
-					type="primary"
-					block
-					class="m-detail-enroll"
-					@click="enrollFromDetail"
-				>
-					报名 / 续费
-				</a-button>
+				<div class="m-detail-actions">
+					<a-button
+						v-if="hasPerm('/student/order/add')"
+						type="primary"
+						block
+						class="m-detail-enroll"
+						@click="enrollFromDetail"
+					>
+						报名 / 续费
+					</a-button>
+					<a-button v-if="hasPerm('/student/order/add')" block @click="openAdjustPackage">调课包</a-button>
+				</div>
 				<div class="m-section-title">课时账户</div>
 				<div v-if="!accountList.length" class="m-empty" style="padding: 16px">暂无课时账户</div>
 				<div v-for="acc in accountList" :key="acc.courseId" class="m-card" style="padding: 10px 12px">
@@ -97,12 +100,96 @@
 				</div>
 			</div>
 		</a-drawer>
+
+		<!-- 调课包：选预设课包或自定义课时/价格 -->
+		<a-drawer v-model:open="pkgOpen" :width="360" placement="right" title="调课包" :body-style="{ padding: '12px' }">
+			<div class="m-pkg-hint">调课包会生成一笔新订单，课时叠加到学员账户；历史订单不动，退费仍按各自订单核算。</div>
+			<a-form :model="pkgForm" layout="vertical">
+				<a-form-item label="课程" required>
+					<a-select
+						v-model:value="pkgForm.courseId"
+						:options="courseOptions"
+						placeholder="选择课程"
+						show-search
+						option-filter-prop="label"
+						@change="onPkgCourseChange"
+					/>
+				</a-form-item>
+				<a-form-item label="方式">
+					<a-radio-group v-model:value="pkgForm.mode" button-style="solid" size="small">
+						<a-radio-button value="PACKAGE">预设课包</a-radio-button>
+						<a-radio-button value="CUSTOM">自定义</a-radio-button>
+					</a-radio-group>
+				</a-form-item>
+				<a-form-item v-if="pkgForm.mode === 'PACKAGE'" label="课包" required>
+					<a-select
+						v-model:value="pkgForm.coursePackageId"
+						:options="packageOptions"
+						placeholder="选择课包"
+						show-search
+						option-filter-prop="label"
+						@change="onPkgPackageChange"
+					/>
+				</a-form-item>
+				<template v-else>
+					<a-row :gutter="8">
+						<a-col :span="12">
+							<a-form-item label="课时" required>
+								<a-input-number v-model:value="pkgForm.packageLessons" :min="0.5" :precision="2" style="width: 100%" />
+							</a-form-item>
+						</a-col>
+						<a-col :span="12">
+							<a-form-item label="赠课">
+								<a-input-number
+									v-model:value="pkgForm.packageGiftLessons"
+									:min="0"
+									:precision="2"
+									style="width: 100%"
+								/>
+							</a-form-item>
+						</a-col>
+					</a-row>
+					<a-row :gutter="8">
+						<a-col :span="12">
+							<a-form-item label="有效期(天)">
+								<a-input-number v-model:value="pkgForm.packageValidityDays" :min="0" style="width: 100%" />
+							</a-form-item>
+						</a-col>
+						<a-col :span="12">
+							<a-form-item label="应收金额" required>
+								<a-input-number v-model:value="pkgForm.amount" :min="0" :precision="2" style="width: 100%" />
+							</a-form-item>
+						</a-col>
+					</a-row>
+				</template>
+				<a-form-item label="立即收款">
+					<a-switch v-model:checked="pkgForm.payNow" />
+				</a-form-item>
+				<a-form-item v-if="pkgForm.payNow" label="收款渠道">
+					<a-select
+						v-model:value="pkgForm.payChannel"
+						:options="[
+							{ value: 'CASH', label: '现金' },
+							{ value: 'WECHAT', label: '微信' },
+							{ value: 'ALIPAY', label: '支付宝' },
+							{ value: 'OFFLINE', label: '线下转账' }
+						]"
+					/>
+				</a-form-item>
+			</a-form>
+			<div class="m-pkg-summary" v-if="pkgPreview">
+				<span>本次应收</span><b>¥{{ pkgPreview }}</b>
+			</div>
+			<a-button type="primary" block :loading="pkgSubmitting" @click="submitAdjustPackage">确认调课包</a-button>
+		</a-drawer>
 	</div>
 </template>
 
 <script setup name="appTeachStudents">
 	import { useRoute } from 'vue-router'
+	import { message } from 'ant-design-vue'
 	import studentApi from '@/api/student/studentApi'
+	import courseApi from '@/api/course/courseApi'
 	import EnrollmentFlow from '@/components/EnrollmentFlow/index.vue'
 
 	const route = useRoute()
@@ -182,6 +269,134 @@
 	const enrollFromDetail = () => {
 		detailOpen.value = false
 		openEnroll(currentStudent.value)
+	}
+
+	// ---------- 调课包（预设课包 / 自定义课包） ----------
+	const pkgOpen = ref(false)
+	const pkgSubmitting = ref(false)
+	const courseOptions = ref([])
+	const packageRaw = ref([])
+	const pkgForm = ref({
+		courseId: undefined,
+		mode: 'CUSTOM',
+		coursePackageId: undefined,
+		packageLessons: 10,
+		packageGiftLessons: 0,
+		packageValidityDays: 0,
+		amount: 0,
+		payNow: true,
+		payChannel: 'CASH'
+	})
+	// 按所选课程过滤课包
+	const packageOptions = computed(() =>
+		packageRaw.value
+			.filter((p) => !pkgForm.value.courseId || p.courseId === pkgForm.value.courseId)
+			.map((p) => ({ value: p.id, label: `${p.name}（${p.lessons} 课时 / ¥${p.price}）` }))
+	)
+	// 应收预览：预设取课包价，自定义取手填金额
+	const pkgPreview = computed(() => {
+		if (pkgForm.value.mode === 'PACKAGE') {
+			const item = packageRaw.value.find((p) => p.id === pkgForm.value.coursePackageId)
+			return item ? Number(item.price || 0).toFixed(2) : '0.00'
+		}
+		return Number(pkgForm.value.amount || 0).toFixed(2)
+	})
+
+	const loadPkgOptions = async () => {
+		if (courseOptions.value.length) return
+		const [courseRes, packageRes] = await Promise.all([
+			courseApi.coursePage({ current: 1, size: 200 }).catch(() => ({ records: [] })),
+			courseApi.packagePage({ current: 1, size: 200 }).catch(() => ({ records: [] }))
+		])
+		courseOptions.value = (courseRes.records || []).map((c) => ({ value: c.id, label: c.name }))
+		packageRaw.value = packageRes.records || []
+	}
+
+	const openAdjustPackage = async () => {
+		detailOpen.value = false
+		await loadPkgOptions()
+		pkgForm.value = {
+			courseId: undefined,
+			mode: 'CUSTOM',
+			coursePackageId: undefined,
+			packageLessons: 10,
+			packageGiftLessons: 0,
+			packageValidityDays: 0,
+			amount: 0,
+			payNow: true,
+			payChannel: 'CASH'
+		}
+		pkgOpen.value = true
+	}
+
+	const onPkgCourseChange = () => {
+		// 换课程后清掉不再匹配的课包选择
+		pkgForm.value.coursePackageId = undefined
+	}
+
+	const onPkgPackageChange = (id) => {
+		const item = packageRaw.value.find((p) => p.id === id)
+		if (item) pkgForm.value.amount = Number(item.price || 0)
+	}
+
+	const submitAdjustPackage = async () => {
+		const form = pkgForm.value
+		if (!form.courseId) {
+			message.warning('请选择课程')
+			return
+		}
+		if (form.mode === 'PACKAGE' && !form.coursePackageId) {
+			message.warning('请选择课包')
+			return
+		}
+		if (form.mode === 'CUSTOM' && !(Number(form.packageLessons) > 0)) {
+			message.warning('课时数必须大于 0')
+			return
+		}
+		pkgSubmitting.value = true
+		try {
+			const payload = {
+				studentId: currentStudent.value.id,
+				payChannel: form.payChannel
+			}
+			if (form.mode === 'PACKAGE') {
+				payload.coursePackageId = form.coursePackageId
+			} else {
+				// 自定义课包：后端按课时/价格直接快照，不依赖课包表
+				payload.courseId = form.courseId
+				payload.packageLessons = form.packageLessons
+				payload.packageGiftLessons = form.packageGiftLessons || 0
+				payload.packageValidityDays = form.packageValidityDays || 0
+				payload.amount = form.amount
+			}
+			const orderId = await studentApi.orderAdd(payload)
+			if (!orderId) {
+				message.error('下单失败，请重试')
+				return
+			}
+			if (form.payNow) {
+				try {
+					await studentApi.orderOfflinePay({
+						orderId,
+						paidAmount: pkgPreview.value,
+						payChannel: form.payChannel
+					})
+					message.success('调课包成功，课时已入账')
+				} catch (e) {
+					// 订单已生成但收款失败：保留订单，提示去收款台补收
+					message.warning('订单已生成，请到收款台完成收款')
+				}
+			} else {
+				message.success('已生成订单，待收款')
+			}
+			pkgOpen.value = false
+			load()
+			if (currentStudent.value) loadAccounts(currentStudent.value.id)
+		} catch (e) {
+			message.error(e?.msg || '调课包失败')
+		} finally {
+			pkgSubmitting.value = false
+		}
 	}
 
 	const onEnrollSuccess = () => {
@@ -325,6 +540,38 @@
 	.m-detail-enroll {
 		height: 42px;
 		margin-top: 12px;
+	}
+	/* 详情页操作区：报名/续费 + 调课包并排 */
+	.m-detail-actions {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		margin-top: 12px;
+		:deep(.ant-btn) {
+			height: 42px;
+		}
+	}
+	.m-pkg-hint {
+		margin-bottom: 12px;
+		padding: 8px 10px;
+		border-radius: 6px;
+		background: rgba(24, 144, 255, 0.06);
+		font-size: 12px;
+		line-height: 1.5;
+		color: var(--text-color-secondary);
+	}
+	.m-pkg-summary {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		margin: 8px 2px 12px;
+		font-size: 13px;
+		color: var(--text-color-secondary);
+		b {
+			font-size: 20px;
+			font-weight: 700;
+			color: #fa541c;
+		}
 	}
 	.m-section-title {
 		margin: 16px 2px 8px;

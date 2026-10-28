@@ -32,12 +32,41 @@ public class StudentOrderAddParam {
     @NotBlank(message = "学员id不能为空")
     private String studentId;
 
-    /** 课包id */
-    @Schema(description = "课包id", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotBlank(message = "课包id不能为空")
+    /** 课包id（预设课包下单时必填；自定义课包时留空） */
+    @Schema(description = "课包id（自定义课包时留空）")
     private String coursePackageId;
 
     /** 支付渠道 */
     @Schema(description = "支付渠道(微信/支付宝/线下)")
     private String payChannel;
+
+    // ---------- 自定义课包（coursePackageId 为空时生效） ----------
+
+    /** 课程id（自定义课包必填） */
+    @Schema(description = "课程id（自定义课包必填）")
+    private String courseId;
+
+    /** 课包名称（自定义课包，留空默认「自定义课包」） */
+    @Schema(description = "课包名称")
+    private String packageName;
+
+    /** 购买课时（自定义课包必填） */
+    @Schema(description = "购买课时（自定义课包必填）")
+    private java.math.BigDecimal packageLessons;
+
+    /** 赠送课时（自定义课包，默认 0） */
+    @Schema(description = "赠送课时")
+    private java.math.BigDecimal packageGiftLessons;
+
+    /** 有效期天数（自定义课包，默认 0 表示不限） */
+    @Schema(description = "有效期天数")
+    private Integer packageValidityDays;
+
+    /** 应收金额（自定义课包必填） */
+    @Schema(description = "应收金额（自定义课包必填）")
+    private java.math.BigDecimal amount;
+
+    /** 备注 */
+    @Schema(description = "备注")
+    private String remark;
 }

@@ -136,12 +136,18 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
 
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public void recharge(StudentOrder studentOrder) {        JSONObject packageInfo = courseApi.getCoursePackageInfo(studentOrder.getCoursePackageId());
-        if (ObjectUtil.isEmpty(packageInfo)) {
-            throw new CommonException("课包不存在，id值为：{}", studentOrder.getCoursePackageId());
+    public void recharge(StudentOrder studentOrder) {
+        // 课程id 优先取订单快照：自定义课包没有课包记录，靠课包反查会拿不到
+        String courseId = studentOrder.getCourseId();
+        if (StrUtil.isBlank(courseId)) {
+            JSONObject packageInfo = courseApi.getCoursePackageInfo(studentOrder.getCoursePackageId());
+            if (ObjectUtil.isEmpty(packageInfo)) {
+                throw new CommonException("课包不存在，id值为：{}", studentOrder.getCoursePackageId());
+            }
+            courseId = packageInfo.getStr("courseId");
         }
-        String courseId = packageInfo.getStr("courseId");
-        BigDecimal totalAdded = studentOrder.getPackageLessons().add(studentOrder.getPackageGiftLessons());
+        BigDecimal totalAdded = nvl(studentOrder.getPackageLessons()).add(nvl(studentOrder.getPackageGiftLessons()));
+        BigDecimal giftAdded = nvl(studentOrder.getPackageGiftLessons());
         StudentLessonAccount account = this.getOne(new LambdaQueryWrapper<StudentLessonAccount>()
                 .eq(StudentLessonAccount::getStudentId, studentOrder.getStudentId())
                 .eq(StudentLessonAccount::getCourseId, courseId));
@@ -152,7 +158,7 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
             account.setStudentId(studentOrder.getStudentId());
             account.setCourseId(courseId);
             account.setTotalLessons(totalAdded);
-            account.setGiftLessons(studentOrder.getPackageGiftLessons());
+            account.setGiftLessons(giftAdded);
             account.setUsedLessons(BigDecimal.ZERO);
             account.setRemainLessons(totalAdded);
             account.setExpireTime(calcExpireTime(null, studentOrder.getPackageValidityDays()));
@@ -167,12 +173,12 @@ public class StudentLessonAccountServiceImpl extends ServiceImpl<StudentLessonAc
                 if (ObjectUtil.isEmpty(exists)) {
                     throw e;
                 }
-                addLessonsAtomically(exists.getId(), totalAdded, studentOrder.getPackageGiftLessons(),
+                addLessonsAtomically(exists.getId(), totalAdded, giftAdded,
                         studentOrder.getPackageValidityDays());
             }
         } else {
             // 续费：追加课时 + 有效期顺延（数据库端原子累加，避免并发收款丢更新）
-            addLessonsAtomically(account.getId(), totalAdded, studentOrder.getPackageGiftLessons(),
+            addLessonsAtomically(account.getId(), totalAdded, giftAdded,
                     studentOrder.getPackageValidityDays());
         }
         // 入账流水
