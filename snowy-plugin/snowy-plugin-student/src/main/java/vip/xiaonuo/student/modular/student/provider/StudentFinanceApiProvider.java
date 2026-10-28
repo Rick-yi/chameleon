@@ -439,19 +439,34 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
 
     @Override
     public List<FinanceTrendDTO> trend(FinanceQueryParam financeQueryParam) {
-        boolean monthly = !"DAY".equalsIgnoreCase(financeQueryParam.getDimension());
+        String dimension = StrUtil.blankToDefault(financeQueryParam.getDimension(), "MONTH").toUpperCase();
+        boolean daily = "DAY".equals(dimension);
+        boolean yearly = "YEAR".equals(dimension);
         Date start = parseStart(financeQueryParam.getStartTime());
         Date end = parseEnd(financeQueryParam.getEndTime());
         if (start == null) {
-            start = monthly
-                    ? DateUtil.beginOfMonth(DateUtil.offsetMonth(new Date(), -5))
-                    : DateUtil.beginOfDay(DateUtil.offsetDay(new Date(), -29));
+            if (daily) {
+                start = DateUtil.beginOfDay(DateUtil.offsetDay(new Date(), -29));
+            } else if (yearly) {
+                start = DateUtil.beginOfYear(DateUtil.offsetMonth(new Date(), -48));
+            } else {
+                start = DateUtil.beginOfMonth(DateUtil.offsetMonth(new Date(), -5));
+            }
         }
         if (end == null) {
             end = new Date();
         }
         Map<String, FinanceTrendDTO> resultMap = new LinkedHashMap<>();
-        if (monthly) {
+        if (yearly) {
+            Date cursor = DateUtil.beginOfYear(start);
+            int guard = 0;
+            while (!cursor.after(end) && guard < 10) {
+                String period = DateUtil.format(cursor, "yyyy");
+                resultMap.putIfAbsent(period, newTrend(period));
+                cursor = DateUtil.offsetMonth(cursor, 12);
+                guard++;
+            }
+        } else if (!daily) {
             Date cursor = DateUtil.beginOfMonth(start);
             while (!cursor.after(end) && resultMap.size() < 36) {
                 String period = DateUtil.format(cursor, "yyyy-MM");
@@ -471,21 +486,21 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
 
         List<StudentOrder> orderList = studentOrderMapper.selectList(paidOrderWrapper(financeQueryParam, start, end));
         for (StudentOrder order : orderList) {
-            FinanceTrendDTO trend = resultMap.get(periodKey(orderTime(order), monthly));
+            FinanceTrendDTO trend = resultMap.get(periodKey(orderTime(order), dimension));
             if (trend != null) {
                 trend.setPaidAmount(trend.getPaidAmount().add(orderPaidAmount(order)));
             }
         }
         List<StudentRefund> refundList = studentRefundMapper.selectList(refundWrapper(financeQueryParam, start, end));
         for (StudentRefund refund : refundList) {
-            FinanceTrendDTO trend = resultMap.get(periodKey(refundTime(refund), monthly));
+            FinanceTrendDTO trend = resultMap.get(periodKey(refundTime(refund), dimension));
             if (trend != null) {
                 trend.setRefundAmount(trend.getRefundAmount().add(nvl(refund.getRefundAmount())));
             }
         }
         List<StudentLessonFlow> flowList = studentLessonFlowMapper.selectList(flowWrapper(financeQueryParam, start, end));
         for (StudentLessonFlow flow : flowList) {
-            FinanceTrendDTO trend = resultMap.get(periodKey(flow.getCreateTime(), monthly));
+            FinanceTrendDTO trend = resultMap.get(periodKey(flow.getCreateTime(), dimension));
             if (trend != null) {
                 trend.setAttendLessons(trend.getAttendLessons().add(flowLessons(flow)));
             }
@@ -618,27 +633,60 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
 
     @Override
     public List<FinanceAttendTrendDTO> attendTrend(FinanceQueryParam financeQueryParam) {
+        String dimension = StrUtil.blankToDefault(financeQueryParam.getDimension(), "DAY").toUpperCase();
+        boolean daily = "DAY".equals(dimension);
+        boolean yearly = "YEAR".equals(dimension);
         Date end = parseEnd(financeQueryParam.getEndTime());
         if (end == null) {
             end = new Date();
         }
         Date start = parseStart(financeQueryParam.getStartTime());
         if (start == null) {
-            start = DateUtil.beginOfDay(DateUtil.offsetDay(end, -29));
+            if (daily) {
+                start = DateUtil.beginOfDay(DateUtil.offsetDay(end, -29));
+            } else if (yearly) {
+                start = DateUtil.beginOfYear(DateUtil.offsetMonth(end, -48));
+            } else {
+                start = DateUtil.beginOfMonth(DateUtil.offsetMonth(end, -11));
+            }
         }
         Map<String, FinanceAttendTrendDTO> resultMap = new LinkedHashMap<>();
-        Date cursor = DateUtil.beginOfDay(start);
-        int guard = 0;
-        while (!cursor.after(end) && guard < 93) {
-            String period = DateUtil.formatDate(cursor);
-            FinanceAttendTrendDTO dto = new FinanceAttendTrendDTO();
-            dto.setPeriod(period);
-            resultMap.put(period, dto);
-            cursor = DateUtil.offsetDay(cursor, 1);
-            guard++;
+        if (yearly) {
+            Date cursor = DateUtil.beginOfYear(start);
+            int guard = 0;
+            while (!cursor.after(end) && guard < 10) {
+                String period = DateUtil.format(cursor, "yyyy");
+                FinanceAttendTrendDTO dto = new FinanceAttendTrendDTO();
+                dto.setPeriod(period);
+                resultMap.put(period, dto);
+                cursor = DateUtil.offsetMonth(cursor, 12);
+                guard++;
+            }
+        } else if (!daily) {
+            Date cursor = DateUtil.beginOfMonth(start);
+            int guard = 0;
+            while (!cursor.after(end) && guard < 36) {
+                String period = DateUtil.format(cursor, "yyyy-MM");
+                FinanceAttendTrendDTO dto = new FinanceAttendTrendDTO();
+                dto.setPeriod(period);
+                resultMap.put(period, dto);
+                cursor = DateUtil.offsetMonth(cursor, 1);
+                guard++;
+            }
+        } else {
+            Date cursor = DateUtil.beginOfDay(start);
+            int guard = 0;
+            while (!cursor.after(end) && guard < 93) {
+                String period = DateUtil.formatDate(cursor);
+                FinanceAttendTrendDTO dto = new FinanceAttendTrendDTO();
+                dto.setPeriod(period);
+                resultMap.put(period, dto);
+                cursor = DateUtil.offsetDay(cursor, 1);
+                guard++;
+            }
         }
         for (StudentLessonFlow flow : studentLessonFlowMapper.selectList(flowWrapper(financeQueryParam, start, end))) {
-            FinanceAttendTrendDTO dto = resultMap.get(DateUtil.formatDate(flow.getCreateTime()));
+            FinanceAttendTrendDTO dto = resultMap.get(periodKey(flow.getCreateTime(), dimension));
             if (dto == null) {
                 continue;
             }
@@ -899,17 +947,29 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
         overview.setChannelList(channelStat(financeQueryParam));
         overview.setCourseRankList(courseRank(financeQueryParam));
 
+        String dimension = StrUtil.blankToDefault(financeQueryParam.getDimension(), "MONTH").toUpperCase();
+        Date chartEnd = new Date();
+        Date chartStart;
+        if ("DAY".equals(dimension)) {
+            chartStart = DateUtil.beginOfDay(DateUtil.offsetDay(chartEnd, -29));
+        } else if ("YEAR".equals(dimension)) {
+            chartStart = DateUtil.beginOfYear(DateUtil.offsetMonth(chartEnd, -48));
+        } else {
+            dimension = "MONTH";
+            chartStart = DateUtil.beginOfMonth(DateUtil.offsetMonth(chartEnd, -11));
+        }
         FinanceQueryParam trendParam = copyParam(financeQueryParam);
-        trendParam.setDimension("MONTH");
-        trendParam.setStartTime(DateUtil.formatDateTime(DateUtil.beginOfMonth(DateUtil.offsetMonth(new Date(), -5))));
-        trendParam.setEndTime(DateUtil.formatDateTime(new Date()));
+        trendParam.setDimension(dimension);
+        trendParam.setStartTime(DateUtil.formatDateTime(chartStart));
+        trendParam.setEndTime(DateUtil.formatDateTime(chartEnd));
         overview.setTrendList(trend(trendParam));
 
         overview.setCampusRankList(campusRank(financeQueryParam));
 
         FinanceQueryParam attendParam = copyParam(financeQueryParam);
-        attendParam.setStartTime(DateUtil.formatDateTime(DateUtil.beginOfDay(DateUtil.offsetDay(new Date(), -29))));
-        attendParam.setEndTime(DateUtil.formatDateTime(new Date()));
+        attendParam.setDimension(dimension);
+        attendParam.setStartTime(DateUtil.formatDateTime(chartStart));
+        attendParam.setEndTime(DateUtil.formatDateTime(chartEnd));
         overview.setAttendTrendList(attendTrend(attendParam));
 
         List<StudentRenewWarn> warnList = studentRenewWarnMapper.selectList(new LambdaQueryWrapper<StudentRenewWarn>()
@@ -1067,11 +1127,17 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
      * @author 会飞的猪
      * @date 2026/10/20 10:00
      **/
-    private String periodKey(Date date, boolean monthly) {
+    private String periodKey(Date date, String dimension) {
         if (date == null) {
             return null;
         }
-        return monthly ? DateUtil.format(date, "yyyy-MM") : DateUtil.formatDate(date);
+        if ("YEAR".equalsIgnoreCase(dimension)) {
+            return DateUtil.format(date, "yyyy");
+        }
+        if ("DAY".equalsIgnoreCase(dimension)) {
+            return DateUtil.formatDate(date);
+        }
+        return DateUtil.format(date, "yyyy-MM");
     }
 
     /**

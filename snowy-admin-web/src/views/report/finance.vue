@@ -3,8 +3,11 @@
 		<page-header title="财务报表" desc="收款、退费、课消与收入确认口径分析" />
 		<a-card :bordered="false" class="report-filter">
 			<a-form layout="inline">
+				<a-form-item label="周期">
+					<period-switch v-model="period" allow-custom @change="onPeriodChange" />
+				</a-form-item>
 				<a-form-item label="时间">
-					<a-range-picker v-model:value="dateRange" value-format="YYYY-MM-DD" allow-clear />
+					<a-range-picker v-model:value="dateRange" value-format="YYYY-MM-DD" allow-clear @change="onDateRangeChange" />
 				</a-form-item>
 				<a-form-item label="校区">
 					<a-select v-model:value="query.campusId" placeholder="全部校区" :options="campusOptions" allow-clear style="width: 160px" />
@@ -232,7 +235,7 @@
 
 			<a-row :gutter="12" style="margin-top: 12px">
 				<a-col :xs="24" :xl="16">
-					<a-card title="收支趋势" :bordered="false">
+					<a-card :title="trendTitle" :bordered="false">
 						<div id="financeTrendChart" class="report-chart"></div>
 					</a-card>
 				</a-col>
@@ -245,7 +248,7 @@
 
 			<a-row :gutter="12" style="margin-top: 12px">
 				<a-col :xs="24" :xl="16">
-					<a-card title="近 30 天课消趋势" :bordered="false">
+					<a-card :title="attendTitle" :bordered="false">
 						<div id="financeAttendChart" class="report-chart"></div>
 					</a-card>
 				</a-col>
@@ -348,6 +351,8 @@
 	import financeApi from '@/api/finance/financeApi'
 	import courseApi from '@/api/course/courseApi'
 	import { payChannelText } from '@/utils/payChannel'
+	import { periodDateRange, rangeDimension } from '@/utils/reportPeriod'
+	import PeriodSwitch from '@/components/PeriodSwitch/index.vue'
 	import downloadUtil from '@/utils/downloadUtil'
 	import tool from '@/utils/tool'
 
@@ -356,6 +361,7 @@
 	const loading = ref(false)
 	const detailLoading = ref(false)
 	const activeTab = ref('payment')
+	const period = ref('MONTH')
 	const dateRange = ref([dayjs().startOf('month').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')])
 	// 对比期：默认环比，可切换同比或自定义区间
 	const compareMode = ref('MOM')
@@ -381,6 +387,21 @@
 		{ value: 'YOY', label: '同比（去年同期）' },
 		{ value: 'CUSTOM', label: '自定义对比期' }
 	]
+	const trendDimension = computed(() => {
+		if (['DAY', 'MONTH', 'YEAR'].includes(period.value)) return period.value
+		const [start, end] = dateRange.value || []
+		return rangeDimension(start, end)
+	})
+	const dimensionLabel = computed(() => ({ DAY: '日', MONTH: '月', YEAR: '年' })[trendDimension.value] || '月')
+	const trendTitle = computed(() => `收支趋势（${dimensionLabel.value}）`)
+	const attendTitle = computed(() => `课消趋势（${dimensionLabel.value}）`)
+	const onPeriodChange = (value) => {
+		dateRange.value = periodDateRange(value)
+		loadAll()
+	}
+	const onDateRangeChange = () => {
+		period.value = 'CUSTOM'
+	}
 
 	const summary = ref({
 		paidAmount: 0,
@@ -663,11 +684,11 @@
 		const params = buildQuery()
 		return Promise.all([
 			reportApi.summary(params),
-			reportApi.trend({ ...params, dimension: 'DAY' }),
+			reportApi.trend({ ...params, dimension: trendDimension.value }),
 			reportApi.channel(params),
 			reportApi.courseRank(params),
 			reportApi.campusRank(params),
-			reportApi.attendTrend(params),
+			reportApi.attendTrend({ ...params, dimension: trendDimension.value }),
 			reportApi.consume(params)
 		]).then(([summaryData, trendData, channelData, rankData, campusData, attendData, consumeData]) => {
 			summary.value = summaryData || emptySummary()
@@ -828,6 +849,7 @@
 	}
 
 	const reset = () => {
+		period.value = 'MONTH'
 		dateRange.value = [dayjs().startOf('month').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')]
 		query.campusId = undefined
 		query.courseId = undefined
@@ -912,13 +934,15 @@
 		})
 	}
 
-	// 支持从其他页面带参下钻（tab=payment/refund、range=month）
+	// 支持从其他页面带参下钻（tab=payment/refund、range=day/month/year）
 	const applyDrillParams = () => {
 		if (route.query.tab) {
 			activeTab.value = route.query.tab
 		}
-		if (route.query.range === 'month') {
-			dateRange.value = [dayjs().startOf('month').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')]
+		const range = String(route.query.range || '').toUpperCase()
+		if (['DAY', 'MONTH', 'YEAR'].includes(range)) {
+			period.value = range
+			dateRange.value = periodDateRange(range)
 		}
 	}
 

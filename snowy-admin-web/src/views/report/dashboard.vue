@@ -1,41 +1,45 @@
 <template>
 	<div>
-		<page-header title="经营看板" desc="机构经营概览：收款、退费、课消与学员情况" />
+		<page-header title="经营看板" desc="机构经营概览：收款、退费、课消与学员情况">
+			<template #extra>
+				<period-switch v-model="period" @change="loadData" />
+			</template>
+		</page-header>
 		<a-spin :spinning="loading">
 			<a-row :gutter="12">
 				<a-col :xs="12" :sm="12" :md="8" :xl="6">
 					<div class="ent-stat kpi-link" @click="drillFinance('payment')">
-						<div class="ent-stat-label">本月收款</div>
+						<div class="ent-stat-label">{{ periodLabel }}收款</div>
 						<div class="ent-stat-value">¥{{ fmt(summary.paidAmount) }}</div>
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="12" :md="8" :xl="6">
 					<div class="ent-stat kpi-link" @click="drillFinance('refund')">
-						<div class="ent-stat-label">本月退费</div>
+						<div class="ent-stat-label">{{ periodLabel }}退费</div>
 						<div class="ent-stat-value" style="color: var(--danger-text)">¥{{ fmt(summary.refundAmount) }}</div>
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="12" :md="8" :xl="6">
 					<div class="ent-stat kpi-link" @click="drillFinance('payment')">
-						<div class="ent-stat-label">净营收</div>
+						<div class="ent-stat-label">{{ periodLabel }}净营收</div>
 						<div class="ent-stat-value" style="color: var(--success-text)">¥{{ fmt(summary.netAmount) }}</div>
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="12" :md="8" :xl="6">
 					<div class="ent-stat kpi-link" @click="drillAcademic()">
-						<div class="ent-stat-label">课消课时</div>
+						<div class="ent-stat-label">{{ periodLabel }}课消课时</div>
 						<div class="ent-stat-value">{{ fmt(summary.attendLessons) }} <span style="font-size: 13px; color: var(--text-color-tertiary)">课时</span></div>
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="12" :md="8" :xl="6">
 					<div class="ent-stat kpi-link" @click="drillAcademic()">
-						<div class="ent-stat-label">课消金额</div>
+						<div class="ent-stat-label">{{ periodLabel }}课消金额</div>
 						<div class="ent-stat-value">¥{{ fmt(summary.recognizedAmount) }}</div>
 					</div>
 				</a-col>
 				<a-col :xs="12" :sm="12" :md="8" :xl="6">
 					<div class="ent-stat kpi-link" @click="drillStudent('STUDYING')">
-						<div class="ent-stat-label">本月新增学员</div>
+						<div class="ent-stat-label">{{ periodLabel }}新增学员</div>
 						<div class="ent-stat-value">{{ summary.newStudentCount || 0 }}</div>
 					</div>
 				</a-col>
@@ -55,7 +59,7 @@
 
 			<a-row :gutter="16" style="margin-top: 16px">
 				<a-col :xs="24" :xl="16">
-					<a-card title="近 30 天课消趋势" :bordered="false">
+					<a-card :title="attendTitle" :bordered="false">
 						<div id="reportAttendChart" class="report-chart"></div>
 					</a-card>
 				</a-col>
@@ -68,7 +72,7 @@
 
 			<a-row :gutter="16" style="margin-top: 16px">
 				<a-col :xs="24" :xl="16">
-					<a-card title="近 6 个月收支趋势" :bordered="false">
+					<a-card :title="trendTitle" :bordered="false">
 						<div id="reportTrendChart" class="report-chart"></div>
 					</a-card>
 				</a-col>
@@ -118,9 +122,33 @@
 	import { Bar, Line, Pie } from '@antv/g2plot'
 	import reportApi from '@/api/report/reportApi'
 	import { payChannelText } from '@/utils/payChannel'
+	import { PERIOD_LABEL, periodDateRange } from '@/utils/reportPeriod'
+	import PeriodSwitch from '@/components/PeriodSwitch/index.vue'
 
 	const router = useRouter()
 	const loading = ref(false)
+	const period = ref('MONTH')
+	const periodLabel = computed(() => PERIOD_LABEL[period.value] || '本月')
+	const periodRange = computed(() => {
+		const [start, end] = periodDateRange(period.value)
+		return { startTime: `${start} 00:00:00`, endTime: `${end} 23:59:59` }
+	})
+	const trendTitle = computed(
+		() =>
+			({
+				DAY: '近 30 天收支趋势',
+				MONTH: '近 12 个月收支趋势',
+				YEAR: '近 5 年收支趋势'
+			})[period.value] || '收支趋势'
+	)
+	const attendTitle = computed(
+		() =>
+			({
+				DAY: '近 30 天课消趋势',
+				MONTH: '近 12 个月课消趋势',
+				YEAR: '近 5 年课消趋势'
+			})[period.value] || '课消趋势'
+	)
 	// 金额/数字统一格式（千分位 + 两位小数）
 	const fmt = (value) => {
 		const num = Number(value || 0)
@@ -257,7 +285,7 @@
 
 	// 指标下钻
 	const drillFinance = (tab) => {
-		router.push({ path: '/report/finance', query: { tab, range: 'month' } })
+		router.push({ path: '/report/finance', query: { tab, range: period.value.toLowerCase() } })
 	}
 	const drillAcademic = () => {
 		router.push({ path: '/report/academic' })
@@ -277,7 +305,7 @@
 	const loadData = () => {
 		loading.value = true
 		reportApi
-			.dashboard({})
+			.dashboard({ ...periodRange.value, dimension: period.value })
 			.then((data) => {
 				summary.value = data?.summary || emptySummary()
 				trendList.value = data?.trendList || []

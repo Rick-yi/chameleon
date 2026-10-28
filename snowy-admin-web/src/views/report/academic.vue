@@ -3,8 +3,11 @@
 		<page-header title="教务报表" desc="出勤、满班率、教师工作量与学员课时进度" />
 		<a-card :bordered="false" class="report-filter">
 			<a-form layout="inline">
+				<a-form-item label="周期">
+					<period-switch v-model="period" allow-custom @change="onPeriodChange" />
+				</a-form-item>
 				<a-form-item label="时间">
-					<a-range-picker v-model:value="dateRange" value-format="YYYY-MM-DD" allow-clear />
+					<a-range-picker v-model:value="dateRange" value-format="YYYY-MM-DD" allow-clear @change="onDateRangeChange" />
 				</a-form-item>
 				<a-form-item label="校区">
 					<a-select v-model:value="query.campusId" placeholder="全部校区" :options="campusOptions" allow-clear style="width: 150px" />
@@ -211,12 +214,15 @@
 	import ExportRecordsDrawer from '@/components/ExportRecordsDrawer/index.vue'
 	import KpiDelta from '@/components/KpiDelta/index.vue'
 	import { previousRange, rangeToQuery } from '@/utils/reportCompare'
+	import { periodDateRange } from '@/utils/reportPeriod'
+	import PeriodSwitch from '@/components/PeriodSwitch/index.vue'
 
 	const router = useRouter()
 
 	const loading = ref(false)
 	const refreshedAt = ref('')
 	const activeTab = ref('classFill')
+	const period = ref('MONTH')
 	const dateRange = ref([dayjs().startOf('month').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')])
 	const query = reactive({ campusId: undefined, courseId: undefined, classId: undefined })
 	const riskType = ref('LOW_LESSON')
@@ -259,6 +265,13 @@
 			courseId: query.courseId,
 			classId: query.classId
 		}
+	}
+	const onPeriodChange = (value) => {
+		dateRange.value = periodDateRange(value)
+		loadAll()
+	}
+	const onDateRangeChange = () => {
+		period.value = 'CUSTOM'
 	}
 
 	// 上期出勤：只用于 KPI 环比
@@ -309,6 +322,7 @@
 	}
 
 	const reset = () => {
+		period.value = 'MONTH'
 		dateRange.value = [dayjs().startOf('month').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')]
 		query.campusId = undefined
 		query.courseId = undefined

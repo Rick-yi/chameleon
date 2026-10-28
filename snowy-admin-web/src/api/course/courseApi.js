@@ -126,6 +126,10 @@ export default {
 	scheduleWeek(data) {
 		return request('schedule/week', data, 'get')
 	},
+	// 课节详情（课表直达点名时定位日期与班级）
+	scheduleDetail(data) {
+		return request('schedule/detail', data, 'get')
+	},
 	// 教师可选项
 	teacherOptions(data) {
 		return request('schedule/teacherOptions', data, 'get')

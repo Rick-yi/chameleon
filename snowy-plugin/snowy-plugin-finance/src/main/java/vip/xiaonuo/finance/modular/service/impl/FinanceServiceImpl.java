@@ -528,10 +528,14 @@ public class FinanceServiceImpl implements FinanceService {
         if (ObjectUtil.isEmpty(statList)) {
             return null;
         }
-        boolean monthly = !"DAY".equalsIgnoreCase(param.getDimension());
+        String dimension = StrUtil.blankToDefault(param.getDimension(), "MONTH").toUpperCase();
+        boolean yearly = "YEAR".equals(dimension);
+        boolean monthly = !yearly && !"DAY".equals(dimension);
         Map<String, FinanceTrendDTO> trendMap = new java.util.LinkedHashMap<>();
         for (FinDailyStat stat : statList) {
-            String period = monthly ? DateUtil.format(stat.getStatDate(), "yyyy-MM") : DateUtil.formatDate(stat.getStatDate());
+            String period = yearly ? DateUtil.format(stat.getStatDate(), "yyyy")
+                    : monthly ? DateUtil.format(stat.getStatDate(), "yyyy-MM")
+                    : DateUtil.formatDate(stat.getStatDate());
             FinanceTrendDTO dto = trendMap.computeIfAbsent(period, key -> {
                 FinanceTrendDTO item = new FinanceTrendDTO();
                 item.setPeriod(key);

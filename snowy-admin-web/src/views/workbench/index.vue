@@ -3,6 +3,7 @@
 		<!-- 页头 -->
 		<page-header title="工作台" :desc="todayLabel">
 			<template #extra>
+				<period-switch v-model="period" style="margin-right: 8px" @change="loadAll" />
 				<a-button v-if="hasPerm('/student/add')" type="primary" @click="enrollOpen = true">
 					<template #icon><user-add-outlined /></template>
 					录入学员
@@ -14,21 +15,36 @@
 			</template>
 		</page-header>
 
-		<!-- 关键指标 -->
+		<!-- 经营指标（随日/月/年切换） -->
 		<a-row :gutter="12" class="wb-kpi">
-			<a-col :xs="12" :sm="12" :md="6" :xl="6">
-				<div class="ent-stat kpi-link" @click="go({ path: '/student/order' })">
-					<div class="ent-stat-label">今日收款</div>
-					<div class="ent-stat-value">¥{{ fmtMoney(todayPaid) }}</div>
+			<a-col :xs="12" :sm="8" :md="8" :xl="4">
+				<div class="ent-stat kpi-link" @click="go({ path: '/report/finance', query: { tab: 'payment', range: period.toLowerCase() } })">
+					<div class="ent-stat-label">{{ periodScopeLabel }}收款</div>
+					<div class="ent-stat-value">¥{{ fmtMoney(periodSummary.paidAmount) }}</div>
 				</div>
 			</a-col>
-			<a-col :xs="12" :sm="12" :md="6" :xl="6">
-				<div class="ent-stat kpi-link" @click="go({ path: '/report/dashboard' })">
-					<div class="ent-stat-label">本月收款</div>
-					<div class="ent-stat-value">¥{{ fmtMoney(monthSummary.paidAmount) }}</div>
+			<a-col :xs="12" :sm="8" :md="8" :xl="4">
+				<div class="ent-stat kpi-link" @click="go({ path: '/report/finance', query: { tab: 'refund', range: period.toLowerCase() } })">
+					<div class="ent-stat-label">{{ periodScopeLabel }}退费</div>
+					<div class="ent-stat-value" style="color: var(--danger-text)">¥{{ fmtMoney(periodSummary.refundAmount) }}</div>
 				</div>
 			</a-col>
-			<a-col :xs="12" :sm="12" :md="6" :xl="6">
+			<a-col :xs="12" :sm="8" :md="8" :xl="4">
+				<div class="ent-stat kpi-link" @click="go({ path: '/student' })">
+					<div class="ent-stat-label">{{ periodScopeLabel }}新增学员</div>
+					<div class="ent-stat-value">{{ periodSummary.newStudentCount || 0 }}</div>
+				</div>
+			</a-col>
+			<a-col :xs="12" :sm="8" :md="8" :xl="4">
+				<div class="ent-stat kpi-link" @click="go({ path: '/report/academic' })">
+					<div class="ent-stat-label">{{ periodScopeLabel }}课消</div>
+					<div class="ent-stat-value">
+						{{ fmtMoney(periodSummary.attendLessons) }}
+						<span class="wb-unit">课时</span>
+					</div>
+				</div>
+			</a-col>
+			<a-col :xs="12" :sm="8" :md="8" :xl="4">
 				<div class="ent-stat kpi-link" @click="go({ path: '/student/order', query: { status: 'UNPAID' } })">
 					<div class="ent-stat-label">待收款订单</div>
 					<div class="ent-stat-value" :style="{ color: unpaid.total > 0 ? 'var(--warning-text)' : undefined }">
@@ -37,10 +53,10 @@
 					</div>
 				</div>
 			</a-col>
-			<a-col :xs="12" :sm="12" :md="6" :xl="6">
+			<a-col :xs="12" :sm="8" :md="8" :xl="4">
 				<div class="ent-stat kpi-link" @click="go({ path: '/student' })">
 					<div class="ent-stat-label">在读学员</div>
-					<div class="ent-stat-value">{{ monthSummary.studyingStudentCount || 0 }}</div>
+					<div class="ent-stat-value">{{ periodSummary.studyingStudentCount || 0 }}</div>
 				</div>
 			</a-col>
 		</a-row>
@@ -357,10 +373,12 @@
 		UserAddOutlined
 	} from '@ant-design/icons-vue'
 	import EnrollmentFlow from '@/components/EnrollmentFlow/index.vue'
+	import PeriodSwitch from '@/components/PeriodSwitch/index.vue'
 	import studentApi from '@/api/student/studentApi'
 	import courseApi from '@/api/course/courseApi'
 	import crmApi from '@/api/crm/crmApi'
 	import reportApi from '@/api/report/reportApi'
+	import { PERIOD_LABEL, periodDateRange } from '@/utils/reportPeriod'
 	const router = useRouter()
 	const loading = ref(false)
 
@@ -371,8 +389,14 @@
 	const todaySchedule = ref([])
 	const todayPaidList = ref([])
 	const todayPaid = ref(0)
-	// 本月经营概览（财务看板汇总，取不到时降级为空）
-	const monthSummary = ref({})
+	const period = ref('MONTH')
+	const periodScopeLabel = computed(() => PERIOD_LABEL[period.value] || '本月')
+	const periodRange = computed(() => {
+		const [start, end] = periodDateRange(period.value)
+		return { startTime: `${start} 00:00:00`, endTime: `${end} 23:59:59` }
+	})
+	// 当前所选周期的经营概览（财务看板汇总，取不到时降级为空）
+	const periodSummary = ref({})
 
 	const enrollOpen = ref(false)
 	const payOpen = ref(false)
@@ -582,9 +606,6 @@
 		const todayStr = today()
 		const dayStart = `${todayStr} 00:00:00`
 		const dayEnd = `${todayStr} 23:59:59`
-		// 本月区间（用于本月收款、在读学员等指标）
-		const now = new Date()
-		const monthStart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`
 		Promise.all([
 			safe(studentApi.orderPage({ current: 1, size: 5, status: 'UNPAID' }), { total: 0, records: [] }),
 			safe(studentApi.refundPage({ current: 1, size: 5, status: 'PENDING' }), { total: 0, records: [] }),
@@ -600,10 +621,10 @@
 			),
 			safe(courseApi.scheduleWeek({ startDate: dayStart, endDate: dayEnd }), []),
 			safe(studentApi.orderPage({ current: 1, size: 20, status: 'PAID' }), { total: 0, records: [] }),
-			safe(reportApi.dashboard({ startTime: `${monthStart} 00:00:00`, endTime: dayEnd }), {}),
+			safe(reportApi.dashboard({ ...periodRange.value, dimension: period.value }), {}),
 			safe(reportApi.dashboard({ startTime: dayStart, endTime: dayEnd }), null)
 		])
-			.then(([order, refund, warn, lead, schedule, paid, dashboard, todayDashboard]) => {
+			.then(([order, refund, warn, lead, schedule, paid, periodDashboard, todayDashboard]) => {
 				unpaid.value = { total: order.total || 0, list: order.records || [] }
 				pendingRefund.value = { total: refund.total || 0, list: refund.records || [] }
 				renewWarn.value = { total: warn.total || 0, list: warn.records || [] }
@@ -613,7 +634,7 @@
 				const paidFromList = todayPaidList.value.reduce((sum, item) => sum + Number(item.paidAmount || 0), 0)
 				// 今日收款以报表日汇总为准，避免只统计到前几条订单；取不到时退回列表合计
 				todayPaid.value = Number(todayDashboard?.summary?.paidAmount ?? paidFromList)
-				monthSummary.value = dashboard?.summary || {}
+				periodSummary.value = periodDashboard?.summary || {}
 			})
 			.finally(() => (loading.value = false))
 	}

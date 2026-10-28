@@ -4,8 +4,8 @@
 		<!-- 今日/所选日期的课节：点一下直接进入点名 -->
 		<a-card :bordered="false" title="课节列表" style="margin-bottom: 12px">
 			<div class="attend-filter">
-				<a-date-picker v-model:value="date" value-format="YYYY-MM-DD" class="attend-date" @change="loadSchedules" />
-				<a-select v-model:value="classId" placeholder="全部班级" :options="classOptions" class="attend-class" allow-clear @change="loadSchedules" />
+				<a-date-picker v-model:value="date" value-format="YYYY-MM-DD" class="attend-date" @change="onFilterChange" />
+				<a-select v-model:value="classId" placeholder="全部班级" :options="classOptions" class="attend-class" allow-clear @change="onFilterChange" />
 				<a-button type="primary" class="attend-refresh" @click="loadSchedules">
 					<template #icon><reload-outlined /></template>
 					刷新
@@ -192,6 +192,8 @@
 	}
 	const date = ref(todayText())
 	const scheduleId = ref()
+	const targetScheduleId = ref(route.query.scheduleId ? String(route.query.scheduleId) : null)
+	const targetResolved = ref(false)
 	const classOptions = ref([])
 	const classRecords = ref([])
 	const scheduleOptions = ref([])
@@ -219,8 +221,30 @@
 	}
 	// 默认日期始终是今天；今天没课时只提示「最近有课」，不自动改日期
 	const recentHint = ref(null)
-	const resolvingTarget = ref(false)
 	const fmtDay = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+
+	// 从课表/工作台直达时，先按课节详情定位日期和班级，避免拿“今天”的课节顶替
+	const resolveTargetSchedule = () => {
+		if (!targetScheduleId.value || targetResolved.value) return Promise.resolve()
+		targetResolved.value = true
+		if (route.query.date) date.value = String(route.query.date).slice(0, 10)
+		if (route.query.classId) classId.value = String(route.query.classId)
+		return courseApi
+			.scheduleDetail({ id: targetScheduleId.value })
+			.then((detail) => {
+				if (!detail) return
+				date.value = String(detail.scheduleDate || date.value).slice(0, 10)
+				classId.value = detail.classId || classId.value
+			})
+			.catch(() => {})
+	}
+
+	const onFilterChange = () => {
+		// 用户主动换日期/班级后，不再强制定位原来的课节
+		targetScheduleId.value = null
+		loadSchedules()
+	}
+
 	const loadSchedules = () => {
 		// 切换日期/班级后先清空当前点名对象，避免显示上一节课的名单
 		scheduleId.value = undefined
@@ -238,34 +262,18 @@
 					value: item.id,
 					label: `${item.className || '未命名班级'} ${item.startTime}-${item.endTime} ${item.classroom || ''}`
 				}))
-				// 从工作台/课表直达：目标课节可能不在当前日期
-				const targetId = route.query.scheduleId
-				if (targetId) {
-					const target = scheduleList.value.find((item) => item.id === targetId)
+				// 指定了目标课节时只认这一节；找不到也不能顺手选中别的课
+				if (targetScheduleId.value) {
+					const target = scheduleList.value.find((item) => item.id === targetScheduleId.value)
 					if (target) {
 						selectSchedule(target)
-						return
+					} else {
+						scheduleError.value = '未找到指定课节，可能已被调课或取消，请从最新课表重新进入'
 					}
-					if (!resolvingTarget.value) {
-						resolvingTarget.value = true
-						const start = new Date()
-						start.setDate(start.getDate() - 30)
-						const end = new Date()
-						end.setDate(end.getDate() + 7)
-						courseApi
-							.scheduleWeek({ startDate: `${fmtDay(start)} 00:00:00`, endDate: `${fmtDay(end)} 23:59:59` })
-							.then((list) => {
-								const found = (list || []).find((item) => item.id === targetId)
-								if (found) {
-									date.value = String(found.scheduleDate || '').slice(0, 10)
-									loadSchedules()
-								}
-							})
-							.catch(() => {})
-					}
+					return
 				}
 				// 当天没有排课：只查一下最近有课的日期做提示，不改变当前选择
-				if (!scheduleList.value.length && !resolvingTarget.value) {
+				if (!scheduleList.value.length) {
 					const end = new Date(`${date.value} 00:00:00`)
 					const start = new Date(end)
 					start.setDate(start.getDate() - 7)
@@ -296,6 +304,7 @@
 	}
 	const jumpToRecent = () => {
 		if (!recentHint.value) return
+		targetScheduleId.value = null
 		date.value = recentHint.value.date
 		loadSchedules()
 	}
@@ -436,7 +445,7 @@
 	}
 	loadClasses()
 	loadStudents()
-	loadSchedules()
+	resolveTargetSchedule().finally(loadSchedules)
 </script>
 
 <style lang="less" scoped>

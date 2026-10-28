@@ -3,8 +3,11 @@
 		<page-header title="招生报表" desc="线索漏斗、来源渠道、跟进排行与试听转化" />
 		<a-card :bordered="false" class="report-filter">
 			<a-form layout="inline">
+				<a-form-item label="周期">
+					<period-switch v-model="period" allow-custom @change="onPeriodChange" />
+				</a-form-item>
 				<a-form-item label="时间">
-					<a-range-picker v-model:value="dateRange" value-format="YYYY-MM-DD" allow-clear />
+					<a-range-picker v-model:value="dateRange" value-format="YYYY-MM-DD" allow-clear @change="onDateRangeChange" />
 				</a-form-item>
 				<a-form-item>
 					<a-space>
@@ -109,10 +112,13 @@
 	import ExportRecordsDrawer from '@/components/ExportRecordsDrawer/index.vue'
 	import KpiDelta from '@/components/KpiDelta/index.vue'
 	import { previousRange, rangeToQuery } from '@/utils/reportCompare'
+	import { periodDateRange } from '@/utils/reportPeriod'
+	import PeriodSwitch from '@/components/PeriodSwitch/index.vue'
 
 	const router = useRouter()
 
 	const loading = ref(false)
+	const period = ref('MONTH')
 	const dateRange = ref([dayjs().startOf('month').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')])
 	const funnelList = ref([])
 	const sourceList = ref([])
@@ -146,6 +152,13 @@
 			startTime: start ? `${start} 00:00:00` : undefined,
 			endTime: end ? `${end} 23:59:59` : undefined
 		}
+	}
+	const onPeriodChange = (value) => {
+		dateRange.value = periodDateRange(value)
+		loadAll()
+	}
+	const onDateRangeChange = () => {
+		period.value = 'CUSTOM'
 	}
 
 	const renderCharts = () => {
@@ -229,6 +242,7 @@
 	}
 
 	const reset = () => {
+		period.value = 'MONTH'
 		dateRange.value = [dayjs().startOf('month').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')]
 		loadAll()
 	}

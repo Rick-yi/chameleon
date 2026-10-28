@@ -2,7 +2,7 @@
 	<div class="m-attend">
 		<!-- 课节信息 -->
 			<div class="m-attend-head">
-				<div class="m-attend-title">{{ scheduleInfo?.className || '未命名班级' }}</div>
+				<div class="m-attend-title">{{ currentClassName }}</div>
 				<div class="m-attend-sub">
 					{{ (scheduleInfo?.scheduleDate || '').slice(0, 10) }}
 					{{ String(scheduleInfo?.startTime || '').slice(0, 5) }}-{{ String(scheduleInfo?.endTime || '').slice(0, 5) }}
@@ -69,6 +69,7 @@
 	const studentList = ref([])
 	const classOptions = ref([])
 	const classRecords = ref([])
+	const courseNameMap = ref({})
 
 	const statusOptions = [
 		{ value: 'ATTEND', text: '到课' },
@@ -80,7 +81,12 @@
 	// 消课账户：优先排课课程（支持不挂班级的直接排课），其次班级默认课程
 	const courseId = computed(() => scheduleInfo.value?.courseId
 		|| classRecords.value.find((item) => item.id === classId.value)?.courseId)
-	const courseName = computed(() => scheduleInfo.value?.courseName || '当前课程')
+	const currentClassName = computed(() => scheduleInfo.value?.className
+		|| classRecords.value.find((item) => item.id === classId.value)?.name
+		|| '未命名班级')
+	const courseName = computed(() => scheduleInfo.value?.courseName
+		|| courseNameMap.value[courseId.value]
+		|| '当前课程')
 	const sharedCourseBalance = computed(() => {
 		if (!courseId.value) return false
 		return classRecords.value.filter((item) => item.courseId === courseId.value).length > 1
@@ -107,6 +113,13 @@
 				return
 			}
 			scheduleInfo.value = (week || []).find((item) => item.id === scheduleId.value) || null
+			// 从未来周课表直达时，最近 7 天查不到该课节，按详情补齐日期/班级
+			if (!scheduleInfo.value) {
+				const detail = await courseApi.scheduleDetail({ id: scheduleId.value }).catch(() => null)
+				if (detail) {
+					scheduleInfo.value = detail
+				}
+			}
 			if (!classId.value && scheduleInfo.value?.classId) classId.value = scheduleInfo.value.classId
 
 			// 名单
@@ -147,8 +160,12 @@
 
 	// 班级（取课程 id 用）
 	const loadClasses = async () => {
-		const res = await courseApi.classPage({ current: 1, size: 200 }).catch(() => ({}))
+		const [res, courseRes] = await Promise.all([
+			courseApi.classPage({ current: 1, size: 200 }).catch(() => ({})),
+			courseApi.coursePage({ current: 1, size: 200 }).catch(() => ({}))
+		])
 		classRecords.value = res?.records || []
+		courseNameMap.value = Object.fromEntries((courseRes?.records || []).map((item) => [item.id, item.name]))
 		classOptions.value = classRecords.value.map((item) => ({
 			value: item.id,
 			label: item.classType === 'ONE2ONE' && item.studentName ? `${item.name} · ${item.studentName}` : item.name
