@@ -34,6 +34,9 @@ import vip.xiaonuo.course.modular.courseschedule.mapper.CourseScheduleMapper;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import vip.xiaonuo.course.modular.courseschedule.enums.CourseScheduleStatusEnum;
+import cn.hutool.core.date.DateUtil;
+import java.util.Date;
 
 /**
  * 课程域API接口实现类
@@ -255,5 +258,56 @@ public class CourseApiProvider implements CourseApi {
             }
         }
         return resultMap;
+    }
+
+    @Override
+    public JSONObject getNextSchedule(String studentId) {
+        if (StrUtil.isBlank(studentId)) {
+            return null;
+        }
+        // 学员在读班级
+        List<String> classIdList = courseClassStudentMapper.selectList(
+                        new LambdaQueryWrapper<CourseClassStudent>()
+                                .eq(CourseClassStudent::getStudentId, studentId)
+                                .eq(CourseClassStudent::getStatus, CourseClassStudentStatusEnum.STUDYING.getValue()))
+                .stream().map(CourseClassStudent::getClassId)
+                .filter(StrUtil::isNotBlank).distinct().toList();
+        if (classIdList.isEmpty()) {
+            return null;
+        }
+        Date now = new Date();
+        // 下次上课：今天起最近一节正常课节
+        List<CourseSchedule> nextList = courseScheduleMapper.selectList(
+                new LambdaQueryWrapper<CourseSchedule>()
+                        .eq(CourseSchedule::getStatus, CourseScheduleStatusEnum.NORMAL.getValue())
+                        .ge(CourseSchedule::getScheduleDate, DateUtil.beginOfDay(now))
+                        .in(CourseSchedule::getClassId, classIdList)
+                        .orderByAsc(CourseSchedule::getScheduleDate)
+                        .orderByAsc(CourseSchedule::getStartTime)
+                        .last("limit 1"));
+        if (ObjectUtil.isEmpty(nextList)) {
+            return null;
+        }
+        CourseSchedule next = nextList.get(0);
+        JSONObject result = new JSONObject();
+        // 上课时间 = 排课日期 + 开始时间
+        String datePart = DateUtil.formatDate(next.getScheduleDate());
+        String timePart = next.getStartTime() == null ? "00:00:00" : next.getStartTime().toString();
+        result.set("startTime", datePart + " " + timePart);
+        String className = null;
+        if (StrUtil.isNotBlank(next.getClassId())) {
+            CourseClass courseClass = courseClassMapper.selectById(next.getClassId());
+            className = courseClass == null ? null : courseClass.getName();
+        }
+        result.set("className", StrUtil.blankToDefault(className, "直接排课"));
+        // 本周剩余课节数（今天起到本周日）
+        Long weekCount = courseScheduleMapper.selectCount(
+                new LambdaQueryWrapper<CourseSchedule>()
+                        .eq(CourseSchedule::getStatus, CourseScheduleStatusEnum.NORMAL.getValue())
+                        .ge(CourseSchedule::getScheduleDate, DateUtil.beginOfDay(now))
+                        .le(CourseSchedule::getScheduleDate, DateUtil.endOfWeek(now, true))
+                        .in(CourseSchedule::getClassId, classIdList));
+        result.set("weekCount", weekCount == null ? 0 : weekCount);
+        return result;
     }
 }

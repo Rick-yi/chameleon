@@ -41,6 +41,8 @@ import vip.xiaonuo.student.modular.student.param.StudentPageParam;
 import vip.xiaonuo.student.modular.student.service.StudentService;
 import vip.xiaonuo.student.modular.studentlessonaccount.entity.StudentLessonAccount;
 import vip.xiaonuo.student.modular.studentlessonaccount.mapper.StudentLessonAccountMapper;
+import vip.xiaonuo.student.modular.studentrefund.entity.StudentRefund;
+import vip.xiaonuo.student.modular.studentrefund.enums.StudentRefundStatusEnum;
 import vip.xiaonuo.student.modular.studentorder.entity.StudentOrder;
 import vip.xiaonuo.student.modular.studentorder.enums.StudentOrderStatusEnum;
 import vip.xiaonuo.student.modular.studentorder.mapper.StudentOrderMapper;
@@ -86,7 +88,13 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
     private StudentOrderMapper studentOrderMapper;
 
     @Resource
+    private vip.xiaonuo.student.modular.studentrefund.mapper.StudentRefundMapper studentRefundMapper;
+
+    @Resource
     private CourseApi courseApi;
+
+    @Resource
+    private vip.xiaonuo.student.modular.studentsundry.service.StudentSundryService studentSundryService;
 
     @Resource
     private SysOrgApi sysOrgApi;
@@ -234,6 +242,7 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
         Student student = this.queryEntity(studentIdParam.getId());
         fillBusinessSummary(List.of(student));
         fillTags(List.of(student));
+        fillDetailExtras(student);
         return student;
     }
 
@@ -383,12 +392,64 @@ public class StudentServiceImpl extends ServiceImpl<StudentMapper, Student> impl
             classNameMap = Map.of();
         }
 
+        // 累计已缴学费 = 已支付订单实收 - 已完成的退费金额（与财务报表「净营收」口径一致）
+        Map<String, BigDecimal> paidMap = new HashMap<>();
+        studentOrderMapper.selectList(new LambdaQueryWrapper<StudentOrder>()
+                        .in(StudentOrder::getStudentId, studentIdList)
+                        .eq(StudentOrder::getStatus, StudentOrderStatusEnum.PAID.getValue()))
+                .forEach(order -> paidMap.merge(order.getStudentId(),
+                        nvl(order.getPaidAmount()), BigDecimal::add));
+        // 减去已退金额：退费单按学员聚合，避免逐人查询
+        Map<String, BigDecimal> refundedMap = new HashMap<>();
+        studentRefundMapper.selectList(new LambdaQueryWrapper<StudentRefund>()
+                        .in(StudentRefund::getStudentId, studentIdList)
+                        .eq(StudentRefund::getStatus, StudentRefundStatusEnum.REFUNDED.getValue()))
+                .forEach(refund -> refundedMap.merge(refund.getStudentId(),
+                        nvl(refund.getRefundAmount()), BigDecimal::add));
+        paidMap.replaceAll((studentId, paid) -> paid.subtract(
+                refundedMap.getOrDefault(studentId, BigDecimal.ZERO)));
+
         for (Student student : studentList) {
             student.setRemainLessons(remainMap.getOrDefault(student.getId(), BigDecimal.ZERO));
             student.setAccountExpireTime(expireMap.get(student.getId()));
             student.setUnpaidAmount(unpaidMap.getOrDefault(student.getId(), BigDecimal.ZERO));
             student.setClassNames(classNameMap.get(student.getId()));
             student.setHasLessonAccount(remainMap.containsKey(student.getId()));
+            student.setTotalPaidAmount(paidMap.getOrDefault(student.getId(), BigDecimal.ZERO));
+        }
+    }
+
+    /**
+     * 填充学员详情页的「学杂费」与「下次上课」信息
+     * <p>
+     * 仅详情页调用（单学员），避免列表页为每行查排课。
+     * </p>
+     *
+     * @author 会飞的猪
+     * @date 2026/10/28
+     */
+    private void fillDetailExtras(Student student) {
+        // 学杂费：已收 / 待收
+        try {
+            Map<String, BigDecimal> sundrySummary = studentSundryService.summaryByStudent(student.getId());
+            student.setSundryPaidAmount(sundrySummary.getOrDefault("received", BigDecimal.ZERO));
+            student.setSundryUnpaidAmount(sundrySummary.getOrDefault("receivable", BigDecimal.ZERO)
+                    .subtract(sundrySummary.getOrDefault("received", BigDecimal.ZERO)));
+        } catch (Exception e) {
+            // 学杂费表未就绪时不影响详情页主体
+            student.setSundryPaidAmount(BigDecimal.ZERO);
+            student.setSundryUnpaidAmount(BigDecimal.ZERO);
+        }
+        // 下次上课：最近一节未开始的排课
+        try {
+            JSONObject next = courseApi.getNextSchedule(student.getId());
+            if (ObjectUtil.isNotEmpty(next)) {
+                student.setNextScheduleTime(next.getDate("startTime"));
+                student.setNextScheduleClass(next.getStr("className"));
+                student.setWeekRemainScheduleCount(next.getInt("weekCount", 0));
+            }
+        } catch (Exception e) {
+            // 排课服务异常不阻塞详情页
         }
     }
 

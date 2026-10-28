@@ -119,4 +119,16 @@ public interface CourseApi {
      * @return 学员id → 班级名称（多个班级用顿号连接）
      */
     java.util.Map<String, String> listStudentClassNameMap(java.util.List<String> studentIdList);
+
+    /**
+     * 查询学员的下次上课信息（学员详情页展示用）
+     * <p>
+     * 返回字段：startTime（下次上课时间）、className（班级/课程名）、weekCount（本周剩余课节数）。
+     * 没有待上排课时返回 null。
+     * </p>
+     *
+     * @param studentId 学员id
+     * @return 下次上课信息
+     */
+    JSONObject getNextSchedule(String studentId);
 }

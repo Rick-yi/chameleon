@@ -35,6 +35,23 @@
 					<b :class="remainTone">{{ remainText }}</b>
 				</div>
 				<div class="kpi">
+					<span>累计已缴</span>
+					<b>{{ formatMoney(student.totalPaidAmount) }}</b>
+				</div>
+				<div class="kpi">
+					<span>学杂费已收</span>
+					<b :class="{ 'kpi-warning': Number(student.sundryUnpaidAmount) > 0 }">{{
+						formatMoney(student.sundryPaidAmount)
+					}}</b>
+					<em v-if="Number(student.sundryUnpaidAmount) > 0" class="kpi-sub"
+						>待收 {{ formatMoney(student.sundryUnpaidAmount) }}</em
+					>
+				</div>
+				<div class="kpi">
+					<span>下次上课</span>
+					<b class="kpi-text">{{ nextScheduleText }}</b>
+				</div>
+				<div class="kpi">
 					<span>课包到期</span>
 					<b :class="{ 'kpi-danger': isExpired(student.accountExpireTime) }">{{
 						formatDate(student.accountExpireTime)
@@ -195,6 +212,60 @@
 						message="请假、缺勤是否扣课时由课包/课程规则决定；未消课的记录会写明原因"
 					/>
 				</a-tab-pane>
+				<a-tab-pane key="sundry" tab="学杂费">
+					<div class="tab-toolbar">
+						<span class="tab-hint">校服、教材、活动费等一次性收费；与课包分账，不产生课时</span>
+						<a-button v-if="hasPerm('/student/sundry/add')" type="primary" size="small" @click="openSundry"
+							>新增学杂费</a-button
+						>
+					</div>
+					<a-table
+						:columns="sundryColumns"
+						:data-source="sundries"
+						:row-key="(r) => r.id"
+						:pagination="false"
+						bordered
+						size="middle"
+					>
+						<template #bodyCell="{ column, record }">
+							<template v-if="column.dataIndex === 'feeType'">
+								{{ feeTypeText(record.feeType) }}
+							</template>
+							<template v-if="column.dataIndex === 'quantity'">{{ Number(record.quantity || 0) }}</template>
+							<template v-if="column.dataIndex === 'unitPrice'">{{ formatMoney(record.unitPrice) }}</template>
+							<template v-if="column.dataIndex === 'amount'">{{ formatMoney(record.amount) }}</template>
+							<template v-if="column.dataIndex === 'paidAmount'">{{ formatMoney(record.paidAmount) }}</template>
+							<template v-if="column.dataIndex === 'status'">
+								<a-tag :color="sundryStatusColor(record.status)">{{ sundryStatusText(record.status) }}</a-tag>
+							</template>
+							<template v-if="column.dataIndex === 'createTime'">{{ formatDate(record.createTime) }}</template>
+							<template v-if="column.dataIndex === 'action'">
+								<a-button
+									v-if="record.status === 'UNPAID' && hasPerm('/student/sundry/pay')"
+									type="link"
+									size="small"
+									@click="openSundryPay(record)"
+									>收款</a-button
+								>
+								<a-popconfirm
+									v-if="record.status === 'PAID' && hasPerm('/student/sundry/refund')"
+									title="确认对该笔学杂费办理退费？"
+									@confirm="onRefundSundry(record)"
+								>
+									<a class="text-danger">退费</a>
+								</a-popconfirm>
+								<a-popconfirm
+									v-if="record.status === 'UNPAID' && hasPerm('/student/sundry/delete')"
+									title="确认删除该单据？"
+									@confirm="onDeleteSundry(record)"
+								>
+									<a class="text-danger">删除</a>
+								</a-popconfirm>
+							</template>
+						</template>
+					</a-table>
+					<a-empty v-if="!sundries.length" description="暂无学杂费记录" />
+				</a-tab-pane>
 				<a-tab-pane key="refund" tab="退费单">
 					<a-table
 						:columns="refundColumns"
@@ -255,6 +326,77 @@
 				</a-form-item>
 				<a-form-item label="备注" name="remark">
 					<a-input v-model:value="payFormData.remark" placeholder="如：收款人、转账流水号" allow-clear />
+				</a-form-item>
+			</a-form>
+		</a-modal>
+
+		<a-modal v-model:open="sundryOpen" title="新增学杂费" :width="520" :destroy-on-close="true" @ok="onSubmitSundry">
+			<a-form ref="sundryFormRef" :model="sundryForm" layout="vertical">
+				<a-form-item label="费用类型" name="feeType">
+					<a-select v-model:value="sundryForm.feeType" :options="feeTypeOptions" />
+				</a-form-item>
+				<a-form-item label="名称" name="itemName" :rules="[{ required: true, message: '请填写物品或费用名称' }]">
+					<a-input v-model:value="sundryForm.itemName" placeholder="如：夏季校服 M 码 / 数学教材" allow-clear />
+				</a-form-item>
+				<a-row :gutter="12">
+					<a-col :span="8">
+						<a-form-item label="数量" name="quantity">
+							<a-input-number v-model:value="sundryForm.quantity" :min="0.01" :precision="2" style="width: 100%" />
+						</a-form-item>
+					</a-col>
+					<a-col :span="8">
+						<a-form-item label="单价" name="unitPrice">
+							<a-input-number v-model:value="sundryForm.unitPrice" :min="0" :precision="2" style="width: 100%" />
+						</a-form-item>
+					</a-col>
+					<a-col :span="8">
+						<a-form-item label="应收合计">
+							<b>{{ formatMoney(sundryAmount) }}</b>
+						</a-form-item>
+					</a-col>
+				</a-row>
+				<a-form-item label="立即收款" name="payNow">
+					<a-switch v-model:checked="sundryForm.payNow" />
+					<span class="form-hint">关闭则先记应收，后续在列表中收款</span>
+				</a-form-item>
+				<a-form-item v-if="sundryForm.payNow" label="收款渠道" name="payChannel">
+					<a-select
+						v-model:value="sundryForm.payChannel"
+						:options="[
+							{ value: 'CASH', label: '现金' },
+							{ value: 'WECHAT', label: '微信' },
+							{ value: 'ALIPAY', label: '支付宝' },
+							{ value: 'OFFLINE', label: '线下转账' }
+						]"
+					/>
+				</a-form-item>
+				<a-form-item label="备注" name="remark">
+					<a-input v-model:value="sundryForm.remark" placeholder="如：尺码、领取人" allow-clear />
+				</a-form-item>
+			</a-form>
+		</a-modal>
+
+		<a-modal
+			v-model:open="sundryPayOpen"
+			title="学杂费收款"
+			:width="480"
+			:destroy-on-close="true"
+			@ok="onSubmitSundryPay"
+		>
+			<a-form :model="sundryPayForm" layout="vertical">
+				<a-form-item label="收款渠道" name="payChannel">
+					<a-select
+						v-model:value="sundryPayForm.payChannel"
+						:options="[
+							{ value: 'CASH', label: '现金' },
+							{ value: 'WECHAT', label: '微信' },
+							{ value: 'ALIPAY', label: '支付宝' },
+							{ value: 'OFFLINE', label: '线下转账' }
+						]"
+					/>
+				</a-form-item>
+				<a-form-item label="实收金额" name="paidAmount">
+					<a-input-number v-model:value="sundryPayForm.paidAmount" :min="0" :precision="2" style="width: 100%" />
 				</a-form-item>
 			</a-form>
 		</a-modal>
@@ -346,6 +488,7 @@
 	import { useRoute } from 'vue-router'
 	import EnrollmentFlow from '@/components/EnrollmentFlow/index.vue'
 	import studentApi from '@/api/student/studentApi'
+	import sundryApi from '@/api/student/sundryApi'
 	import courseApi from '@/api/course/courseApi'
 	import { message } from 'ant-design-vue'
 	// 既可作为独立页面（取路由参数），也可嵌入抽屉（外部传入 studentId）
@@ -361,6 +504,30 @@
 	const orders = ref([])
 	const attends = ref([])
 	const refunds = ref([])
+	const sundries = ref([])
+	const sundryOpen = ref(false)
+	const sundryFormRef = ref()
+	const sundryForm = ref({ feeType: 'UNIFORM', quantity: 1, unitPrice: 0, payNow: true, payChannel: 'CASH' })
+	const sundryPayOpen = ref(false)
+	const sundryPayForm = ref({ id: '', payChannel: 'CASH', paidAmount: null })
+	const feeTypeOptions = [
+		{ value: 'UNIFORM', label: '校服' },
+		{ value: 'BOOK', label: '教材' },
+		{ value: 'ACTIVITY', label: '活动费' },
+		{ value: 'MEAL', label: '餐费' },
+		{ value: 'OTHER', label: '其他' }
+	]
+	const sundryColumns = [
+		{ title: '费用类型', dataIndex: 'feeType', width: 100 },
+		{ title: '名称', dataIndex: 'itemName' },
+		{ title: '数量', dataIndex: 'quantity', width: 80 },
+		{ title: '单价', dataIndex: 'unitPrice', width: 100 },
+		{ title: '应收', dataIndex: 'amount', width: 100 },
+		{ title: '实收', dataIndex: 'paidAmount', width: 100 },
+		{ title: '状态', dataIndex: 'status', width: 90 },
+		{ title: '创建时间', dataIndex: 'createTime', width: 160 },
+		{ title: '操作', dataIndex: 'action', width: 160 }
+	]
 	const timeline = ref([])
 	const timelineLoading = ref(false)
 	const activeTab = ref('timeline')
@@ -438,6 +605,17 @@
 			.filter(Boolean)
 			.sort()
 		return dates.length ? String(dates[dates.length - 1]).slice(0, 10) : ''
+	})
+	// 下次上课：展示「周几 时间 班级」，无排课时提示未安排
+	const nextScheduleText = computed(() => {
+		const time = student.value.nextScheduleTime
+		if (!time) return '暂无排课'
+		const date = parseDate(time)
+		if (!date) return '暂无排课'
+		const weekday = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()]
+		const hhmm = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+		const count = Number(student.value.weekRemainScheduleCount || 0)
+		return count > 0 ? `${weekday} ${hhmm}（本周 ${count} 节）` : `${weekday} ${hhmm}`
 	})
 	const riskTags = computed(() => {
 		const tags = []
@@ -528,9 +706,10 @@
 			courseApi.coursePage({ current: 1, size: 100 }),
 			courseApi.studentAttendPage({ current: 1, size: 50, studentId: currentStudentId.value }),
 			studentApi.studentTimeline({ studentId: currentStudentId.value }),
-			studentApi.tagList()
+			studentApi.tagList(),
+			sundryApi.listByStudent(currentStudentId.value)
 		])
-			.then(([stu, acc, flow, order, refund, course, attend, timelineData, tags]) => {
+			.then(([stu, acc, flow, order, refund, course, attend, timelineData, tags, sundryData]) => {
 				student.value = stu
 				accounts.value = acc.records || []
 				flows.value = (flow.records || []).map((f) => ({ ...f, flowType: flowTypeText(f.flowType) }))
@@ -539,6 +718,7 @@
 				refunds.value = refund.records || []
 				timeline.value = timelineData || []
 				tagList.value = tags || []
+				sundries.value = sundryData || []
 				const cmap = {}
 				for (const c of course.records || []) cmap[c.id] = c.name
 				courseMap.value = cmap
@@ -573,6 +753,76 @@
 	}
 	const onCancelOrder = (record) => {
 		studentApi.orderCancel({ id: record.id }).then(() => loadAll())
+	}
+
+	// ---------- 学杂费 ----------
+	const sundryAmount = computed(() => Number(sundryForm.value.quantity || 0) * Number(sundryForm.value.unitPrice || 0))
+	const feeTypeText = (value) => {
+		const found = feeTypeOptions.find((item) => item.value === value)
+		return found ? found.label : value || '其他'
+	}
+	const sundryStatusText = (value) =>
+		({
+			UNPAID: '待收款',
+			PENDING: '待确认',
+			PAID: '已收款',
+			REFUNDING: '退款中',
+			REFUNDED: '已退款',
+			CANCELED: '已取消'
+		})[value] || value
+	const sundryStatusColor = (value) =>
+		value === 'PAID'
+			? 'green'
+			: value === 'UNPAID'
+				? 'orange'
+				: value === 'REFUNDED'
+					? 'default'
+					: value === 'CANCELED'
+						? 'red'
+						: 'blue'
+	const openSundry = () => {
+		sundryForm.value = {
+			feeType: 'UNIFORM',
+			quantity: 1,
+			unitPrice: 0,
+			payNow: true,
+			payChannel: 'CASH',
+			itemName: '',
+			remark: ''
+		}
+		sundryOpen.value = true
+	}
+	const onSubmitSundry = () => {
+		sundryFormRef.value.validate().then(() => {
+			sundryApi
+				.add({
+					...sundryForm.value,
+					studentId: currentStudentId.value,
+					amount: sundryAmount.value
+				})
+				.then(() => {
+					sundryOpen.value = false
+					loadAll()
+				})
+		})
+	}
+	const openSundryPay = (record) => {
+		sundryPayForm.value = { id: record.id, payChannel: 'CASH', paidAmount: Number(record.amount || 0) }
+		sundryPayOpen.value = true
+	}
+	const onSubmitSundryPay = () => {
+		sundryApi.pay(sundryPayForm.value).then(() => {
+			sundryPayOpen.value = false
+			loadAll()
+		})
+	}
+	const onRefundSundry = (record) => {
+		sundryApi
+			.refund({ id: record.id, refundAmount: Number(record.paidAmount || 0), reason: '学杂费退费' })
+			.then(() => loadAll())
+	}
+	const onDeleteSundry = (record) => {
+		sundryApi.del(record.id).then(() => loadAll())
 	}
 	const onOpenRefund = (record) => {
 		refundFormData.value = { orderId: record.id }
@@ -681,7 +931,7 @@
 <style scoped lang="less">
 	.detail-kpis {
 		display: grid;
-		grid-template-columns: repeat(5, minmax(0, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 		gap: 12px;
 		margin-top: 16px;
 		padding-top: 16px;
@@ -699,6 +949,11 @@
 			font-size: 20px;
 			font-weight: 700;
 			line-height: 1.2;
+		}
+		.kpi-sub {
+			font-size: 12px;
+			font-style: normal;
+			color: #d46b08;
 		}
 	}
 	.kpi-text {
@@ -771,5 +1026,25 @@
 		.detail-kpis {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
+	}
+
+	/* 页签工具条：左侧说明 + 右侧操作 */
+	.tab-toolbar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-bottom: 12px;
+
+		.tab-hint {
+			font-size: 12px;
+			color: var(--text-color-secondary);
+		}
+	}
+
+	.form-hint {
+		margin-left: 8px;
+		font-size: 12px;
+		color: var(--text-color-secondary);
 	}
 </style>

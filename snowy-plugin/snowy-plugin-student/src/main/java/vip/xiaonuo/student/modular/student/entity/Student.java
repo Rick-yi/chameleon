@@ -119,4 +119,34 @@ public class Student extends CommonEntity {
     @Schema(description = "学员标签")
     @TableField(exist = false)
     private List<vip.xiaonuo.student.modular.studenttag.entity.StudentTag> tagList;
+
+    /** 累计已缴学费（课包实收 - 已退，非数据库字段） */
+    @Schema(description = "累计已缴学费")
+    @TableField(exist = false)
+    private BigDecimal totalPaidAmount;
+
+    /** 学杂费已收金额（非数据库字段） */
+    @Schema(description = "学杂费已收金额")
+    @TableField(exist = false)
+    private BigDecimal sundryPaidAmount;
+
+    /** 学杂费待收金额（非数据库字段） */
+    @Schema(description = "学杂费待收金额")
+    @TableField(exist = false)
+    private BigDecimal sundryUnpaidAmount;
+
+    /** 下次上课时间（非数据库字段） */
+    @Schema(description = "下次上课时间")
+    @TableField(exist = false)
+    private Date nextScheduleTime;
+
+    /** 下次上课班级/课程（非数据库字段） */
+    @Schema(description = "下次上课班级")
+    @TableField(exist = false)
+    private String nextScheduleClass;
+
+    /** 本周剩余课节数（非数据库字段） */
+    @Schema(description = "本周剩余课节数")
+    @TableField(exist = false)
+    private Integer weekRemainScheduleCount;
 }

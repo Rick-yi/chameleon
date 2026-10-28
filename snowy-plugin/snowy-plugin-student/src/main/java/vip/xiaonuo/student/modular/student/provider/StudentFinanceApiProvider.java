@@ -20,6 +20,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import vip.xiaonuo.common.page.CommonPageRequest;
 import vip.xiaonuo.course.api.CourseApi;
@@ -49,6 +50,8 @@ import vip.xiaonuo.student.modular.studentlessonaccount.mapper.StudentLessonAcco
 import vip.xiaonuo.student.modular.studentlessonflow.entity.StudentLessonFlow;
 import vip.xiaonuo.student.modular.studentlessonflow.enums.LessonFlowTypeEnum;
 import vip.xiaonuo.student.modular.studentlessonflow.mapper.StudentLessonFlowMapper;
+import vip.xiaonuo.student.modular.studentsundry.entity.StudentSundryOrder;
+import vip.xiaonuo.student.modular.studentsundry.enums.StudentSundryStatusEnum;
 import vip.xiaonuo.student.modular.studentorder.entity.StudentOrder;
 import vip.xiaonuo.student.modular.studentorder.enums.StudentOrderStatusEnum;
 import vip.xiaonuo.student.modular.studentorder.mapper.StudentOrderMapper;
@@ -79,6 +82,7 @@ import java.util.stream.Collectors;
  * @author 会飞的猪
  * @date 2026/10/20 10:00
  **/
+@Slf4j
 @Service
 public class StudentFinanceApiProvider implements StudentFinanceApi {
 
@@ -90,6 +94,9 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
 
     @Resource
     private StudentOrderMapper studentOrderMapper;
+
+    @Resource
+    private vip.xiaonuo.student.modular.studentsundry.mapper.StudentSundryOrderMapper studentSundryOrderMapper;
 
     @Resource
     private StudentRefundMapper studentRefundMapper;
@@ -380,6 +387,8 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
                 : paidAmount.divide(BigDecimal.valueOf(orderList.size()), 2, RoundingMode.HALF_UP));
         summary.setRefundRate(paidAmount.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO
                 : refundAmount.multiply(BigDecimal.valueOf(100)).divide(paidAmount, 2, RoundingMode.HALF_UP));
+        // 学杂费独立统计：只做加法，不影响上面的课包口径（客单价/续费率仍基于课包）
+        fillSundrySummary(summary, financeQueryParam, start, end);
 
         LambdaQueryWrapper<StudentOrder> unpaidWrapper = new LambdaQueryWrapper<StudentOrder>()
                 .eq(StudentOrder::getStatus, StudentOrderStatusEnum.UNPAID.getValue())
@@ -1253,6 +1262,43 @@ public class StudentFinanceApiProvider implements StudentFinanceApi {
      **/
     private Date parseStart(String value) {
         return StrUtil.isBlank(value) ? null : DateUtil.parse(value);
+    }
+
+    /**
+     * 填充学杂费统计（独立成栏）
+     * <p>
+     * 学杂费与课包分账：只统计已收款单据，退费按已退金额扣减。
+     * 不并入 netAmount，因为它承担客单价与续费率的分母；总收入单独给 totalNetAmount。
+     * </p>
+     *
+     * @author 会飞的猪
+     * @date 2026/10/28
+     **/
+    private void fillSundrySummary(FinanceSummaryDTO summary, FinanceQueryParam queryParam, Date start, Date end) {
+        try {
+            // 按收款时间统计区间内的学杂费流水
+            LambdaQueryWrapper<StudentSundryOrder> wrapper = new LambdaQueryWrapper<StudentSundryOrder>()
+                    .ge(StudentSundryOrder::getPayTime, start)
+                    .le(StudentSundryOrder::getPayTime, end)
+                    .in(StudentSundryOrder::getStatus,
+                            StudentSundryStatusEnum.PAID, StudentSundryStatusEnum.REFUNDED)
+                    .eq(StrUtil.isNotBlank(queryParam.getCampusId()),
+                            StudentSundryOrder::getCampusId, queryParam.getCampusId());
+            List<StudentSundryOrder> sundryList = studentSundryOrderMapper.selectList(wrapper);
+            BigDecimal sundryPaid = sundryList.stream().map(item -> nvl(item.getPaidAmount()))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal sundryRefund = sundryList.stream().map(item -> nvl(item.getRefundedAmount()))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            summary.setSundryPaidAmount(sundryPaid);
+            summary.setSundryRefundAmount(sundryRefund);
+            summary.setSundryNetAmount(sundryPaid.subtract(sundryRefund));
+            summary.setSundryOrderCount((long) sundryList.size());
+            summary.setTotalNetAmount(nvl(summary.getNetAmount()).add(summary.getSundryNetAmount()));
+        } catch (Exception e) {
+            // 学杂费表尚未创建（旧库首次启动）时不应影响课包口径的报表
+            log.warn(">>> 学杂费统计跳过：{}", e.getMessage());
+            summary.setTotalNetAmount(nvl(summary.getNetAmount()));
+        }
     }
 
     /**

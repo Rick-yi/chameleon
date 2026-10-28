@@ -95,4 +95,32 @@ public class FinanceSummaryDTO {
     /** 数据来源：REALTIME 实时聚合 / DAILY_STAT 日汇总表 */
     @Schema(description = "数据来源")
     private String dataSource = "REALTIME";
+
+    // ---------- 学杂费（与课包收入分账，独立成栏） ----------
+
+    /** 学杂费实收金额（校服/教材/活动费等） */
+    @Schema(description = "学杂费实收金额")
+    private BigDecimal sundryPaidAmount = BigDecimal.ZERO;
+
+    /** 学杂费退费金额 */
+    @Schema(description = "学杂费退费金额")
+    private BigDecimal sundryRefundAmount = BigDecimal.ZERO;
+
+    /** 学杂费净收入 = 实收 - 退费 */
+    @Schema(description = "学杂费净收入")
+    private BigDecimal sundryNetAmount = BigDecimal.ZERO;
+
+    /** 学杂费单数 */
+    @Schema(description = "学杂费单数")
+    private Long sundryOrderCount = 0L;
+
+    /**
+     * 总收入 = 课包净营收 + 学杂费净收入
+     * <p>
+     * 单独成栏而不并入 netAmount：netAmount 是课包口径，
+     * 客单价与续费率都基于它计算，混入学杂费会让这两个指标失真。
+     * </p>
+     */
+    @Schema(description = "总收入（课包净营收 + 学杂费净收入）")
+    private BigDecimal totalNetAmount = BigDecimal.ZERO;
 }
