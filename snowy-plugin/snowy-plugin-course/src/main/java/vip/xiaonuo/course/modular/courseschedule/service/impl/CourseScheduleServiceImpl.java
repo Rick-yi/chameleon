@@ -1414,11 +1414,11 @@ public class CourseScheduleServiceImpl extends ServiceImpl<CourseScheduleMapper,
                 .forEach(item -> attendCountMap.merge(item.getScheduleId(), 1, Integer::sum));
         // 直接排课（无班级）的应到人数取这节课指定学员数，课表卡片才能展示「应到/已点」进度
         Map<String, Integer> directStudentCountMap = new HashMap<>();
-        for (CourseSchedule schedule : scheduleList) {
-            if (StrUtil.isBlank(schedule.getClassId())) {
-                directStudentCountMap.put(schedule.getId(),
-                        courseScheduleStudentService.listStudentIdsByScheduleId(schedule.getId()).size());
-            }
+        List<String> directScheduleIdList = scheduleList.stream()
+                .filter(item -> StrUtil.isBlank(item.getClassId()))
+                .map(CourseSchedule::getId).filter(StrUtil::isNotBlank).collect(Collectors.toList());
+        if (ObjectUtil.isNotEmpty(directScheduleIdList)) {
+            directStudentCountMap = courseScheduleStudentService.countStudentByScheduleIds(directScheduleIdList);
         }
         for (CourseSchedule schedule : scheduleList) {
             CourseScheduleViewDTO dto = new CourseScheduleViewDTO();

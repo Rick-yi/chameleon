@@ -14,6 +14,7 @@ package vip.xiaonuo.course.modular.courschedulestudent.service;
 import vip.xiaonuo.course.modular.courschedulestudent.entity.CourseScheduleStudent;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 排课学员Service
@@ -44,4 +45,15 @@ public interface CourseScheduleStudentService {
 	 * @param scheduleId 排课id
 	 */
 	List<String> listStudentIdsByScheduleId(String scheduleId);
+
+	/**
+	 * 批量统计多节课各自指定的学员数（scheduleId -> 人数），未指定学员的课节不返回该键
+	 * <p>
+	 * 课表周视图需要给每节「直接排课」标注应到人数，用本方法一次查询完成，
+	 * 避免按课节逐个查询。
+	 * </p>
+	 *
+	 * @param scheduleIdList 排课id集合
+	 */
+	Map<String, Integer> countStudentByScheduleIds(List<String> scheduleIdList);
 }

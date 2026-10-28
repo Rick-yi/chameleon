@@ -24,7 +24,9 @@ import vip.xiaonuo.course.modular.courschedulestudent.mapper.CourseScheduleStude
 import vip.xiaonuo.course.modular.courschedulestudent.service.CourseScheduleStudentService;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 排课学员Service实现
@@ -77,5 +79,24 @@ public class CourseScheduleStudentServiceImpl extends ServiceImpl<CourseSchedule
 		return this.list(new LambdaQueryWrapper<CourseScheduleStudent>()
 						.eq(CourseScheduleStudent::getScheduleId, scheduleId))
 				.stream().map(CourseScheduleStudent::getStudentId).distinct().toList();
+	}
+
+	@Override
+	public Map<String, Integer> countStudentByScheduleIds(List<String> scheduleIdList) {
+		Map<String, Integer> countMap = new HashMap<>();
+		if (CollUtil.isEmpty(scheduleIdList)) {
+			return countMap;
+		}
+		List<String> idList = scheduleIdList.stream().filter(StrUtil::isNotBlank).distinct().toList();
+		if (idList.isEmpty()) {
+			return countMap;
+		}
+		// 依赖 UK_SCHEDULE_STUDENT(SCHEDULE_ID, STUDENT_ID) 唯一索引：同一课节同一学员不会重复记录，
+		// 因此直接计数与「查学员id再 distinct 后取 size」结果一致
+		this.list(new LambdaQueryWrapper<CourseScheduleStudent>()
+						.select(CourseScheduleStudent::getScheduleId, CourseScheduleStudent::getStudentId)
+						.in(CourseScheduleStudent::getScheduleId, idList))
+				.forEach(item -> countMap.merge(item.getScheduleId(), 1, Integer::sum));
+		return countMap;
 	}
 }
