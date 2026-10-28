@@ -19,6 +19,7 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.core.Ordered;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import vip.xiaonuo.common.context.StartupPhase;
 
 /**
  * P0 结构升级
@@ -861,8 +862,8 @@ public class P0SchemaMigration implements ApplicationListener<ApplicationStarted
 
     @Override
     public int getOrder() {
-        // 早于 PlatformBootstrap（LOWEST_PRECEDENCE - 10）
-        return Ordered.LOWEST_PRECEDENCE - 20;
+        // 底座结构最先执行，后续所有迁移都可能依赖补出来的表与列
+        return StartupPhase.BASE_SCHEMA;
     }
 
     private boolean columnExists(String tableName, String columnName) {

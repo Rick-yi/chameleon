@@ -19,6 +19,7 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.core.Ordered;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import vip.xiaonuo.common.context.StartupPhase;
 
 /**
  * CRM 新增接口权限补齐
@@ -104,6 +105,6 @@ public class CrmPermissionMigration implements ApplicationListener<ApplicationSt
 
     @Override
     public int getOrder() {
-        return Ordered.LOWEST_PRECEDENCE - 15;
+        return StartupPhase.DOMAIN_PERMISSION;
     }
 }

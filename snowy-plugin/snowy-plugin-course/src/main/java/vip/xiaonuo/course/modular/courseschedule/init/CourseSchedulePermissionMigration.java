@@ -21,6 +21,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import vip.xiaonuo.common.context.StartupPhase;
 
 /**
  * 排课新增接口权限
@@ -99,6 +100,6 @@ public class CourseSchedulePermissionMigration implements ApplicationListener<Ap
 
     @Override
     public int getOrder() {
-        return Ordered.LOWEST_PRECEDENCE - 14;
+        return StartupPhase.DOMAIN_PERMISSION;
     }
 }

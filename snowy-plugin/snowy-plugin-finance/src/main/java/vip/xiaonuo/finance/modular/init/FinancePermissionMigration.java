@@ -21,6 +21,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import vip.xiaonuo.common.context.StartupPhase;
 
 /**
  * 财务新增接口权限
@@ -120,6 +121,6 @@ public class FinancePermissionMigration implements ApplicationListener<Applicati
 
     @Override
     public int getOrder() {
-        return Ordered.LOWEST_PRECEDENCE - 14;
+        return StartupPhase.DOMAIN_PERMISSION;
     }
 }

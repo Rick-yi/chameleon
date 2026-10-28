@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import vip.xiaonuo.common.context.StartupPhase;
 
 /**
  * 租户隔离自检
@@ -132,6 +133,6 @@ public class TenantIsolationAudit implements ApplicationListener<ApplicationStar
     @Override
     public int getOrder() {
         // 在结构迁移之后执行，保证新表已建好再自检
-        return Ordered.LOWEST_PRECEDENCE;
+        return StartupPhase.AUDIT;
     }
 }

@@ -51,6 +51,7 @@ import vip.xiaonuo.sys.modular.user.service.SysUserService;
 
 import java.util.Date;
 import java.util.List;
+import vip.xiaonuo.common.context.StartupPhase;
 
 /**
  * 平台运营账号初始化
@@ -146,8 +147,8 @@ public class PlatformBootstrap implements ApplicationListener<ApplicationStarted
 
     @Override
     public int getOrder() {
-        // 早于 DevJobListener（LOWEST_PRECEDENCE），保证新增任务能在本次启动被调度
-        return Ordered.LOWEST_PRECEDENCE - 10;
+        // 早于定时任务启动，保证本次新增的任务能在同一次启动中被调度
+        return StartupPhase.PLATFORM_BOOTSTRAP;
     }
 
     /**

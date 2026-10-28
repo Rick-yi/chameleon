@@ -19,6 +19,7 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.core.Ordered;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import vip.xiaonuo.common.context.StartupPhase;
 
 /**
  * 学员档案增强结构升级
@@ -147,8 +148,8 @@ public class StudentArchiveSchemaMigration implements ApplicationListener<Applic
 
     @Override
     public int getOrder() {
-        // 晚于 P0SchemaMigration（LOWEST_PRECEDENCE - 20）
-        return Ordered.LOWEST_PRECEDENCE - 15;
+        // 晚于底座结构，依赖 P0 补出的基础表与列
+        return StartupPhase.DOMAIN_SCHEMA;
     }
 
     private boolean columnExists(String tableName, String columnName) {

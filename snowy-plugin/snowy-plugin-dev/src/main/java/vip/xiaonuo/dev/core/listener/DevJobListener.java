@@ -26,6 +26,7 @@ import vip.xiaonuo.common.timer.CommonTimerTaskRunner;
 import vip.xiaonuo.dev.modular.job.entity.DevJob;
 import vip.xiaonuo.dev.modular.job.enums.DevJobStatusEnum;
 import vip.xiaonuo.dev.modular.job.service.DevJobService;
+import vip.xiaonuo.common.context.StartupPhase;
 
 /**
  * 定时任务监听器，系统启动时将定时任务启动
@@ -57,6 +58,6 @@ public class DevJobListener implements ApplicationListener<ApplicationStartedEve
 
     @Override
     public int getOrder() {
-        return LOWEST_PRECEDENCE;
+        return StartupPhase.TIMER_START;
     }
 }

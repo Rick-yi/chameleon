@@ -20,6 +20,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.Resource;
+import vip.xiaonuo.common.context.StartupPhase;
 
 /**
  * 平台运营能力结构升级
@@ -123,8 +124,8 @@ public class PlatformOpsSchemaMigration implements ApplicationListener<Applicati
 
     @Override
     public int getOrder() {
-        // 早于 PlatformBootstrap（LOWEST_PRECEDENCE - 10），保证菜单授权覆盖新增菜单
-        return Ordered.LOWEST_PRECEDENCE - 15;
+        // 早于平台账号初始化，保证菜单授权覆盖本次新增菜单
+        return StartupPhase.PLATFORM_SCHEMA;
     }
 
     private boolean columnExists(String tableName, String columnName) {

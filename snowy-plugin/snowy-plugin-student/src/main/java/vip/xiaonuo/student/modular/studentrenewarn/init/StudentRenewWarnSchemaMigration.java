@@ -19,6 +19,7 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.core.Ordered;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import vip.xiaonuo.common.context.StartupPhase;
 
 /**
  * 续费与流失闭环结构升级
@@ -118,8 +119,8 @@ public class StudentRenewWarnSchemaMigration implements ApplicationListener<Appl
 
     @Override
     public int getOrder() {
-        // 晚于 P0SchemaMigration（LOWEST_PRECEDENCE - 20），保证基础表已存在
-        return Ordered.LOWEST_PRECEDENCE - 15;
+        // 晚于底座结构，保证依赖的基础表已存在
+        return StartupPhase.DOMAIN_SCHEMA;
     }
 
     private void addColumnIfMissing(String tableName, String columnName, String ddl) {

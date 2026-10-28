@@ -21,6 +21,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import vip.xiaonuo.common.context.StartupPhase;
 
 /**
  * 学员档案增强接口权限
@@ -127,6 +128,6 @@ public class StudentArchivePermissionMigration implements ApplicationListener<Ap
 
     @Override
     public int getOrder() {
-        return Ordered.LOWEST_PRECEDENCE - 14;
+        return StartupPhase.DOMAIN_PERMISSION;
     }
 }

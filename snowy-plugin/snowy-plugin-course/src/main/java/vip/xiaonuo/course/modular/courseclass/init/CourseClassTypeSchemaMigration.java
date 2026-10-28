@@ -19,6 +19,7 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.core.Ordered;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import vip.xiaonuo.common.context.StartupPhase;
 
 /**
  * 班级班型结构升级
@@ -80,7 +81,7 @@ public class CourseClassTypeSchemaMigration implements ApplicationListener<Appli
 
     @Override
     public int getOrder() {
-        return Ordered.LOWEST_PRECEDENCE - 13;
+        return StartupPhase.DOMAIN_SCHEMA;
     }
 
     private boolean columnExists(String tableName, String columnName) {
