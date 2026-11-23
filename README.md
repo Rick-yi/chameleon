@@ -17,7 +17,30 @@ Chameleon 是把 Snowy v3.6.5 全量引入本仓库作为"底座"后的工程：
 - 把**开发环境配置**落到本机可用的默认值（MySQL / Redis / 端口）；
 - **不引入上游 git 历史**（本仓库为一个全新的初始提交），后续如需同步上游请按 [docs/03](docs/03-改名范围与上游同步.md) 手动比对。
 
-## 二、技术栈
+## 二、功能特性
+
+面向教培机构日常经营，覆盖「招生 → 报名收款 → 排课点名 → 课时账务 → 经营分析」全链路。
+
+| 模块 | 能力 |
+| --- | --- |
+| 多租户 | 平台运营端管理租户开通/续费/停用、套餐限额与功能开关、平台账单、租户健康度 |
+| 学员档案 | 标签、状态机（在读/停课/休学/退学/结课）、状态变更流水、动态时间线、导入导出 |
+| 招生 CRM | 线索、跟进记录、试听预约、线索转学员 |
+| 课务 | 课程、课包、班级（一对多/一对一班型）、排课（冲突检测/批量/复制上周/停课日/教师不可用）、点名消课 |
+| 财务 | 收款台、订单与续费、退费（申请→审批→退款）、课时账户与流水、报表与对账 |
+| 学杂费 | 校服/教材/活动费等一次性收费，独立成表与课包分账，不污染客单价与续费率 |
+| 报表 | 经营看板、财务、教务、招生，支持日/月/年切换与下钻 |
+| 课表 | 多条件筛选、分屏查看（最多 4 窗口） |
+| 移动端 | `/app` 工作台、学员名册与详情、点名、课表、收款台、续费预警；详情内可调课包（预设或自定义） |
+
+技术要点：
+
+- **租户行级隔离**：白名单表由拦截器自动拼租户条件，启动时自检未登记表并告警；
+- **启动迁移阶段化**：结构 → 权限 → 初始化 → 自检 → 定时任务，失败集中汇总而非静默；
+- **账务不变量**：课时账户「剩余 = 总课时 − 已用」在退费路径实时校验；
+- **金额口径收敛**：退费算式单一实现，申请/试算/审批共用，配有 10 个不变量用例。
+
+## 三、技术栈
 
 | 层 | 组件 | 版本 |
 |---|---|---|
@@ -33,7 +56,7 @@ Chameleon 是把 Snowy v3.6.5 全量引入本仓库作为"底座"后的工程：
 | 前端 | Vite / Node.js | 6.0.7 / **≥ 18** |
 | 前端 | Pinia / Vue Router | 2.2.2 / 4.4.5 |
 
-## 三、目录结构
+## 四、目录结构
 
 ```
 chameleon
@@ -48,19 +71,19 @@ chameleon
 
 > 说明：Maven 模块目录名与 Java 包名 `vip.xiaonuo.*` 保持上游原样（原因见 [docs/03](docs/03-改名范围与上游同步.md)）。
 
-## 四、环境要求
+## 五、环境要求
 
-| 组件 | 要求 | 本机现状（截至交付时） |
-|---|---|---|
-| JDK | **17**（必须） | 仅 1.8 ❌ 需自行安装 |
-| Maven | 3.8+ | 3.9.7 ✅ |
-| Node.js | ≥ 18 | v22.14.0 ✅ |
-| MySQL | 8.0 或 5.7 | 未安装 ❌ |
-| Redis | 6/7 均可 | 未安装 ❌ |
+| 组件 | 要求 |
+|---|---|
+| JDK | **17**（必须） |
+| Maven | 3.8+ |
+| Node.js | ≥ 18 |
+| MySQL | 8.0 或 5.7 |
+| Redis | 6/7 均可 |
 
 详细安装步骤见 [docs/01-环境准备.md](docs/01-环境准备.md)。
 
-## 五、快速开始
+## 六、快速开始
 
 ```bash
 # 1. 建库并导入初始数据（脚本内不含 CREATE DATABASE / USE 语句）
@@ -100,20 +123,20 @@ npm run dev
 
 > 初始密码等于系统"默认密码"配置，因此**首次登录会被判定为密码过期并要求修改**（`SysPasswordUtil.isUserPasswordExpired`），这是上游设计而非故障。修改后前端会写入新密码。
 
-## 六、默认端口与连接配置
+## 七、默认端口与连接配置
 
 | 配置项 | 默认值 | 位置 |
 |---|---|---|
 | 后端端口 | `82` | `snowy-web-app/src/main/resources/application.properties` |
 | 前端端口 | `81` | `snowy-admin-web/.env.development`（`VITE_PORT`） |
 | 前端 API 基址 | `http://127.0.0.1:82` | 同上（`VITE_API_BASEURL`），Vite 将 `/api` 代理并去掉前缀 |
-| MySQL | `localhost:3306/chameleon`，`root` / `12345678` | `application.properties` |
-| Redis | `127.0.0.1:6379`，`database=1`，无密码 | `application.properties` |
+| MySQL | `localhost:3306/chameleon`，`root` / `12345678` |
+| Redis | `127.0.0.1:6379`，`database=1`，无密码 |
 | 激活 profile | `local`（无对应 `application-local.*` 文件时即使用 `application.properties`） | `application.properties` |
 
 > 建议：如需保存个人连接信息而不污染仓库，可在 `snowy-web-app/src/main/resources/` 下新建 `application-local.yml`（Spring Boot 会自动按 profile 覆盖），并把它加入 `.gitignore`。
 
-## 七、本次改造记录（相对上游 v3.6.5）
+## 八、本次改造记录（相对上游 v3.6.5）
 
 **改为 Chameleon 的内容**
 
@@ -138,33 +161,20 @@ npm run dev
 - 配置键命名空间 `SNOWY_*`、`snowy.config.*`、CSS 变量 `--snowy-*`、`snowy-admin-web/src/snowy.js`、代码生成器默认插件名等；
 - 前端 logo 图片资源（`public/img/logo.png` 与 `DEV_CONFIG.SNOWY_SYS_LOGO` 的 base64）仍为上游素材，**请替换为你自己的商标**。
 
-## 八、验证状态
+## 九、测试与验证
 
-| 项目 | 状态 |
-|---|---|
-| 文件树与上游 v3.6.5 一致性（1745 个文件全量落地） | ✅ 已核对（逐文件 SHA256，0 缺失） |
-| 前端依赖安装与生产构建 `npm run build` | ✅ 已实测（1134 包，5320 模块，产物 870 文件） |
-| 后端 Maven 编译 `mvn compile` | ✅ 已实测（JDK 17.0.20.1，18 个模块全部 SUCCESS） |
-| 后端打包 `mvn package`（可执行 jar） | ✅ 已实测（`snowy-web-app-3.0.0.jar`，194.8 MiB，含 `BOOT-INF/classes/vip/xiaonuo/Application.class`） |
-| 数据库脚本导入 | ✅ 已实测（760 条语句 0 失败，33 张表，`SYS_USER` 2 行，`SNOWY_SYS_NAME=Chameleon`） |
-| 后端启动 | ✅ 已实测（`Started Application in 47.987 seconds`，`http://localhost:82`，Knife4j `/doc.html` 200） |
-| **登录进系统管理** | ✅ 已实测（`superAdmin` / `Chameleon@2026!` 取得 token；`getLoginUser`、`loginMenu`、`sys/user/page` 均返回真实数据） |
-| 前端开发服务器 `npm run dev` | ✅ 已实测（生产构建 + 静态服务 + Chrome CDP 浏览器验收） |
-| `mvn test` | ✅ 已实测（24 个用例全绿：扣课规则、收入确认、课时分摊、租户能力、资源可见性、点名状态、Excel 导出） |
-| 业务闭环 GUI 验收 | ✅ 已实测（招生/学员/课程/课表/点名/收款/报表/租户等页面，截图为本地产物，不入库） |
-| 易用性改造（工作台 / 收款台 / 一键点名 / 结构化课表） | ✅ 已实测（后端冒烟 17/17 通过，页面无控制台错误） |
+| 项目 | 命令 | 说明 |
+| --- | --- | --- |
+| 后端单元测试 | `mvn test` | **119** 个用例，纯逻辑不连库，CI 默认执行 |
+| 集成测试 | `./scripts/it.sh` | **9** 个用例（并发扣课不超扣、退费扣减一致性），需本机 MySQL 与独立库 `chameleon_it` |
+| 前端代码规范 | `cd snowy-admin-web && npm run lint` | 0 error；CI 为阻断项 |
+| 前端生产构建 | `cd snowy-admin-web && npm run build` | 通过 |
 
-> 本仓库内置了一份便携 JDK 17（`.jdk/jdk-17`，已被 `.gitignore` 忽略），
-> 用法见 [docs/01-环境准备.md](docs/01-环境准备.md) 第 1.1 节。
+集成测试会真实写库，因此使用独立的 `chameleon_it` 库，初始化与运行方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-> 上表的数据库与登录验证使用**外部 MySQL / Redis 实例**，连接信息通过环境变量
-> （`SPRING_DATASOURCE_*` / `SPRING_DATA_REDIS_*`）注入，未写入任何受版本控制的文件。
-> 复现步骤见 [docs/02-启动与验证.md](docs/02-启动与验证.md)。
->
-> 也可在**本机自建** MySQL 8 + Redis 5（无需外部实例）：按 `docs/08-部署与运维.md`
-> 「本地自建数据库」一节初始化后，直接用仓库默认配置（`localhost:3306` / `localhost:6379`）启动即可。
+> 仓库不包含便携 JDK、本地截图、`.env` 等本机产物，这些已在 `.gitignore` 中排除。
 
-## 九、文档索引
+## 十、文档索引
 
 - [docs/01-环境准备.md](docs/01-环境准备.md) —— JDK 17 / Maven / Node / MySQL / Redis 安装与自检
 - [docs/02-启动与验证.md](docs/02-启动与验证.md) —— 建库导入、启动前后端、登录验收清单、常见问题
@@ -225,7 +235,14 @@ npm run dev
 - [docs/_streams/finance.md](docs/_streams/finance.md) —— 财务指标口径、同比环比、导出记录与危险操作收口
 - [docs/_streams/platform.md](docs/_streams/platform.md) —— 平台套餐开关、经营指标、租户健康度与内部账单
 
-## 十、版权与出处
+根目录下还有：
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) —— 开发环境、分支规范、测试与代码约定
+- [SECURITY.md](SECURITY.md) —— 漏洞报告方式与部署方必须完成的安全基线
+- [CHANGELOG.md](CHANGELOG.md) —— 版本变更记录
+- [.env.example](.env.example) —— 生产环境变量模板
+
+## 十一、版权与出处
 
 本项目为 Snowy 的衍生工程，遵循 Apache License 2.0。
 
@@ -236,7 +253,7 @@ npm run dev
 
 Copyright [2022] [https://www.xiaonuo.vip]
 
-## 十一、安全须知（部署前必读）
+## 十二、安全须知（部署前必读）
 
 **仓库内的账号与口令全部是「本地初始化用的默认值」，不具备任何安全性。**
 
