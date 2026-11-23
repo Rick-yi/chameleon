@@ -94,11 +94,11 @@ const DEFAULT_CONFIG = {
 		// 背景图
 		SNOWY_SYS_BACK_IMAGE: '',
 		// 系统名称
-		SNOWY_SYS_NAME: 'Chameleon',
+		SNOWY_SYS_NAME: 'Chameleon 教育系统',
 		// 版本
 		SNOWY_SYS_VERSION: '3.0',
 		// 版权
-		SNOWY_SYS_COPYRIGHT: 'Chameleon ©2026 · Powered by Snowy (xiaonuo.vip)',
+		SNOWY_SYS_COPYRIGHT: 'Chameleon 教育系统 ©2026 · Powered by Snowy (xiaonuo.vip)',
 		// 版权跳转URL
 		SNOWY_SYS_COPYRIGHT_URL: 'https://www.xiaonuo.vip',
 		// 默认文件存储

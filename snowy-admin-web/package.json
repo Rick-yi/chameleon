@@ -2,7 +2,7 @@
 	"name": "chameleon-admin-web",
 	"version": "3.0.0",
 	"private": true,
-	"description": "Chameleon 前端（基于 Snowy 3.6.5 / Antdv4 + Vue3 + Vite6）",
+	"description": "Chameleon 教育系统 前端（基于 Snowy 3.6.5 / Antdv4 + Vue3 + Vite6）",
 	"repository": {
 		"type": "git",
 		"url": "https://www.gitee.com/xiaonuobase/snowy"

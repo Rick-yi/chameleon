@@ -1,6 +1,6 @@
-# Chameleon
+# Chameleon 教育系统
 
-基于 [Snowy](https://gitee.com/xiaonuobase/snowy) 开源快速开发平台构建的业务中台基础工程。
+基于 [Snowy](https://gitee.com/xiaonuobase/snowy) 构建的**教培机构教育系统**（多租户 SaaS）。
 
 > 上游基线：**Snowy v3.6.5**（tag `v3.6.5`，commit `2c9da36e218901c20cd3b261f33e75b89aeec984`）
 > 上游仓库：<https://gitee.com/xiaonuobase/snowy.git> ｜ 上游文档：<https://xiaonuo.vip/doc>
@@ -10,10 +10,10 @@
 
 ## 一、这是什么
 
-Chameleon 是把 Snowy v3.6.5 全量引入本仓库作为"底座"后的工程：
+Chameleon 教育系统是把 Snowy v3.6.5 全量引入本仓库作为"底座"后的工程：
 
 - 保留了 Snowy 的全部能力：RBAC 权限、机构/职位/用户/角色/资源、字典、配置、代码生成、文件、短信/邮件/推送、三方登录（OAuth/OIDC/SAML/CAS/JWT/钉钉/企微/飞书/微信…）、国密 SM2/SM3/SM4 前后端加解密、SSO、监控等；
-- 把**面向用户的产品标识**改成了 Chameleon（浏览器标题、系统名称、版权文案、默认密码、数据库名等）；
+- 把**面向用户的产品标识**改成了 Chameleon 教育系统（浏览器标题、系统名称、版权文案、默认密码、数据库名等）；
 - 把**开发环境配置**落到本机可用的默认值（MySQL / Redis / 端口）；
 - **不引入上游 git 历史**（本仓库为一个全新的初始提交），后续如需同步上游请按 [docs/03](docs/03-改名范围与上游同步.md) 手动比对。
 
@@ -138,13 +138,13 @@ npm run dev
 
 ## 八、本次改造记录（相对上游 v3.6.5）
 
-**改为 Chameleon 的内容**
+**改为 Chameleon 教育系统的内容**
 
 | 文件 | 改动 |
 |---|---|
 | `README.md` | 全量重写为本项目说明 |
-| `snowy-admin-web/index.html` | 浏览器标题、`noscript` 文案 → Chameleon |
-| `snowy-admin-web/src/config/index.js` | 系统名称 / 版权文案 / 默认重置密码 → Chameleon |
+| `snowy-admin-web/index.html` | 浏览器标题、`noscript` 文案 → Chameleon 教育系统 |
+| `snowy-admin-web/src/config/index.js` | 系统名称 / 版权文案 / 默认重置密码 → Chameleon 教育系统 |
 | `snowy-admin-web/package.json` | 包名 `chameleon-admin-web`、描述 |
 | `snowy-web-app/.../application.properties` | `spring.application.name=chameleon`；JDBC 库名 `snowy`→`chameleon` |
 | `snowy-web-app/.../application-docker.yml` | `MYSQL_DB` 默认值 → `chameleon` |

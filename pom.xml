@@ -5,9 +5,9 @@
 
     <groupId>vip.xiaonuo</groupId>
     <artifactId>snowy</artifactId>
-    <name>snowy</name>
+    <name>Chameleon 教育系统</name>
     <version>3.0.0</version>
-    <description>snowy快速开发平台</description>
+    <description>Chameleon 教育系统（教培机构多租户 SaaS，基于 Snowy）</description>
     <packaging>pom</packaging>
 
     <parent>
