@@ -87,9 +87,13 @@ chameleon
 ## 六、快速开始
 
 ```bash
-# 1. 建库并导入初始数据（脚本内不含 CREATE DATABASE / USE 语句）
-mysql -uroot -p -e "CREATE DATABASE chameleon DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;"
-mysql -uroot -p chameleon < snowy-web-app/src/main/resources/_sql/snowy_mysql.sql
+# 1. 初始化数据库：建库 + 按依赖顺序导入全部 SQL（含业务表、菜单、权限与演示数据）
+#    需要 mysql 客户端在 PATH；Windows 可用 MYSQL_BIN 指定绝对路径
+node scripts/db-init.mjs --user root --password 你的密码 --database chameleon
+#    生产环境不要演示数据：追加 --skip-demo
+
+#    注意：只导入 _sql/snowy_mysql.sql 是不够的——它只建底座表，
+#    业务表（COURSE / STUDENT / COURSE_CLASS …）在 chameleon_*.sql 里。
 
 # 2. 按需修改数据库/Redis 连接
 #    snowy-web-app/src/main/resources/application.properties
@@ -145,7 +149,7 @@ npm run dev
 |---|---|
 | `README.md` | 全量重写为本项目说明 |
 | `snowy-admin-web/index.html` | 浏览器标题、`noscript` 文案 → Chameleon 教育系统 |
-| `snowy-admin-web/src/config/index.js` | 系统名称 / 版权文案 / 默认重置密码 → Chameleon 教育系统 |
+| `snowy-admin-web/src/config/index.js` | 系统名称 / 版权文案 → Chameleon 教育系统（默认口令 `Chameleon@2026!` 保持不变） |
 | `snowy-admin-web/package.json` | 包名 `chameleon-admin-web`、描述 |
 | `snowy-web-app/.../application.properties` | `spring.application.name=chameleon`；JDBC 库名 `snowy`→`chameleon` |
 | `snowy-web-app/.../application-docker.yml` | `MYSQL_DB` 默认值 → `chameleon` |
@@ -308,7 +312,9 @@ Copyright [2022] [https://www.xiaonuo.vip]
 3. **改数据库口令**：通过环境变量注入，不要使用 compose 默认值；
 4. **禁用演示租户与演示账号**；
 5. **关闭 Druid 监控台**：`application-prod.yml` 已默认关闭，并确认反代层拒绝 `/druid/**`；
-6. 配置 HTTPS，并确认 `/api/doc.html` 不对公网暴露（本项目返回 401 属正常）。
+6. 关闭接口文档：生产已设 `knife4j.production=true`（`application-prod.yml`），确认 `/doc.html` 不可访问；
+   本地调试用的 `knife4j.basic.username/password`（admin/123456）绝不能带到公网。
+7. **启用 HTTPS**：反向代理只暴露前端静态资源与 `/api`。
 
 ### 不要提交的内容
 

@@ -28,7 +28,8 @@
 3. 数据库/Redis 口令通过环境变量注入，不要用 compose 默认值
 4. 禁用演示租户与演示账号
 5. 确认 Druid 监控台关闭（`application-prod.yml` 默认关闭），并在反向代理层拒绝 `/druid/**`
-6. 启用 HTTPS；`/api/doc.html` 不应匿名可访问（本项目返回 401 属正常）
+6. 确认接口文档关闭：`application-prod.yml` 设 `knife4j.production=true`，`/doc.html` 不可访问；本地 basic 认证的 `admin/123456` 不要带到公网
+7. 启用 HTTPS，并确保反向代理只暴露必要路径（前端静态资源 + `/api`）
 
 ## 已知的设计取舍
 
