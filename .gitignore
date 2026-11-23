@@ -60,3 +60,5 @@ application-prod-local.yml
 snowy-admin-web/dist-release/
 snowy-admin-web/dist-build/
 *.sql.gz
+### 验收截图（QA 产物，含真实机构与学员信息，不入库）###
+gui-test-screenshots/

@@ -3,7 +3,7 @@ import { writeFileSync, mkdirSync } from 'node:fs'
 
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe'
 const BASE = 'http://localhost:81'
-const SHOT_DIR = 'D:/IdeaProject/chameleon/gui-test-screenshots/btnperm'
+const SHOT_DIR = process.env.SHOT_DIR || 'gui-test-screenshots/btnperm'
 mkdirSync(SHOT_DIR, { recursive: true })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const TENANT = 'demo'
