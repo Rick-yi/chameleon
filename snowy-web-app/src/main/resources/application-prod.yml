@@ -30,3 +30,7 @@ spring:
 # 文件日志目录（非 local 环境启用文件输出）
 log:
   path: ${LOG_PATH:./logs}
+
+# 生产关闭接口文档（否则 /doc.html 仅靠 knife4j basic admin/123456 保护）
+knife4j:
+  production: true
