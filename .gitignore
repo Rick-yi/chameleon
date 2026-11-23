@@ -40,3 +40,23 @@ data/
 .m2-repo/
 !**/src/main/resources/lib/*.jar
 !**/allatori/**
+
+### 敏感配置与凭据（绝不入库）###
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa*
+application-local.properties
+application-local.yml
+application-prod-local.yml
+
+### 压测与验收产物 ###
+snowy-admin-web/dist-release/
+snowy-admin-web/dist-build/
+*.sql.gz

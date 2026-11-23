@@ -1,0 +1,15 @@
+chameleon 教培机构 SaaS
+Copyright 2026 chameleon contributors
+
+本产品包含由 小诺开源技术（https://www.xiaonuo.vip）开发的 Snowy 平台的代码。
+Snowy 采用 Apache License 2.0 授权，其版权归原作者所有。
+
+本项目基于 Snowy 进行了大量业务改造（教培机构多租户 SaaS），
+但保留了上游的源文件版权声明。分发本产品时须同时保留本 NOTICE
+与各源文件头部的版权声明。
+
+上游条款提示（非 Apache License 2.0 内容，由上游自行附加）：
+上游声明「不可二次分发开源参与同类竞品」。如需将本项目用于与
+Snowy 构成同类竞争的产品，请先与上游确认或购买商业授权。
+
+Apache License 2.0 全文见同目录 LICENSE 文件。

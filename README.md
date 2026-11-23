@@ -232,5 +232,33 @@ npm run dev
 - Snowy 版权归属：小诺开源技术（<https://www.xiaonuo.vip>）
 - 请勿删除或修改源码头部的版权与作者声明及出处；
 - 二次开源不得参与同类竞争（上游条款）。
+- 分发时须同时保留 `LICENSE` 与 `NOTICE`。
 
 Copyright [2022] [https://www.xiaonuo.vip]
+
+## 十一、安全须知（部署前必读）
+
+**仓库内的账号与口令全部是「本地初始化用的默认值」，不具备任何安全性。**
+
+### 会被公开的默认值
+
+| 位置 | 内容 | 说明 |
+| --- | --- | --- |
+| `_sql/snowy_mysql.sql` | `SNOWY_SYS_DEFAULT_PASSWORD_FOR_B/C` | 新建用户的默认口令 |
+| `_sql/snowy_mysql.sql` | 内置 `superAdmin` 的口令哈希 | 无盐 SM3，明文可见于文档 |
+| `application.properties` | 本地 MySQL `root` 口令 | 仅 localhost 开发用 |
+| `docker-compose.yml` | compose 默认数据库口令 | 仅演示用 |
+
+### 上公网前必须完成
+
+1. **修改所有内置账号口令**：`superAdmin`、`platformAdmin` 及各机构管理员；
+2. **修改默认口令配置**：`DEV_CONFIG` 中 `SNOWY_SYS_DEFAULT_PASSWORD_FOR_B/C`，否则新建用户永远是公开口令；
+3. **改数据库口令**：通过环境变量注入，不要使用 compose 默认值；
+4. **禁用演示租户与演示账号**；
+5. **关闭 Druid 监控台**：`application-prod.yml` 已默认关闭，并确认反代层拒绝 `/druid/**`；
+6. 配置 HTTPS，并确认 `/api/doc.html` 不对公网暴露（本项目返回 401 属正常）。
+
+### 不要提交的内容
+
+`.env`、`*.pem`、`*.key`、`*.p12`、`application-local.properties` 已在 `.gitignore` 中排除。若曾误提交，仅删除文件不够——历史提交仍可检出，需要重写历史或轮换凭据。
+
