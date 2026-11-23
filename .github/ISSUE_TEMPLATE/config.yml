@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 报告安全漏洞
+    url: https://github.com/Rick-yi/chameleon/security/advisories/new
+    about: 请勿通过公开 Issue 报告安全漏洞，使用私密渠道。
+  - name: 部署与安全基线
+    url: https://github.com/Rick-yi/chameleon/blob/main/README.md#十二安全须知部署前必读
+    about: 上公网前必须完成的口令、Druid、HTTPS 等检查。
