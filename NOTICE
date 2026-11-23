@@ -12,4 +12,8 @@ Snowy 采用 Apache License 2.0 授权，其版权归原作者所有。
 上游声明「不可二次分发开源参与同类竞品」。如需将本项目用于与
 Snowy 构成同类竞争的产品，请先与上游确认或购买商业授权。
 
+本仓库采用双许可：
+- 本项目原创的教培业务代码以 MIT 授权，范围见 LICENSES.md 与 LICENSE-MIT；
+- 上游 Snowy 及其衍生部分仍适用 Apache License 2.0，全文见 LICENSE。
+
 Apache License 2.0 全文见同目录 LICENSE 文件。

@@ -4,7 +4,7 @@
 
 > 上游基线：**Snowy v3.6.5**（tag `v3.6.5`，commit `2c9da36e218901c20cd3b261f33e75b89aeec984`）
 > 上游仓库：<https://gitee.com/xiaonuobase/snowy.git> ｜ 上游文档：<https://xiaonuo.vip/doc>
-> 许可证：Apache License 2.0（见 [LICENSE](LICENSE)）
+> 许可证：**双许可** —— 原创业务代码 MIT，衍生自 Snowy 的部分 Apache 2.0（范围见 [LICENSES.md](LICENSES.md)）
 > 架构与设计取舍见 [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ---
@@ -185,12 +185,14 @@ npm run dev
 
 - [01-环境准备](docs/01-环境准备.md) —— JDK 17 / Maven / Node / MySQL / Redis 安装与自检
 - [02-启动与验证](docs/02-启动与验证.md) —— 建库导入、启动前后端、登录验收清单、常见问题
+
 ### 核心设计
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) —— 模块划分、多租户隔离、账务模型、启动流程与关键取舍
 - [04-教培SaaS产品方案](docs/04-教培SaaS产品方案.md) —— 产品定位、模块划分、数据模型与里程碑
 - [05-核心业务逻辑细化](docs/05-核心业务逻辑细化.md) —— 课时账务、排课、退费、续费预警的业务规则
 - [09-主体流程](docs/09-主体流程.md) —— 十条主干业务流程（工作台/租户运营/招生/报名收款/排课/点名消课/退费续费/报表/权限/通知）
+
 ### 专题说明
 
 - [06-P0完成说明](docs/06-P0完成说明.md) —— 多租户开通闭环、平台鉴权、退费修正、定时任务与 v1 支付范围
@@ -203,17 +205,20 @@ npm run dev
 - [16-排课助手与转化自动化](docs/16-排课助手与转化自动化.md) —— 推荐可排课时段、试听结束自动推进、数据库一键初始化与 CI
 - [17-并发约束与异步导出](docs/17-并发约束与异步导出.md) —— 排课唯一约束与冲突明细、移动端消息中心、通用异步导出
 - [26-生产试用体验问题与需求清单](docs/26-生产试用体验问题与需求清单.md) —— 按角色梳理的试用问题、优先级与需求
+
 ### 运维与部署
 
 - [08-部署与运维](docs/08-部署与运维.md) —— 部署方式、数据库初始化顺序、环境变量、备份恢复与巡检
 - [03-改名范围与上游同步](docs/03-改名范围与上游同步.md) —— 改名边界、为什么不改包名、如何同步上游、如何做深度改名
-- [SECURITY.md](SECURITY.md)
-- [CHANGELOG.md](CHANGELOG.md)
-- [.env.example](.env.example)
+- [SECURITY](SECURITY.md) —— 漏洞报告方式与部署方必须完成的安全基线
+- [CHANGELOG](CHANGELOG.md) —— 版本变更记录
+- [.env.example](.env.example) —— 生产环境变量模板
+
 ### 开发规范
 
 - [10-界面设计规范](docs/10-界面设计规范.md) —— 企业级 UI 规范：设计令牌、页面三段式结构、组件规整与图表配色
-- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [CONTRIBUTING](CONTRIBUTING.md) —— 开发环境、分支规范、测试与代码约定
+
 ### 模块专题
 
 - [crm](docs/_streams/crm.md) —— CRM 查重、跟进分页、试听视图与工作台内联跟进
@@ -222,6 +227,14 @@ npm run dev
 - [student](docs/_streams/student.md) —— 学员标签、状态机、导入导出与动态时间线
 - [finance](docs/_streams/finance.md) —— 财务指标口径、同比环比、导出记录与危险操作收口
 - [platform](docs/_streams/platform.md) —— 平台套餐开关、经营指标、租户健康度与内部账单
+
+### 许可与出处
+
+- [LICENSES](LICENSES.md) —— 双许可范围：原创业务代码 MIT、衍生部分 Apache 2.0
+- [LICENSE-MIT](LICENSE-MIT) —— MIT 许可证全文（适用于原创业务代码）
+- [LICENSE](LICENSE)
+- [NOTICE](NOTICE)
+
 ### 迭代记录
 
 按开发顺序记录每轮改动的背景与验证，属于历史细节，按需查阅。
@@ -281,14 +294,21 @@ npm run dev
 
 </details>
 
-## 十一、版权与出处
+## 十一、版权与许可
 
-本项目为 Snowy 的衍生工程，遵循 Apache License 2.0。
+本项目为 [Snowy](https://www.xiaonuo.vip) v3.6.5 的衍生工程，采用**双许可**：
+
+| 范围 | 许可证 |
+| --- | --- |
+| 本项目原创的教培业务代码（学员/课务/CRM/财务/平台等，459 个文件） | **MIT**，见 [LICENSE-MIT](LICENSE-MIT) |
+| 上游 Snowy 及其衍生部分（底座、系统管理、鉴权、前端框架等） | **Apache License 2.0**，见 [LICENSE](LICENSE) |
+
+具体路径范围见 [LICENSES.md](LICENSES.md)；不在 MIT 清单内的文件一律按 Apache 2.0 授权。
 
 - Snowy 版权归属：小诺开源技术（<https://www.xiaonuo.vip>）
 - 请勿删除或修改源码头部的版权与作者声明及出处；
-- 二次开源不得参与同类竞争（上游条款）。
-- 分发时须同时保留 `LICENSE` 与 `NOTICE`。
+- 上游附加条款：不可二次分发开源参与同类竞品（见 [NOTICE](NOTICE)）；
+- 分发时须同时保留 `LICENSE`、`LICENSE-MIT` 与 `NOTICE`。
 
 Copyright [2022] [https://www.xiaonuo.vip]
 
